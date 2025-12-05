@@ -46,12 +46,19 @@
 
             <!-- Settings Dropdown -->
             <div class="hidden sm:flex sm:items-center sm:space-x-4">
+                <!-- Login Button -->
+                @guest
+                <a href="{{ route('login') }}" class="bg-white/20 hover:bg-white/30 text-white font-bold px-6 py-3 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+                    Log In
+                </a>
                 <!-- CTA Button -->
                 <a href="#" class="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold px-6 py-3 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
                     Get Started
                 </a>
+                @endguest
 
                 <!-- User Dropdown -->
+                @auth
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center px-4 py-3 border-2 border-white/30 text-sm leading-4 font-semibold rounded-full text-white bg-white/10 backdrop-blur-sm hover:bg-white/20 hover:border-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all duration-300 transform hover:scale-105 shadow-lg">
@@ -97,6 +104,7 @@
                         </div>
                     </x-slot>
                 </x-dropdown>
+                @endauth
             </div>
 
             <!-- Hamburger -->
@@ -138,6 +146,7 @@
 
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-4 border-t border-white/20">
+            @auth
             <div class="px-4 mb-4">
                 <div class="flex items-center space-x-3 bg-white/10 rounded-lg p-3">
                     <div class="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center text-gray-900 font-bold text-xl">
@@ -168,13 +177,22 @@
                     </x-responsive-nav-link>
                 </form>
             </div>
+            @endauth
 
+            @guest
             <!-- Mobile CTA -->
             <div class="px-4 mt-4">
-                <a href="#" class="block text-center bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold px-6 py-4 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg">
+                <a href="{{ route('login') }}" class="block text-center bg-white/20 hover:bg-white/30 text-white font-bold px-6 py-4 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg">
+                    Log In
+                </a>
+            </div>
+
+            <div class="px-4 mt-4">
+                <a href="{{ route('register') }}" class="block text-center bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold px-6 py-4 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg">
                     Get Started
                 </a>
             </div>
+            @endguest
         </div>
     </div>
 </nav>
