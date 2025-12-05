@@ -1,89 +1,124 @@
 <x-guest-layout>
-                    <!-- Login Heading -->
-                    <div class="text-center mb-8">
-                        <h1 class="text-3xl font-bold text-blue-600 mb-2">Login</h1>
-                        <p class="text-gray-500 text-sm">Sign in to continue.</p>
-                    </div>
+    <!-- Login Heading -->
+    <div class="text-center mb-8">
+        <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-3">
+            Welcome Back
+        </h2>
+        <p class="text-gray-500">Sign in to continue your journey</p>
+    </div>
 
-                    <!-- Session Status -->
-                    <x-auth-session-status class="mb-6" :status="session('status')" />
+    <!-- Session Status -->
+    <x-auth-session-status class="mb-6" :status="session('status')" />
 
-                    <!-- Login Form -->
-                    <form method="POST" action="{{ route('login') }}" class="space-y-6">
-                        @csrf
+    <!-- Login Form -->
+    <form method="POST" action="{{ route('login') }}" class="space-y-6">
+        @csrf
 
-                        <!-- Email/Username Field -->
-                        <div>
-                            <label for="email"
-                                class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                                Username
-                            </label>
-                            <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus
-                                autocomplete="username" placeholder="Enter your username"
-                                class="w-full px-4 py-4 bg-gray-100 border-0 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-gray-50 focus:ring-2 focus:ring-blue-500 transition duration-200 @error('email') ring-2 ring-red-500 @enderror">
-                            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-                        </div>
+        <!-- Email Field with Icon -->
+        <div class="group">
+            <label for="email" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                <i class="fa-solid fa-envelope mr-2 text-blue-600"></i>Username
+            </label>
+            <div class="relative">
+                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <input 
+                    id="email" 
+                    type="email" 
+                    name="email" 
+                    value="{{ old('email') }}" 
+                    required 
+                    autofocus
+                    autocomplete="username" 
+                    placeholder="Enter your username"
+                    class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('email') border-red-500 ring-4 ring-red-100 @enderror"
+                >
+            </div>
+            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+        </div>
 
-                        <!-- Password Field -->
-                        <div x-data="{ showPassword: false }">
-                            <label for="password"
-                                class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                                Pin
-                            </label>
-                            <div class="relative">
-                                <input id="password" :type="showPassword ? 'text' : 'password'" name="password" required
-                                    autocomplete="current-password" placeholder="Enter your PIN"
-                                    class="w-full px-4 py-4 pr-12 bg-gray-100 border-0 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-gray-50 focus:ring-2 focus:ring-blue-500 transition duration-200 @error('password') ring-2 ring-red-500 @enderror">
-                                <button type="button" @click="showPassword = !showPassword"
-                                    class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                                    tabindex="-1">
-                                    <svg x-show="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                    <svg x-show="showPassword" x-cloak class="w-5 h-5" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-                        </div>
+        <!-- Password Field with Toggle -->
+        <div x-data="{ showPassword: false }" class="group">
+            <label for="password" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                <i class="fa-solid fa-lock mr-2 text-purple-600"></i>Pin
+            </label>
+            <div class="relative">
+                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-purple-600 transition-colors duration-300">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+                <input 
+                    id="password" 
+                    :type="showPassword ? 'text' : 'password'" 
+                    name="password" 
+                    required
+                    autocomplete="current-password" 
+                    placeholder="Enter your PIN"
+                    class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 @error('password') border-red-500 ring-4 ring-red-100 @enderror"
+                >
+                <button 
+                    type="button" 
+                    @click="showPassword = !showPassword"
+                    class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none p-1 hover:bg-gray-100 rounded-lg transition-all duration-300"
+                    tabindex="-1"
+                >
+                    <i :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'" class="text-lg"></i>
+                </button>
+            </div>
+            <x-input-error :messages="$errors->get('password')" class="mt-2" />
+        </div>
 
-                        <!-- Remember Me -->
-                        <div class="flex items-center">
-                            <input id="remember_me" type="checkbox" name="remember"
-                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2">
-                            <label for="remember_me" class="ml-2 text-sm text-gray-600">
-                                Remember me
-                            </label>
-                        </div>
+        <!-- Remember Me -->
+        <div class="flex items-center justify-between">
+            <label class="flex items-center cursor-pointer group">
+                <input 
+                    id="remember_me" 
+                    type="checkbox" 
+                    name="remember"
+                    class="w-5 h-5 text-blue-600 bg-gray-50 border-2 border-gray-300 rounded focus:ring-4 focus:ring-blue-100 transition-all duration-300 cursor-pointer"
+                >
+                <span class="ml-3 text-sm text-gray-600 group-hover:text-gray-900 transition-colors duration-300">
+                    Remember me
+                </span>
+            </label>
 
-                        <!-- Login Button -->
-                        <button type="submit"
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                            Log in
-                        </button>
+            @if (Route::has('password.request'))
+                <a href="{{ route('password.request') }}" class="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-all duration-300">
+                    Forgot PIN?
+                </a>
+            @endif
+        </div>
 
-                        <!-- Footer Links -->
-                        <div class="text-center space-y-2 pt-4">
-                            @if (Route::has('password.request'))
-                                <a href="{{ route('password.request') }}"
-                                    class="block text-sm text-gray-500 hover:text-blue-600 transition">
-                                    Forgot Password?
-                                </a>
-                            @endif
+        <!-- Login Button -->
+        <button 
+            type="submit"
+            class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 group"
+        >
+            <span class="flex items-center justify-center">
+                <i class="fa-solid fa-right-to-bracket mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
+                Log in
+            </span>
+        </button>
 
-                            @if (Route::has('register'))
-                                <a href="{{ route('register') }}"
-                                    class="block text-sm text-gray-500 hover:text-blue-600 transition">
-                                    Signup !
-                                </a>
-                            @endif
-                        </div>
-                    </form>
+        <!-- Divider -->
+        <div class="relative my-8">
+            <div class="absolute inset-0 flex items-center">
+                <div class="w-full border-t-2 border-gray-200"></div>
+            </div>
+            <div class="relative flex justify-center text-sm">
+                <span class="px-4 bg-white text-gray-500 font-medium">New to HiFastLink?</span>
+            </div>
+        </div>
+
+        <!-- Sign Up Link -->
+        @if (Route::has('register'))
+            <a 
+                href="{{ route('register') }}"
+                class="block w-full text-center bg-white border-2 border-gray-300 hover:border-blue-600 text-gray-700 hover:text-blue-600 font-semibold py-4 rounded-2xl transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg group"
+            >
+                <i class="fa-solid fa-user-plus mr-2 group-hover:scale-110 inline-block transition-transform duration-300"></i>
+                Create Account
+            </a>
+        @endif
+    </form>
 </x-guest-layout>

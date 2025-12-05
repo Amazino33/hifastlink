@@ -14,47 +14,56 @@
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 </head>
 
 <body class="font-sans antialiased">
-    <div class="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-        <div class="w-full max-w-md">
-            <div class="bg-white rounded-3xl shadow-2xl overflow-hidden">
+    <!-- Animated Background -->
+    <div class="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4 relative overflow-hidden">
+        <!-- Animated background circles -->
+        <div class="absolute inset-0 overflow-hidden">
+            <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-200 rounded-full blur-3xl opacity-30 animate-pulse"></div>
+            <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-200 rounded-full blur-3xl opacity-30 animate-pulse" style="animation-delay: 1s;"></div>
+            <div class="absolute top-1/2 left-1/2 w-96 h-96 bg-pink-200 rounded-full blur-3xl opacity-20 animate-pulse" style="animation-delay: 2s;"></div>
+        </div>
 
-                <!-- Blue Header Section with Logo -->
-                <div class="bg-gradient-to-br from-blue-500 to-blue-600 px-6 pt-12 pb-20 relative">
-                    <!-- Network Pattern Background -->
+        <div class="w-full max-w-md relative z-10">
+            <div class="bg-white rounded-3xl shadow-2xl overflow-hidden transform hover:scale-[1.01] transition-transform duration-300">
+
+                <!-- Gradient Header with Logo -->
+                <div class="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 px-8 pt-12 pb-24 relative overflow-hidden">
+                    <!-- Animated pattern background -->
                     <div class="absolute inset-0 opacity-10">
-                        <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                            <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-                                <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" stroke-width="0.5" />
-                            </pattern>
-                            <rect width="100" height="100" fill="url(#grid)" />
-                        </svg>
-                    </div>
-
-                    <!-- Logo -->
-                    <div class="flex justify-center mb-6 relative z-10">
-                        <div class="w-20 h-20 bg-white rounded-2xl shadow-lg flex items-center justify-center">
-                            <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0">
-                                </path>
-                            </svg>
+                        <div class="absolute top-0 left-0 w-full h-full">
+                            <div class="absolute top-10 left-10 w-32 h-32 bg-white rounded-full blur-2xl animate-pulse"></div>
+                            <div class="absolute bottom-10 right-10 w-40 h-40 bg-yellow-300 rounded-full blur-2xl animate-pulse" style="animation-delay: 0.5s;"></div>
                         </div>
                     </div>
 
-                    {{-- <div>
-                        <a href="/">
-                            <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
-                        </a>
-                    </div> --}}
+                    <!-- Logo/Icon -->
+                    <div class="flex justify-center mb-6 relative z-10">
+                        <div class="w-24 h-24 bg-white rounded-3xl shadow-2xl flex items-center justify-center transform hover:rotate-6 transition-transform duration-300 group">
+                            <i class="fa-solid fa-satellite text-5xl text-transparent bg-clip-text bg-gradient-to-br from-blue-600 to-purple-600 group-hover:scale-110 transition-transform duration-300"></i>
+                        </div>
+                    </div>
+
+                    <!-- Brand Name -->
+                    <div class="text-center relative z-10">
+                        <h1 class="text-white text-3xl font-black mb-2">HiFastLink</h1>
+                        <p class="text-blue-100 text-sm">Connect to the Future</p>
+                    </div>
                 </div>
 
-                <!-- White Form Section with Curved Top -->
-                <div class="bg-white -mt-12 rounded-t-[3rem] relative z-10 px-8 pt-10 pb-8">
+                <!-- Form Section with Curved Overlay -->
+                <div class="bg-white -mt-16 rounded-t-[3rem] relative z-10 px-8 pt-12 pb-10">
                     {{ $slot }}
                 </div>
+            </div>
+
+            <!-- Footer Text -->
+            <div class="text-center mt-8 text-gray-600">
+                <p class="text-sm">© 2024 HiFastLink. Powered by Satellite Technology</p>
             </div>
         </div>
     </div>
