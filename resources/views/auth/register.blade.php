@@ -1,7 +1,7 @@
 <x-guest-layout>
     <!-- Register Heading -->
     <div class="text-center mb-8">
-        <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-3">
+        <h2 class="text-4xl font-black text-transparent bg-clip-text bg-primary mb-3">
             Join HiFastLink
         </h2>
         <p class="text-gray-500">Create your account and get connected</p>
@@ -14,7 +14,7 @@
         <!-- Full Name Field -->
         <div class="group">
             <label for="name" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                <i class="fa-solid fa-user mr-2 text-blue-600"></i>Full Name
+                <i class="fa-solid fa-user mr-2 text-primary"></i>Full Name
             </label>
             <div class="relative">
                 <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
@@ -38,7 +38,7 @@
         <!-- Email Field -->
         <div class="group">
             <label for="email" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                <i class="fa-solid fa-envelope mr-2 text-purple-600"></i>Email Address
+                <i class="fa-solid fa-envelope mr-2 text-primary"></i>Email Address
             </label>
             <div class="relative">
                 <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-purple-600 transition-colors duration-300">
@@ -61,7 +61,7 @@
         <!-- Phone Number Field -->
         <div class="group">
             <label for="phone" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                <i class="fa-solid fa-phone mr-2 text-green-600"></i>Phone Number
+                <i class="fa-solid fa-phone mr-2 text-primary"></i>Phone Number
             </label>
             <div class="relative">
                 <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-green-600 transition-colors duration-300">
@@ -82,7 +82,7 @@
         <!-- Password Field -->
         <div x-data="{ showPassword: false }" class="group">
             <label for="password" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                <i class="fa-solid fa-lock mr-2 text-pink-600"></i>Password
+                <i class="fa-solid fa-lock mr-2 text-primary"></i>Password
             </label>
             <div class="relative">
                 <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-pink-600 transition-colors duration-300">
@@ -112,7 +112,7 @@
         <!-- Confirm Password Field -->
         <div x-data="{ showConfirmPassword: false }" class="group">
             <label for="password_confirmation" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                <i class="fa-solid fa-lock mr-2 text-orange-600"></i>Confirm Password
+                <i class="fa-solid fa-lock mr-2 text-primary"></i>Confirm Password
             </label>
             <div class="relative">
                 <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-orange-600 transition-colors duration-300">
@@ -142,7 +142,7 @@
         <!-- Register Button -->
         <button 
             type="submit"
-            class="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-purple-300 group mt-6"
+            class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-purple-300 group mt-6"
         >
             <span class="flex items-center justify-center">
                 <i class="fa-solid fa-rocket mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
@@ -163,7 +163,7 @@
         <!-- Login Link -->
         <a 
             href="{{ route('login') }}"
-            class="block w-full text-center bg-white border-2 border-gray-300 hover:border-purple-600 text-gray-700 hover:text-purple-600 font-semibold py-4 rounded-2xl transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg group"
+            class="block w-full text-center bg-white border-2 border-gray-300 hover:border-primary text-gray-700 hover:text-blue-700 font-semibold py-4 rounded-2xl transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg group"
         >
             <i class="fa-solid fa-right-to-bracket mr-2 group-hover:scale-110 inline-block transition-transform duration-300"></i>
             Sign In Instead
