@@ -15,6 +15,8 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    'import_api_key' => env('IMPORT_API_KEY', 'default-test-key'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
