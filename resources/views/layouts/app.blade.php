@@ -37,7 +37,7 @@
         </main>
 
         <!-- Modern Footer -->
-        <footer class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden mt-auto">
+        <footer class="text-white relative overflow-hidden mt-auto" style="background-color: #004d9f;">
             <!-- Animated background elements -->
             <div class="absolute inset-0 opacity-10">
                 <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-500 rounded-full blur-3xl animate-pulse"></div>
@@ -51,10 +51,7 @@
                     <!-- Brand Section -->
                     <div class="lg:col-span-1">
                         <a href="/" class="flex items-center mb-6 group">
-                            <div class="relative">
-                                <img src="https://flowbite.com/docs/images/logo.svg" class="h-10 me-3 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12 filter brightness-0 invert" alt="HiFastLink Logo" />
-                            </div>
-                            <span class="text-white text-2xl font-black">HiFastLink</span>
+                            <x-application-logo />
                         </a>
                         <p class="text-gray-300 leading-relaxed mb-6">
                             Lightning-fast satellite internet that connects you anywhere, anytime. Experience the future of connectivity.
@@ -80,34 +77,34 @@
 
                     <!-- Quick Links -->
                     <div>
-                        <h3 class="text-yellow-400 font-bold text-lg mb-6 uppercase tracking-wide">Quick Links</h3>
+                        <h3 class="text-white font-bold text-lg mb-6 uppercase tracking-wide">Quick Links</h3>
                         <ul class="space-y-3">
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-yellow-400 transition-colors duration-300 flex items-center group">
+                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Home
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-yellow-400 transition-colors duration-300 flex items-center group">
+                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     About Us
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-yellow-400 transition-colors duration-300 flex items-center group">
+                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Services
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-yellow-400 transition-colors duration-300 flex items-center group">
+                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Pricing Plans
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-yellow-400 transition-colors duration-300 flex items-center group">
+                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Coverage Map
                                 </a>
@@ -117,34 +114,34 @@
 
                     <!-- Support -->
                     <div>
-                        <h3 class="text-yellow-400 font-bold text-lg mb-6 uppercase tracking-wide">Support</h3>
+                        <h3 class="text-white font-bold text-lg mb-6 uppercase tracking-wide">Support</h3>
                         <ul class="space-y-3">
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-yellow-400 transition-colors duration-300 flex items-center group">
+                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Help Center
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-yellow-400 transition-colors duration-300 flex items-center group">
+                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Contact Us
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-yellow-400 transition-colors duration-300 flex items-center group">
+                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     FAQs
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-yellow-400 transition-colors duration-300 flex items-center group">
+                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Installation Guide
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-yellow-400 transition-colors duration-300 flex items-center group">
+                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Network Status
                                 </a>
@@ -154,11 +151,11 @@
 
                     <!-- Contact Info -->
                     <div>
-                        <h3 class="text-yellow-400 font-bold text-lg mb-6 uppercase tracking-wide">Get In Touch</h3>
+                        <h3 class="text-white font-bold text-lg mb-6 uppercase tracking-wide">Get In Touch</h3>
                         <ul class="space-y-4">
                             <li class="flex items-start group">
                                 <div class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center mr-3 group-hover:bg-blue-500 transition-all duration-300">
-                                    <i class="fa-solid fa-location-dot text-yellow-400 group-hover:text-white"></i>
+                                    <i class="fa-solid fa-location-dot text-white group-hover:text-white"></i>
                                 </div>
                                 <div>
                                     <p class="text-gray-300">Lagos, Nigeria</p>
@@ -167,7 +164,7 @@
                             </li>
                             <li class="flex items-start group">
                                 <div class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center mr-3 group-hover:bg-green-500 transition-all duration-300">
-                                    <i class="fa-solid fa-phone text-yellow-400 group-hover:text-white"></i>
+                                    <i class="fa-solid fa-phone text-white group-hover:text-white"></i>
                                 </div>
                                 <div>
                                     <p class="text-gray-300">+234 800 123 4567</p>
@@ -176,7 +173,7 @@
                             </li>
                             <li class="flex items-start group">
                                 <div class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center mr-3 group-hover:bg-purple-500 transition-all duration-300">
-                                    <i class="fa-solid fa-envelope text-yellow-400 group-hover:text-white"></i>
+                                    <i class="fa-solid fa-envelope text-white group-hover:text-white"></i>
                                 </div>
                                 <div>
                                     <p class="text-gray-300">info@hifastlink.com</p>
@@ -196,29 +193,13 @@
                         © 2024 <span class="text-white font-semibold">HiFastLink</span>. All Rights Reserved. | Powered by Satellite Technology
                     </div>
                     <div class="flex flex-wrap justify-center gap-6">
-                        <a href="#" class="text-gray-400 hover:text-yellow-400 text-sm transition-colors duration-300">Privacy Policy</a>
+                        <a href="#" class="text-gray-400 hover:text-blue-400 text-sm transition-colors duration-300">Privacy Policy</a>
                         <span class="text-gray-600">•</span>
-                        <a href="#" class="text-gray-400 hover:text-yellow-400 text-sm transition-colors duration-300">Terms of Service</a>
+                        <a href="#" class="text-gray-400 hover:text-blue-400 text-sm transition-colors duration-300">Terms of Service</a>
                         <span class="text-gray-600">•</span>
-                        <a href="#" class="text-gray-400 hover:text-yellow-400 text-sm transition-colors duration-300">Cookie Policy</a>
+                        <a href="#" class="text-gray-400 hover:text-blue-400 text-sm transition-colors duration-300">Cookie Policy</a>
                         <span class="text-gray-600">•</span>
-                        <a href="#" class="text-gray-400 hover:text-yellow-400 text-sm transition-colors duration-300">Sitemap</a>
-                    </div>
-                </div>
-
-                <!-- Newsletter Section (Optional) -->
-                <div class="mt-12 p-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-2xl">
-                    <div class="flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div class="text-center md:text-left">
-                            <h4 class="text-2xl font-bold text-white mb-2">Stay Connected!</h4>
-                            <p class="text-blue-100">Get the latest updates on new plans and exclusive offers.</p>
-                        </div>
-                        <div class="flex w-full md:w-auto">
-                            <input type="email" placeholder="Enter your email" class="px-6 py-3 rounded-l-full w-full md:w-80 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900">
-                            <button class="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold px-8 py-3 rounded-r-full transition-all duration-300 transform hover:scale-105 whitespace-nowrap">
-                                Subscribe
-                            </button>
-                        </div>
+                        <a href="#" class="text-gray-400 hover:text-blue-400 text-sm transition-colors duration-300">Sitemap</a>
                     </div>
                 </div>
             </div>

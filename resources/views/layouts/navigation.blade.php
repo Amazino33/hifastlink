@@ -1,4 +1,4 @@
-<nav x-data="{ open: false }" class="bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 border-b-4 border-yellow-400 shadow-xl relative z-50">
+<nav x-data="{ open: false }" class="bg-nav dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 shadow-xl relative z-50">
     <!-- Animated background effect -->
     <div class="absolute inset-0 opacity-10">
         <div class="absolute top-0 left-1/4 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse"></div>
@@ -10,12 +10,9 @@
         <div class="flex justify-between h-20">
             <div class="flex items-center">
                 <!-- Logo -->
-                <div class="shrink-0 flex items-center group">
+                <div class="flex items-center group">
                     <a href="{{ route('dashboard') }}" class="flex items-center space-x-3 transform hover:scale-105 transition-all duration-300">
-                        <div class="bg-white/20 backdrop-blur-sm p-2 rounded-xl group-hover:bg-white/30 transition-all duration-300">
-                            <x-application-logo class="block h-10 w-auto fill-current text-white drop-shadow-lg" />
-                        </div>
-                        <span class="text-white font-black text-2xl hidden md:block">HiFastLink</span>
+                        <x-application-logo class="block h-10 w-auto fill-current text-white drop-shadow-lg" />
                     </a>
                 </div>
 
@@ -52,7 +49,7 @@
                     Log In
                 </a>
                 <!-- CTA Button -->
-                <a href="#" class="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold px-6 py-3 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+                <a href="#" class="bg-blue-200 text-gray-900 font-bold px-6 py-3 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
                     Get Started
                 </a>
                 @endguest

@@ -41,7 +41,7 @@
                 <i class="fa-solid fa-envelope mr-2 text-primary"></i>Email Address
             </label>
             <div class="relative">
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-purple-600 transition-colors duration-300">
+                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
                     <i class="fa-solid fa-at"></i>
                 </div>
                 <input 
@@ -52,7 +52,7 @@
                     required
                     autocomplete="username"
                     placeholder="Enter your email"
-                    class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300 @error('email') border-red-500 ring-4 ring-red-100 @enderror"
+                    class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('email') border-red-500 ring-4 ring-red-100 @enderror"
                 >
             </div>
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
@@ -64,7 +64,7 @@
                 <i class="fa-solid fa-phone mr-2 text-primary"></i>Phone Number
             </label>
             <div class="relative">
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-green-600 transition-colors duration-300">
+                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
                     <i class="fa-solid fa-mobile-screen"></i>
                 </div>
                 <input 
@@ -73,7 +73,7 @@
                     name="phone" 
                     value="{{ old('phone') }}" 
                     placeholder="Enter your phone number"
-                    class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-300 @error('phone') border-red-500 ring-4 ring-red-100 @enderror"
+                    class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('phone') border-red-500 ring-4 ring-red-100 @enderror"
                 >
             </div>
             <x-input-error :messages="$errors->get('phone')" class="mt-2" />
@@ -85,7 +85,7 @@
                 <i class="fa-solid fa-lock mr-2 text-primary"></i>Password
             </label>
             <div class="relative">
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-pink-600 transition-colors duration-300">
+                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
                     <i class="fa-solid fa-key"></i>
                 </div>
                 <input 
@@ -95,7 +95,7 @@
                     required
                     autocomplete="new-password"
                     placeholder="Create a strong password"
-                    class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-pink-500 focus:ring-4 focus:ring-pink-100 transition-all duration-300 @error('password') border-red-500 ring-4 ring-red-100 @enderror"
+                    class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('password') border-red-500 ring-4 ring-red-100 @enderror"
                 >
                 <button 
                     type="button"
@@ -115,7 +115,7 @@
                 <i class="fa-solid fa-lock mr-2 text-primary"></i>Confirm Password
             </label>
             <div class="relative">
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-orange-600 transition-colors duration-300">
+                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
                     <i class="fa-solid fa-shield-halved"></i>
                 </div>
                 <input 
@@ -125,7 +125,7 @@
                     required
                     autocomplete="new-password"
                     placeholder="Confirm your password"
-                    class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-100 transition-all duration-300 @error('password_confirmation') border-red-500 ring-4 ring-red-100 @enderror"
+                    class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('password_confirmation') border-red-500 ring-4 ring-red-100 @enderror"
                 >
                 <button 
                     type="button"
@@ -142,7 +142,7 @@
         <!-- Register Button -->
         <button 
             type="submit"
-            class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-purple-300 group mt-6"
+            class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 group mt-6"
         >
             <span class="flex items-center justify-center">
                 <i class="fa-solid fa-rocket mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>

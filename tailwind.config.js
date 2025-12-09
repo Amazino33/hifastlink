@@ -18,6 +18,7 @@ export default {
                 primary:  '#007AFE',
                 secondary: '#004D9F',
                 background: '#097fff',
+                nav: '#004d9f',
             },
             screens: {
                 'xs': '475px',
