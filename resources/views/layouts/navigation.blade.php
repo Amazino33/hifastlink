@@ -2,7 +2,7 @@
     <!-- Animated background effect -->
     <div class="absolute inset-0 opacity-10">
         <div class="absolute top-0 left-1/4 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse"></div>
-        <div class="absolute top-0 right-1/4 w-64 h-64 bg-yellow-300 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
+        <div class="absolute top-0 right-1/4 w-64 h-64 bg-blue-300 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
     </div>
 
     <!-- Primary Navigation Menu -->
@@ -19,22 +19,22 @@
                 <!-- Navigation Links -->
                 <div class="hidden space-x-2 sm:ms-10 sm:flex items-center">
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" 
-                        class="relative px-6 py-3 text-white font-semibold hover:text-yellow-300 transition-all duration-300 group">
+                        class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group">
                         <span class="relative z-10">{{ __('Dashboard') }}</span>
                         <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
                     </x-nav-link>
                     
-                    <a href="#" class="relative px-6 py-3 text-white font-semibold hover:text-yellow-300 transition-all duration-300 group">
+                    <a href="#" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group">
                         <span class="relative z-10">Services</span>
                         <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
                     </a>
                     
-                    <a href="#" class="relative px-6 py-3 text-white font-semibold hover:text-yellow-300 transition-all duration-300 group">
+                    <a href="#" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group">
                         <span class="relative z-10">Pricing</span>
                         <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
                     </a>
                     
-                    <a href="#" class="relative px-6 py-3 text-white font-semibold hover:text-yellow-300 transition-all duration-300 group">
+                    <a href="#" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group">
                         <span class="relative z-10">Contact</span>
                         <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
                     </a>
@@ -58,7 +58,7 @@
                 @auth
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
-                        <button class="inline-flex items-center px-4 py-3 border-2 border-white/30 text-sm leading-4 font-semibold rounded-full text-white bg-white/10 backdrop-blur-sm hover:bg-white/20 hover:border-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all duration-300 transform hover:scale-105 shadow-lg">
+                        <button class="inline-flex items-center px-4 py-3 border-2 border-white/30 text-sm leading-4 font-semibold rounded-full text-white bg-white/10 backdrop-blur-sm hover:bg-white/20 hover:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all duration-300 transform hover:scale-105 shadow-lg">
                             <div class="flex items-center space-x-2">
                                 <div class="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center text-gray-900 font-bold">
                                     {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
@@ -106,7 +106,7 @@
 
             <!-- Hamburger -->
             <div class="flex items-center sm:hidden">
-                <button @click="open = ! open" class="inline-flex items-center justify-center p-3 rounded-lg text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all duration-300">
+                <button @click="open = ! open" class="inline-flex items-center justify-center p-3 rounded-lg text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all duration-300">
                     <svg class="h-7 w-7" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16" />
                         <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
@@ -146,7 +146,7 @@
             @auth
             <div class="px-4 mb-4">
                 <div class="flex items-center space-x-3 bg-white/10 rounded-lg p-3">
-                    <div class="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center text-gray-900 font-bold text-xl">
+                    <div class="w-12 h-12 bg-blue-400 rounded-full flex items-center justify-center text-gray-900 font-bold text-xl">
                         {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
                     </div>
                     <div>
@@ -185,7 +185,7 @@
             </div>
 
             <div class="px-4 mt-4">
-                <a href="{{ route('register') }}" class="block text-center bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold px-6 py-4 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg">
+                <a href="{{ route('register') }}" class="block text-center bg-blue-400 hover:bg-blue-300 text-gray-900 font-bold px-6 py-4 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg">
                     Get Started
                 </a>
             </div>
