@@ -1,5 +1,4 @@
 <x-app-layout>
-
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="space-y-6">
@@ -11,6 +10,11 @@
                                 Hi, {{ Auth::user()->name }} 👋
                             </h1>
                             <p class="text-gray-600 dark:text-gray-400">Welcome back to your dashboard</p>
+                            @if($connectionStatus === 'active')
+                                <p class="text-sm text-green-600 dark:text-green-400 font-semibold">● Online now - IP: {{ $currentIp }}</p>
+                            @else
+                                <p class="text-sm text-gray-500 dark:text-gray-500">Currently offline</p>
+                            @endif
                         </div>
                         <div class="hidden md:flex items-center space-x-3">
                             <button class="p-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-xl transition-all duration-300">
@@ -29,7 +33,6 @@
                     <div class="lg:col-span-2 space-y-6">
                         <!-- Subscription Status Card -->
                         <div class="bg-gradient-to-r from-primary to-blue-300 rounded-3xl p-8 shadow-2xl relative overflow-hidden transform hover:scale-[1.02] transition-all duration-300">
-                            <!-- Animated background -->
                             <div class="absolute inset-0 opacity-20">
                                 <div class="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse"></div>
                             </div>
@@ -37,15 +40,35 @@
                             <div class="relative z-10">
                                 <div class="flex items-center justify-between mb-4">
                                     <span class="text-blue-100 text-sm font-semibold uppercase tracking-wide">Your Subscription</span>
-                                    <span class="bg-green-400 text-gray-900 px-4 py-1 rounded-full text-xs font-bold">CONNECTED</span>
+                                    <span class="bg-{{ $subscriptionStatus === 'active' ? 'green' : 'red' }}-400 text-gray-900 px-4 py-1 rounded-full text-xs font-bold">
+                                        {{ $connectionStatus === 'active' ? 'ONLINE' : 'OFFLINE' }}
+                                    </span>
                                 </div>
                                 <div class="mb-6">
-                                    <div class="text-6xl font-black text-white mb-2">14 Days</div>
-                                    <div class="text-blue-100 text-lg">Unlimited connection</div>
+                                    @if($subscriptionStatus === 'active')
+                                        <div class="text-6xl font-black text-white mb-2">{{ $subscriptionDays }} Days</div>
+                                        <div class="text-blue-100 text-lg">{{ $dataLimit }} connection</div>
+                                    @else
+                                        <div class="text-6xl font-black text-white mb-2">Expired</div>
+                                        <div class="text-blue-100 text-lg">Please renew your subscription</div>
+                                    @endif
+                                    
+                                    @if($connectionStatus === 'active')
+                                        <div class="mt-4 space-y-2">
+                                            <div class="flex items-center text-blue-100 text-sm">
+                                                <i class="fa-solid fa-network-wired mr-2"></i>
+                                                <span>IP: {{ $currentIp }}</span>
+                                            </div>
+                                            <div class="flex items-center text-blue-100 text-sm">
+                                                <i class="fa-solid fa-clock mr-2"></i>
+                                                <span>Uptime: {{ $uptime }}</span>
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="flex items-center space-x-4">
                                     <button class="bg-white hover:bg-yellow-400 text-gray-900 font-bold px-6 py-3 rounded-full transition-all duration-300 transform hover:scale-105">
-                                        Renew Plan
+                                        {{ $subscriptionStatus === 'active' ? 'Renew Plan' : 'Subscribe Now' }}
                                     </button>
                                     <button class="text-white hover:text-yellow-300 font-semibold transition-colors duration-300">
                                         View Details →
@@ -56,7 +79,6 @@
 
                         <!-- Data Usage Card -->
                         <div class="bg-gradient-to-br from-primary via-blue-500 to-secondary rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-                            <!-- Animated background -->
                             <div class="absolute inset-0 opacity-20">
                                 <div class="absolute bottom-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse"></div>
                             </div>
@@ -64,8 +86,10 @@
                             <div class="relative z-10">
                                 <div class="flex items-center justify-between mb-6">
                                     <div>
-                                        <div class="text-blue-100 text-sm font-semibold uppercase tracking-wide mb-2">Data Activity</div>
-                                        <div class="text-white/80 text-xs">Valid Until: 31 Dec 23</div>
+                                        <div class="text-blue-100 text-sm font-semibold uppercase tracking-wide mb-2">
+                                            {{ $connectionStatus === 'active' ? 'Live Data Usage' : 'Data Usage' }}
+                                        </div>
+                                        <div class="text-white/80 text-xs">Valid Until: {{ $subscriptionValidUntil }}</div>
                                     </div>
                                     <button class="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-4 py-2 rounded-full text-white text-sm font-semibold transition-all duration-300">
                                         Download Invoice
@@ -73,17 +97,24 @@
                                 </div>
                                 
                                 <div class="mb-4">
-                                    <div class="text-6xl font-black text-white mb-2">35.6 GB</div>
-                                    <div class="text-blue-100 text-lg mb-6">Used this month</div>
+                                    <div class="text-6xl font-black text-white mb-2">{{ $dataUsed }}</div>
+                                    <div class="text-blue-100 text-lg mb-6">{{ $connectionStatus === 'active' ? 'Current session' : 'Total used' }}</div>
                                     
                                     <!-- Progress Bar -->
-                                    <div class="relative h-4 bg-white/20 rounded-full overflow-hidden">
-                                        <div class="absolute inset-0 bg-gradient-to-r from-yellow-400 to-pink-500 rounded-full" style="width: 35.6%"></div>
-                                    </div>
-                                    <div class="flex justify-between text-xs text-blue-100 mt-2">
-                                        <span>35.6 GB used</span>
-                                        <span>Unlimited</span>
-                                    </div>
+                                    @if($dataLimit !== 'Unlimited')
+                                        <div class="relative h-4 bg-white/20 rounded-full overflow-hidden">
+                                            <div class="absolute inset-0 bg-gradient-to-r from-yellow-400 to-pink-500 rounded-full" style="width: {{ min(100, $dataUsagePercentage) }}%"></div>
+                                        </div>
+                                        <div class="flex justify-between text-xs text-blue-100 mt-2">
+                                            <span>{{ $dataUsed }} used</span>
+                                            <span>{{ $dataLimit }} total</span>
+                                        </div>
+                                    @else
+                                        <div class="flex justify-between text-xs text-blue-100 mt-2">
+                                            <span>{{ $dataUsed }} used</span>
+                                            <span>Unlimited</span>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -96,147 +127,45 @@
                             </div>
                             
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <!-- Deal Card 1 -->
-                                <div class="bg-gradient-to-br from-primary to-blue-400 rounded-3xl shadow shadow-primary hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
-                                    <div class="text-center space-y-2">
-                                        <div class="bg-white py-4 rounded-b-3xl">
-                                            <div class="text-3xl font-black text-primary">30</div>
-                                            <div class="text-blue-400 text-xs font-semibold uppercase tracking-wide">Days</div>
-                                            <div class="border-t border-primary/30 pt-2 mt-2">
-                                                <div class="text-2xl font-black text-primary">10GB</div>
-                                                <div class="text-blue-400 text-xs">Data</div>
+                                @for($i = 0; $i < 4; $i++)
+                                    <div class="bg-gradient-to-br from-primary to-blue-400 rounded-3xl shadow shadow-primary hover:shadow-2xl hover:shadow-primary transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
+                                        <div class="text-center space-y-2">
+                                            <div class="bg-white py-4 rounded-b-3xl">
+                                                <div class="text-3xl font-black text-primary">30</div>
+                                                <div class="text-blue-400 text-xs font-semibold uppercase tracking-wide">Days</div>
+                                                <div class="border-t border-primary/30 pt-2 mt-2">
+                                                    <div class="text-2xl font-black text-primary">10GB</div>
+                                                    <div class="text-blue-400 text-xs">Data</div>
+                                                </div>
+                                            </div>   
+                                            <div class="text-white font-black py-2 px-3 rounded-lg text-lg mt-3">
+                                                ₦5,000
                                             </div>
-                                        </div>   
-                                        <div class="text-white font-black py-2 px-3 rounded-lg text-lg mt-3">
-                                            ₦5,000
                                         </div>
                                     </div>
-                                </div>
-
-                                <!-- Deal Card 2 -->
-                                <div class="bg-gradient-to-br from-primary to-blue-400 rounded-3xl shadow shadow-primary hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
-                                    <div class="text-center space-y-2">
-                                        <div class="bg-white py-4 rounded-b-3xl">
-                                            <div class="text-3xl font-black text-primary">30</div>
-                                            <div class="text-blue-400 text-xs font-semibold uppercase tracking-wide">Days</div>
-                                            <div class="border-t border-primary/30 pt-2 mt-2">
-                                                <div class="text-2xl font-black text-primary">10GB</div>
-                                                <div class="text-blue-400 text-xs">Data</div>
-                                            </div>
-                                        </div>   
-                                        <div class="text-white font-black py-2 px-3 rounded-lg text-lg mt-3">
-                                            ₦5,000
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Deal Card 3 -->
-                                <div class="bg-gradient-to-br from-primary to-blue-400 rounded-3xl shadow shadow-primary hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
-                                    <div class="text-center space-y-2">
-                                        <div class="bg-white py-4 rounded-b-3xl">
-                                            <div class="text-3xl font-black text-primary">30</div>
-                                            <div class="text-blue-400 text-xs font-semibold uppercase tracking-wide">Days</div>
-                                            <div class="border-t border-primary/30 pt-2 mt-2">
-                                                <div class="text-2xl font-black text-primary">10GB</div>
-                                                <div class="text-blue-400 text-xs">Data</div>
-                                            </div>
-                                        </div>   
-                                        <div class="text-white font-black py-2 px-3 rounded-lg text-lg mt-3">
-                                            ₦5,000
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Deal Card 4 -->
-                                <div class="bg-gradient-to-br from-primary to-blue-400 rounded-3xl shadow shadow-primary hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
-                                    <div class="text-center space-y-2">
-                                        <div class="bg-white py-4 rounded-b-3xl">
-                                            <div class="text-3xl font-black text-primary">30</div>
-                                            <div class="text-blue-400 text-xs font-semibold uppercase tracking-wide">Days</div>
-                                            <div class="border-t border-primary/30 pt-2 mt-2">
-                                                <div class="text-2xl font-black text-primary">10GB</div>
-                                                <div class="text-blue-400 text-xs">Data</div>
-                                            </div>
-                                        </div>   
-                                        <div class="text-white font-black py-2 px-3 rounded-lg text-lg mt-3">
-                                            ₦5,000
-                                        </div>
-                                    </div>
-                                </div>
+                                @endfor
                             </div>
 
-                            <!-- Second Row of Deals -->
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
-                                <!-- Deal Card 5 -->
-                                <div class="bg-gradient-to-br from-primary to-blue-400 rounded-3xl shadow shadow-primary hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
-                                    <div class="text-center space-y-2">
-                                        <div class="bg-white py-4 rounded-b-3xl">
-                                            <div class="text-3xl font-black text-primary">30</div>
-                                            <div class="text-blue-400 text-xs font-semibold uppercase tracking-wide">Days</div>
-                                            <div class="border-t border-primary/30 pt-2 mt-2">
-                                                <div class="text-2xl font-black text-primary">10GB</div>
-                                                <div class="text-blue-400 text-xs">Data</div>
+                                @for($i = 0; $i < 4; $i++)
+                                    <div class="bg-gradient-to-br from-primary to-blue-400 rounded-3xl shadow shadow-primary hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
+                                        <div class="text-center space-y-2">
+                                            <div class="bg-white py-4 rounded-b-3xl">
+                                                <div class="text-3xl font-black text-primary">30</div>
+                                                <div class="text-blue-400 text-xs font-semibold uppercase tracking-wide">Days</div>
+                                                <div class="border-t border-primary/30 pt-2 mt-2">
+                                                    <div class="text-2xl font-black text-primary">10GB</div>
+                                                    <div class="text-blue-400 text-xs">Data</div>
+                                                </div>
+                                            </div>   
+                                            <div class="text-white font-black py-2 px-3 rounded-lg text-lg mt-3">
+                                                ₦5,000
                                             </div>
-                                        </div>   
-                                        <div class="text-white font-black py-2 px-3 rounded-lg text-lg mt-3">
-                                            ₦5,000
                                         </div>
                                     </div>
-                                </div>
-
-                                <!-- Deal Card 6 -->
-                                <div class="bg-gradient-to-br from-primary to-blue-400 rounded-3xl shadow shadow-primary hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
-                                    <div class="text-center space-y-2">
-                                        <div class="bg-white py-4 rounded-b-3xl">
-                                            <div class="text-3xl font-black text-primary">30</div>
-                                            <div class="text-blue-400 text-xs font-semibold uppercase tracking-wide">Days</div>
-                                            <div class="border-t border-primary/30 pt-2 mt-2">
-                                                <div class="text-2xl font-black text-primary">10GB</div>
-                                                <div class="text-blue-400 text-xs">Data</div>
-                                            </div>
-                                        </div>   
-                                        <div class="text-white font-black py-2 px-3 rounded-lg text-lg mt-3">
-                                            ₦5,000
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Deal Card 7 -->
-                                <div class="bg-gradient-to-br from-primary to-blue-400 rounded-3xl shadow shadow-primary hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
-                                    <div class="text-center space-y-2">
-                                        <div class="bg-white py-4 rounded-b-3xl">
-                                            <div class="text-3xl font-black text-primary">30</div>
-                                            <div class="text-blue-400 text-xs font-semibold uppercase tracking-wide">Days</div>
-                                            <div class="border-t border-primary/30 pt-2 mt-2">
-                                                <div class="text-2xl font-black text-primary">10GB</div>
-                                                <div class="text-blue-400 text-xs">Data</div>
-                                            </div>
-                                        </div>   
-                                        <div class="text-white font-black py-2 px-3 rounded-lg text-lg mt-3">
-                                            ₦5,000
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Deal Card 8 -->
-                                <div class="bg-gradient-to-br from-primary to-blue-400 rounded-3xl shadow shadow-primary hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
-                                    <div class="text-center space-y-2">
-                                        <div class="bg-white py-4 rounded-b-3xl">
-                                            <div class="text-3xl font-black text-primary">30</div>
-                                            <div class="text-blue-400 text-xs font-semibold uppercase tracking-wide">Days</div>
-                                            <div class="border-t border-primary/30 pt-2 mt-2">
-                                                <div class="text-2xl font-black text-primary">10GB</div>
-                                                <div class="text-blue-400 text-xs">Data</div>
-                                            </div>
-                                        </div>   
-                                        <div class="text-white font-black py-2 px-3 rounded-lg text-lg mt-3">
-                                            ₦5,000
-                                        </div>
-                                    </div>
-                                </div>
+                                @endfor
                             </div>
 
-                            <!-- Check More Offers Button -->
                             <button class="w-full mt-6 bg-gradient-to-r from-primary to-secondary hover:from-blue-700 hover:to-blue-700 text-white font-bold py-4 rounded-3xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 group">
                                 <span class="flex items-center justify-center">
                                     CHECK MORE OFFERS
@@ -275,7 +204,9 @@
                                             <div class="text-xs text-gray-500 dark:text-gray-400">Status</div>
                                         </div>
                                     </div>
-                                    <span class="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">Active</span>
+                                    <span class="bg-{{ $connectionStatus === 'active' ? 'green' : 'red' }}-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                                        {{ ucfirst($connectionStatus) }}
+                                    </span>
                                 </div>
 
                                 <div class="flex items-center justify-between p-4 bg-blue-50 dark:bg-gray-700 rounded-xl">
@@ -288,7 +219,7 @@
                                             <div class="text-xs text-gray-500 dark:text-gray-400">Current</div>
                                         </div>
                                     </div>
-                                    <span class="text-blue-600 dark:text-blue-400 font-bold">80 Mbps</span>
+                                    <span class="text-blue-600 dark:text-blue-400 font-bold">{{ $currentSpeed }}</span>
                                 </div>
 
                                 <div class="flex items-center justify-between p-4 bg-blue-50 dark:bg-gray-700 rounded-xl">
@@ -298,10 +229,10 @@
                                         </div>
                                         <div>
                                             <div class="text-sm font-semibold text-gray-900 dark:text-white">Uptime</div>
-                                            <div class="text-xs text-gray-500 dark:text-gray-400">This Month</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">Current Session</div>
                                         </div>
                                     </div>
-                                    <span class="text-blue-600 dark:text-blue-400 font-bold">99.9%</span>
+                                    <span class="text-blue-600 dark:text-blue-400 font-bold">{{ $uptime }}</span>
                                 </div>
                             </div>
                         </div>

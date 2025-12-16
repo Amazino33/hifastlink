@@ -11,7 +11,7 @@
             <div class="flex items-center">
                 <!-- Logo -->
                 <div class="flex items-center group">
-                    <a href="{{ route('dashboard') }}" class="flex items-center space-x-3 transform hover:scale-105 transition-all duration-300">
+                    <a href="{{ route('home') }}" class="flex items-center space-x-3 transform hover:scale-105 transition-all duration-300">
                         <x-application-logo class="block h-10 w-auto fill-current text-white drop-shadow-lg" />
                     </a>
                 </div>
@@ -49,7 +49,7 @@
                     Log In
                 </a>
                 <!-- CTA Button -->
-                <a href="#" class="bg-blue-200 text-gray-900 font-bold px-6 py-3 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
+                <a href="{{ route('register') }}" class="bg-blue-200 text-gray-900 font-bold px-6 py-3 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
                     Get Started
                 </a>
                 @endguest

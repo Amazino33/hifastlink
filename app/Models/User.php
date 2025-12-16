@@ -2,14 +2,12 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
     /**
@@ -22,6 +20,13 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'email',
         'phone',
         'password',
+        'username',
+        'data_used',
+        'data_limit',
+        'subscription_end_date',
+        'last_online',
+        'connection_status',
+        'current_ip',
     ];
 
     /**
@@ -44,6 +49,10 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'subscription_end_date' => 'datetime',
+            'last_online' => 'datetime',
+            'data_used' => 'integer',
+            'data_limit' => 'integer',
         ];
     }
 }
