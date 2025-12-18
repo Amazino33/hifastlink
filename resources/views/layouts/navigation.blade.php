@@ -18,8 +18,7 @@
 
                 <!-- Navigation Links -->
                 <div class="hidden space-x-2 sm:ms-10 sm:flex items-center">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" 
-                        class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group">
+                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         <span class="relative z-10">{{ __('Dashboard') }}</span>
                         <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
                     </x-nav-link>
