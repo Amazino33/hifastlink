@@ -50,7 +50,7 @@
                     </div>
 
                     <!-- Logo/Icon -->
-                    <div class="flex justify-center mb-6 relative z-10">
+                    <a href="{{ route('home') }}" class="flex justify-center mb-6 relative z-10">
                         <div
                             class="w-24 h-24 bg-white rounded-3xl shadow-2xl flex items-center justify-center transform hover:rotate-6 transition-transform duration-300 group">
                             <svg viewBox="0 0 316 316" xmlns="http://www.w3.org/2000/svg"
@@ -71,7 +71,7 @@
                                 </g>
                             </svg>
                         </div>
-                    </div>
+                    </a>
 
                     <!-- Brand Name -->
                     <div class="text-center relative z-10">

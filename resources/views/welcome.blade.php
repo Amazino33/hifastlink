@@ -4,7 +4,7 @@
         <!-- Animated background elements -->
         <div class="absolute inset-0 opacity-20">
             <div class="absolute top-10 left-1/4 w-72 h-72 bg-white rounded-full blur-3xl animate-pulse"></div>
-            <div class="absolute bottom-10 right-1/4 w-96 h-96 bg-pink-300 rounded-full blur-3xl animate-pulse" style="animation-delay: 1.5s;"></div>
+            <div class="absolute bottom-10 right-1/4 w-96 h-96 bg-primary rounded-full blur-3xl animate-pulse z-10" style="animation-delay: 1.5s;"></div>
         </div>
 
         <div class="relative max-w-7xl mx-auto">
@@ -62,7 +62,7 @@
                     <div class="bg-primary w-20 h-20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                         <i class="fa-solid fa-satellite text-4xl text-white"></i>
                     </div>
-                    <h3 class="text-2xl font-bold text-gray-900 mb-4 group-hover:text-blue-600 transition-colors">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4 group-hover:text-primary transition-colors">
                         Unshakeable Stability
                     </h3>
                     <p class="text-gray-600 leading-relaxed">
@@ -75,7 +75,7 @@
                     <div class="bg-primary w-20 h-20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                         <i class="fa-solid fa-wifi text-4xl text-white"></i>
                     </div>
-                    <h3 class="text-2xl font-bold text-gray-900 mb-4 group-hover:text-purple-600 transition-colors">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4 group-hover:text-primary transition-colors">
                         Rapid Deployment
                     </h3>
                     <p class="text-gray-600 leading-relaxed">
@@ -88,7 +88,7 @@
                     <div class="bg-primary w-20 h-20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                         <i class="fa-solid fa-globe text-4xl text-white"></i>
                     </div>
-                    <h3 class="text-2xl font-bold text-gray-900 mb-4 group-hover:text-pink-600 transition-colors">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4 group-hover:text-primary transition-colors">
                         High-Capacity Bandwidth
                     </h3>
                     <p class="text-gray-600 leading-relaxed">
@@ -160,7 +160,7 @@
 
                 <!-- Mission Card 2 -->
                 <div class="bg-gradient-to-br from-primary to-secondary p-8 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 text-white">
-                    <p class="text-purple-100 mb-6 leading-relaxed">
+                    <p class="text-blue-100 mb-6 leading-relaxed">
                         Guaranteed up to 80 Mbps bandwidth for secure communications, real-time intelligence, and logistics support in dead zones.
                     </p>
                     <h3 class="text-2xl font-bold">
@@ -170,7 +170,7 @@
 
                 <!-- Mission Card 3 -->
                 <div class="bg-gradient-to-br from-primary to-secondary p-8 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 text-white">
-                    <p class="text-pink-100 mb-6 leading-relaxed">
+                    <p class="text-blue-100 mb-6 leading-relaxed">
                         We don't just install; we manage. Our local team monitors your network health to prevent downtime before it happens.
                     </p>
                     <h3 class="text-2xl font-bold">
@@ -180,7 +180,7 @@
 
                 <!-- Mission Card 4 -->
                 <div class="bg-gradient-to-br from-primary to-secondary p-8 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 text-white">
-                    <p class="text-indigo-100 mb-6 leading-relaxed">
+                    <p class="text-blue-100 mb-6 leading-relaxed">
                         Managed Wi-Fi solutions for barracks that allow personnel to stay connected with family without compromising operational bandwidth.
                     </p>
                     <h3 class="text-2xl font-bold">
@@ -195,7 +195,7 @@
     <section class="py-20 px-6 bg-gradient-to-br from-primary to-secondary relative overflow-hidden">
         <div class="absolute inset-0 opacity-20">
             <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-white rounded-full blur-3xl animate-pulse"></div>
-            <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-300 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
+            <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-100 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
         </div>
         
         <div class="max-w-4xl mx-auto text-center relative z-10">
