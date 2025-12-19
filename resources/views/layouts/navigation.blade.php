@@ -33,8 +33,8 @@
                         <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
                     </a>
                     
-                    <a href="#" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group">
-                        <span class="relative z-10">Contact</span>
+                    <a href="{{ route('about') }}" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group">
+                        <span class="relative z-10">About Us</span>
                         <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
                     </a>
                 </div>
@@ -134,9 +134,9 @@
                 <span>Pricing</span>
             </a>
 
-            <a href="#" class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 transition-all duration-300">
+            <a href="{{ route('about') }}" class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 transition-all duration-300">
                 <i class="fa-solid fa-envelope"></i>
-                <span>Contact</span>
+                <span>About Us</span>
             </a>
         </div>
 
