@@ -1,0 +1,80 @@
+# MikroTik Router Configuration for HiFastLink
+# Execute these commands in Winbox or Terminal
+
+## 1. RADIUS CLIENT CONFIGURATION
+# Add RADIUS server for authentication and accounting
+
+/radius
+add service=hotspot address=142.93.47.189 secret=YourSharedSecret123
+add service=ppp address=142.93.47.189 secret=YourSharedSecret123
+
+## 2. HOTSPOT PROFILE CONFIGURATION
+# Configure hotspot to use RADIUS
+
+/ip hotspot profile
+set [ find default=yes ] \
+    login-by=http-chap,http-pap,trial \
+    use-radius=yes \
+    radius-accounting=yes \
+    radius-interim-update=1m \
+    radius-default-domain="" \
+    nas-port-type=19
+
+## 3. HOTSPOT SERVER SETTINGS
+# Enable RADIUS accounting on hotspot server
+
+/ip hotspot
+set [ find default=yes ] \
+    addresses-per-mac=2 \
+    profile=default \
+    use-radius=yes
+
+## 4. USER PROFILE CONFIGURATION
+# Set default rate limits (can be overridden by RADIUS)
+
+/ip hotspot user profile
+set [ find default=yes ] \
+    rate-limit=10M/10M \
+    session-timeout=1d \
+    shared-users=1 \
+    status-autorefresh=1m
+
+## 5. RADIUS TESTING
+# Test RADIUS connectivity
+
+/radius monitor 0
+
+## 6. LOGGING CONFIGURATION
+# Enable RADIUS logging for debugging
+
+/system logging
+add topics=radius,debug prefix=RADIUS
+
+## 7. FIREWALL RULES (if needed)
+# Allow RADIUS traffic to your server
+
+/ip firewall filter
+add chain=input protocol=udp dst-port=1812,1813 src-address=142.93.47.189 action=accept place-before=0 comment="Allow RADIUS"
+
+## 8. OPTIONAL: ADVANCED SETTINGS
+# Configure RADIUS timeout and retry settings
+
+/radius
+set timeout=300ms
+set max-retries=3
+
+## 9. VERIFY CONFIGURATION
+# Check your configuration
+
+/radius print
+/ip hotspot profile print
+/ip hotspot print
+
+## 10. TEST WITH A USER
+# Create a test user and try to connect
+
+/ip hotspot user
+add name=testuser password=testpass profile=default
+
+# Monitor logs while testing
+/log print follow where topics~"^hotspot|^radius"

@@ -20,6 +20,7 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'email',
         'phone',
         'password',
+        'radius_password',
         'username',
         'data_used',
         'data_limit',

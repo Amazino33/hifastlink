@@ -112,6 +112,21 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        'radius' => [
+            'driver' => 'mysql',
+            'host' => env('RADIUS_DB_HOST', 'your-ubuntu-vm-ip'),
+            'port' => env('RADIUS_DB_PORT', '3306'),
+            'database' => env('RADIUS_DB_DATABASE', 'radius'),
+            'username' => env('RADIUS_DB_USERNAME', 'radius'),
+            'password' => env('RADIUS_DB_PASSWORD', 'your_secure_password'),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ],
+
     ],
 
     /*

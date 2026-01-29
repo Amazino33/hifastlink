@@ -35,6 +35,29 @@
             <x-input-error :messages="$errors->get('name')" class="mt-2" />
         </div>
 
+        <!-- Username Field -->
+        <div class="group">
+            <label for="username" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                <i class="fa-solid fa-user-tag mr-2 text-primary"></i>Username
+            </label>
+            <div class="relative">
+                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
+                    <i class="fa-solid fa-at"></i>
+                </div>
+                <input 
+                    id="username" 
+                    type="text" 
+                    name="username" 
+                    value="{{ old('username') }}" 
+                    required
+                    autocomplete="username"
+                    placeholder="Choose a unique username"
+                    class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('username') border-red-500 ring-4 ring-red-100 @enderror"
+                >
+            </div>
+            <x-input-error :messages="$errors->get('username')" class="mt-2" />
+        </div>
+
         <!-- Email Field -->
         <div class="group">
             <label for="email" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">

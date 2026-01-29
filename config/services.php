@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'radius' => [
+        'bridge_url' => env('RADIUS_BRIDGE_URL', 'http://your-ubuntu-server-ip/radius_bridge.php'),
+        'secret_key' => env('RADIUS_SECRET_KEY', 'MySecretKey_ChangeThisToSomethingComplex'),
+    ],
+
 ];

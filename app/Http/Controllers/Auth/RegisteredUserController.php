@@ -31,6 +31,7 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:255', 'unique:'.User::class, 'alpha_num'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'phone' => ['nullable', 'string', 'max:20'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
@@ -38,9 +39,13 @@ class RegisteredUserController extends Controller
 
         $user = User::create([
             'name' => $request->name,
+            'username' => $request->username,
             'email' => $request->email,
-            'phone' => $request->phone, 
+            'phone' => $request->phone,
             'password' => Hash::make($request->password),
+            'radius_password' => $request->password, // Store cleartext for RADIUS authentication
+            'data_limit' => 1000000000, // 1GB default data limit
+            'connection_status' => 'active',
         ]);
 
         event(new Registered($user));

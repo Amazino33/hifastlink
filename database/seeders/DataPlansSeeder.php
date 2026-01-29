@@ -2,52 +2,74 @@
 
 namespace Database\Seeders;
 
+use App\Models\DataPlan;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class DataPlansSeeder extends Seeder
 {
     public function run(): void
     {
+        // Clear existing plans
+        DataPlan::truncate();
+
         $plans = [
             [
-                'name' => 'Starter Plan',
-                'days' => 30,
-                'data_limit' => 10 * 1024 * 1024 * 1024, // 10GB
-                'price' => 5000,
-                'is_active' => true,
-                'is_featured' => true,
-                'sort_order' => 1
-            ],
-            [
                 'name' => 'Basic Plan',
-                'days' => 30,
-                'data_limit' => 20 * 1024 * 1024 * 1024, // 20GB
-                'price' => 8000,
+                'description' => 'Perfect for light browsing and email',
+                'data_limit' => 1073741824, // 1GB
+                'duration_days' => 30,
+                'price' => 2500.00,
+                'speed_limit' => '5M/5M',
                 'is_active' => true,
-                'is_featured' => true,
-                'sort_order' => 2
+                'is_featured' => false,
+                'sort_order' => 1,
+                'features' => ['24/7 Support', 'Static IP', 'No FUP']
             ],
             [
                 'name' => 'Standard Plan',
-                'days' => 30,
-                'data_limit' => 50 * 1024 * 1024 * 1024, // 50GB
-                'price' => 15000,
+                'description' => 'Great for streaming and work from home',
+                'data_limit' => 5368709120, // 5GB
+                'duration_days' => 30,
+                'price' => 5000.00,
+                'speed_limit' => '10M/10M',
                 'is_active' => true,
                 'is_featured' => true,
-                'sort_order' => 3
+                'sort_order' => 2,
+                'features' => ['HD Streaming', 'Priority Support', 'Static IP', 'No FUP']
             ],
             [
                 'name' => 'Premium Plan',
-                'days' => 30,
-                'data_limit' => 100 * 1024 * 1024 * 1024, // 100GB
-                'price' => 25000,
+                'description' => 'Ultimate speed for heavy users',
+                'data_limit' => 10737418240, // 10GB
+                'duration_days' => 30,
+                'price' => 8000.00,
+                'speed_limit' => '20M/20M',
                 'is_active' => true,
-                'is_featured' => true,
-                'sort_order' => 4
+                'is_featured' => false,
+                'sort_order' => 3,
+                'features' => ['4K Streaming', 'VIP Support', 'Static IP', 'No FUP', 'Free Router']
             ],
             [
-                'name' => 'Weekly Lite',
+                'name' => 'Business Plan',
+                'description' => 'Dedicated connection for businesses',
+                'data_limit' => 53687091200, // 50GB
+                'duration_days' => 30,
+                'price' => 15000.00,
+                'speed_limit' => '50M/50M',
+                'is_active' => true,
+                'is_featured' => false,
+                'sort_order' => 4,
+                'features' => ['99.9% Uptime SLA', 'Business Support', 'Static IP', 'No FUP', 'Free Installation']
+            ]
+        ];
+
+        foreach ($plans as $plan) {
+            DataPlan::create($plan);
+        }
+
+        $this->command->info('Created ' . count($plans) . ' data plans');
+    }
+}
                 'days' => 7,
                 'data_limit' => 5 * 1024 * 1024 * 1024, // 5GB
                 'price' => 2000,
