@@ -22,5 +22,8 @@ class AppServiceProvider extends ServiceProvider
         // Register admin middleware
         $router = $this->app['router'];
         $router->aliasMiddleware('admin', \App\Http\Middleware\AdminMiddleware::class);
+
+        // Observe user plan changes to trigger plan sync to RADIUS tables.
+        \App\Models\User::observe(\App\Observers\UserPlanObserver::class);
     }
 }

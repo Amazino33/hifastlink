@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVerifyEmail
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -34,7 +35,16 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'last_online',
         'connection_status',
         'current_ip',
+        'plan_id',
     ];
+
+    /**
+     * Plan relationship
+     */
+    public function plan(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Plan::class);
+    }
 
     /**
      * The attributes that should be hidden for serialization.
