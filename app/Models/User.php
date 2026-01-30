@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVerifyEmail
 {
@@ -22,8 +23,10 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'password',
         'radius_password',
         'username',
+        'data_plan_id',
         'data_used',
         'data_limit',
+        'subscription_start_date',
         'subscription_end_date',
         'last_online',
         'connection_status',
@@ -50,10 +53,107 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'subscription_start_date' => 'datetime',
             'subscription_end_date' => 'datetime',
             'last_online' => 'datetime',
             'data_used' => 'integer',
             'data_limit' => 'integer',
         ];
+    }
+
+    /**
+     * Get the data plan for this user.
+     */
+    public function dataPlan(): BelongsTo
+    {
+        return $this->belongsTo(DataPlan::class);
+    }
+
+    /**
+     * Check if user's subscription is active.
+     */
+    public function isSubscriptionActive(): bool
+    {
+        if (!$this->subscription_end_date) {
+            return false;
+        }
+
+        return $this->subscription_end_date->isFuture();
+    }
+
+    /**
+     * Check if user has exceeded data limit.
+     */
+    public function hasExceededDataLimit(): bool
+    {
+        if (!$this->data_limit || $this->data_limit === 0) {
+            return false;
+        }
+
+        return $this->data_used >= $this->data_limit;
+    }
+
+    /**
+     * Get remaining data in bytes.
+     */
+    public function getRemainingDataAttribute(): int
+    {
+        if (!$this->data_limit) {
+            return 0;
+        }
+
+        return max(0, $this->data_limit - $this->data_used);
+    }
+
+    /**
+     * Get data usage percentage.
+     */
+    public function getDataUsagePercentageAttribute(): float
+    {
+        if (!$this->data_limit || $this->data_limit === 0) {
+            return 0;
+        }
+
+        return min(100, ($this->data_used / $this->data_limit) * 100);
+    }
+
+    /**
+     * Format bytes to human readable format.
+     */
+    public function formatBytes(int $bytes, int $precision = 2): string
+    {
+        if ($bytes === 0) {
+            return '0 B';
+        }
+
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+
+        return round($bytes / pow(1024, $pow), $precision) . ' ' . $units[$pow];
+    }
+
+    /**
+     * Get formatted data used.
+     */
+    public function getFormattedDataUsedAttribute(): string
+    {
+        return $this->formatBytes($this->data_used);
+    }
+
+    /**
+     * Get formatted data limit.
+     */
+    public function getFormattedDataLimitAttribute(): string
+    {
+        return $this->formatBytes($this->data_limit);
+    }
+
+    /**
+     * Get formatted remaining data.
+     */
+    public function getFormattedRemainingDataAttribute(): string
+    {
+        return $this->formatBytes($this->remaining_data);
     }
 }

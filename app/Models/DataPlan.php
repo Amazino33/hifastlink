@@ -2,6 +2,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DataPlan extends Model
 {
@@ -54,5 +55,29 @@ class DataPlan extends Model
     public function scopeFeatured($query)
     {
         return $query->where('is_featured', true);
+    }
+
+    /**
+     * Get users subscribed to this plan.
+     */
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
+
+    /**
+     * Get duration in hours.
+     */
+    public function getDurationHoursAttribute(): int
+    {
+        return $this->duration_days * 24;
+    }
+
+    /**
+     * Get duration in seconds (for RADIUS Session-Timeout).
+     */
+    public function getDurationSecondsAttribute(): int
+    {
+        return $this->duration_days * 24 * 3600;
     }
 }

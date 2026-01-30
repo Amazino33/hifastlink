@@ -114,17 +114,22 @@ return [
 
         'radius' => [
             'driver' => 'mysql',
-            'host' => env('RADIUS_DB_HOST', 'your-ubuntu-vm-ip'),
+            'host' => env('RADIUS_DB_HOST', '142.93.47.189'),
             'port' => env('RADIUS_DB_PORT', '3306'),
-            'database' => env('RADIUS_DB_DATABASE', 'radius'),
-            'username' => env('RADIUS_DB_USERNAME', 'radius'),
-            'password' => env('RADIUS_DB_PASSWORD', 'your_secure_password'),
-            'unix_socket' => env('DB_SOCKET', ''),
+            'database' => env('RADIUS_DB_DATABASE', 'hifastlink'),
+            'username' => env('RADIUS_DB_USERNAME', 'admin'),
+            'password' => env('RADIUS_DB_PASSWORD', '1a2345678B'),
+            'unix_socket' => '',
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'prefix' => '',
             'strict' => true,
             'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::ATTR_TIMEOUT => 5,
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
         ],
 
     ],

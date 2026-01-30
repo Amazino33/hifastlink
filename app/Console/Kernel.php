@@ -12,6 +12,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
+        // Sync RADIUS data usage every 5 minutes
+        $schedule->command('radius:sync-data-usage')->everyMinute();
+
         // Sync users to RADIUS every 5 minutes
         $schedule->command('radius:sync-users')->everyFiveMinutes();
 
