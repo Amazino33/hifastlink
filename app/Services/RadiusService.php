@@ -138,6 +138,7 @@ class RadiusService
 
             $user->update([
                 'connection_status' => 'disabled',
+                'online_status' => false,
             ]);
 
             return true;
@@ -170,7 +171,9 @@ class RadiusService
                 'data_used' => 0,
                 'subscription_start_date' => Carbon::now(),
                 'subscription_end_date' => Carbon::now()->addDays($plan->duration_days),
+                'plan_expiry' => Carbon::now()->addDays($plan->duration_days),
                 'connection_status' => 'active',
+                'online_status' => false,
             ]);
 
             // Create/update RADIUS credentials
@@ -195,6 +198,7 @@ class RadiusService
         if ($activeSession) {
             $user->update([
                 'connection_status' => 'online',
+                'online_status' => true,
                 'last_online' => Carbon::now(),
                 'current_ip' => $activeSession->framedipaddress,
             ]);
@@ -206,6 +210,7 @@ class RadiusService
             if ($lastSession && $lastSession->acctstoptime) {
                 $user->update([
                     'connection_status' => 'offline',
+                    'online_status' => false,
                     'last_online' => $lastSession->acctstoptime,
                     'current_ip' => null,
                 ]);
