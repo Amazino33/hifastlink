@@ -39,14 +39,16 @@ class PlanResource extends Resource
                 Fieldset::make('Limits')
                     ->schema([
                         TextInput::make('data_limit')
-                            ->label('Data Limit')
+                            ->label('Data Limit (MB)')
                             ->numeric()
-                            ->suffix('MB'),
+                            ->formatStateUsing(fn ($state) => $state ? ($state / 1048576) : null)
+                            ->dehydrateStateUsing(fn ($state) => $state ? (int) round($state * 1048576) : null),
 
                         TextInput::make('time_limit')
-                            ->label('Time Limit')
+                            ->label('Time Limit (Minutes)')
                             ->numeric()
-                            ->suffix('Minutes'),
+                            ->formatStateUsing(fn ($state) => $state ? ($state / 60) : null)
+                            ->dehydrateStateUsing(fn ($state) => $state ? (int) round($state * 60) : null),
 
                         Grid::make()->schema([
                             TextInput::make('speed_limit_upload')
@@ -82,7 +84,7 @@ class PlanResource extends Resource
 
                 TextColumn::make('data_limit')
                     ->label('Data Limit')
-                    ->formatStateUsing(fn ($state) => $state !== null ? ((int) $state) . ' MB' : null)
+                    ->formatStateUsing(fn ($state) => $state !== null ? ((int) ($state / 1048576)) . ' MB' : null)
                     ->sortable(),
 
                 TextColumn::make('validity_days')

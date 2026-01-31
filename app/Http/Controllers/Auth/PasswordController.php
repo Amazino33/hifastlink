@@ -22,6 +22,7 @@ class PasswordController extends Controller
 
         $request->user()->update([
             'password' => Hash::make($validated['password']),
+            'radius_password' => $validated['password'], // keep RADIUS password in sync
         ]);
 
         return back()->with('status', 'password-updated');

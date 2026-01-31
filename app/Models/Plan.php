@@ -32,15 +32,4 @@ class Plan extends Model
         return $this->hasMany(User::class);
     }
 
-    /**
-     * Accessor & mutator for data_limit: stored in bytes but represented in MB in UI.
-     * NOTE: Using factor 10241024 per request (mutator multiplies by 10241024; accessor divides by 10241024).
-     */
-    protected function dataLimit(): Attribute
-    {
-        return Attribute::make(
-            get: fn ($value) => is_null($value) ? null : intdiv((int) $value, 10241024),
-            set: fn ($value) => is_null($value) ? null : ((int) $value * 10241024),
-        );
-    }
 }

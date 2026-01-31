@@ -9,6 +9,10 @@ use Filament\Resources\Table as ResourceTable;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Fieldset;
+use Filament\Schemas\Schema;
 use Illuminate\Support\Number;
 use Illuminate\Support\Carbon;
 use App\Filament\Resources\UserResource\Pages;
@@ -40,6 +44,12 @@ class UserResource extends Resource
                     ->trueColor('success')
                     ->falseColor('gray'),
 
+                TextColumn::make('plan.name')
+                    ->label('Current Plan')
+                    ->badge()
+                    ->color('info')
+                    ->sortable(),
+
                 TextColumn::make('plan_expiry')
                     ->label('Plan Expiry')
                     ->dateTime()
@@ -58,6 +68,31 @@ class UserResource extends Resource
                     ->sortable(),
             ])
             ->defaultSort('name');
+    }
+
+    public static function form(Schema $form): Schema
+    {
+        return $form
+            ->schema([
+                Fieldset::make('User Details')
+                    ->schema([
+                        Select::make('plan_id')
+                            ->relationship('plan', 'name')
+                            ->label('Assign Plan')
+                            ->searchable()
+                            ->preload()
+                            ->afterStateUpdated(function ($state, $set) {
+                                // Placeholder: logic to reset expiry will go here later
+                            }),
+                        TextInput::make('radius_password')
+                            ->label('RADIUS Password')
+                            ->password()
+                            ->helperText('Plain-text password used by RADIUS; leave blank to keep existing')
+                            ->dehydrated(fn ($state) => filled($state)),
+                    
+                    
+                    ]),
+            ]);
     }
 
     public static function getPages(): array

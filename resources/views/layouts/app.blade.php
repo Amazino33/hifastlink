@@ -13,8 +13,9 @@
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
     <!-- Scripts -->
+    @filamentStyles
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    @livewireStyles
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 </head>
 
@@ -209,6 +210,88 @@
 
 
     <script src="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.js"></script>
+
+    <!-- Toast container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2 pointer-events-none"></div>
+
+    <script>
+        (function () {
+            function createToast(message) {
+                const container = document.getElementById('toast-container');
+                if (!container) return;
+
+                const toast = document.createElement('div');
+                toast.className = 'pointer-events-auto max-w-sm w-full bg-white shadow-lg rounded-lg p-3 border border-gray-200 flex items-start space-x-3';
+
+                toast.innerHTML = `
+                    <div class="flex-1">
+                        <div class="text-sm font-semibold text-gray-900">${message}</div>
+                    </div>
+                    <button class="text-gray-400 hover:text-gray-600 close-toast" aria-label="Close">&times;</button>
+                `;
+
+                container.appendChild(toast);
+
+                const remove = () => toast.remove();
+                toast.querySelector('.close-toast').addEventListener('click', remove);
+                setTimeout(remove, 6000);
+            }
+
+            window.addEventListener('plan-activated', function (e) {
+                const payload = (e && e.detail) ? e.detail : {};
+                const message = payload.message || (payload.planName ? `Plan ${payload.planName} activated` : 'Plan activated');
+                createToast(message);
+            });
+
+            if (window.Livewire) {
+                window.Livewire.on && window.Livewire.on('planActivated', function (planId) {
+                    createToast('Plan activated');
+                });
+            }
+
+            // Fallback: observe DOM for a hidden livewire toast element inserted on render
+            const observer = new MutationObserver(function (mutations) {
+                for (const mutation of mutations) {
+                    for (const node of Array.from(mutation.addedNodes)) {
+                        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                        const el = node.nodeType === Node.ELEMENT_NODE ? node : null;
+                        if (!el) continue;
+                        // check current node and its descendants
+                        const checkEl = (element) => {
+                            if (!element) return;
+                            if (element.id === 'livewire-toast' && element.dataset && element.dataset.toast) {
+                                createToast(element.dataset.toast);
+                                element.remove();
+                                return true;
+                            }
+                            return false;
+                        };
+
+                        if (checkEl(el)) continue;
+                        const found = el.querySelector && el.querySelector('#livewire-toast');
+                        if (found && found.dataset && found.dataset.toast) {
+                            createToast(found.dataset.toast);
+                            found.remove();
+                        }
+                    }
+                }
+            });
+
+            observer.observe(document.body, { childList: true, subtree: true });
+
+            // Also check on load if the element is already present (SSR / full page reload)
+            document.addEventListener('DOMContentLoaded', function () {
+                const existing = document.getElementById('livewire-toast');
+                if (existing && existing.dataset && existing.dataset.toast) {
+                    createToast(existing.dataset.toast);
+                    existing.remove();
+                }
+            });
+        })();
+    </script>
+
+    @livewireScripts
+    @livewire('notifications')
 </body>
 
 </html>
