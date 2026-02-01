@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Models\RadCheck;
 use App\Models\RadReply;
+use App\Models\RadAcct;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 
@@ -42,36 +43,34 @@ class PlanSyncService
                 'value' => $user->radius_password ?? $user->username,
             ]);
 
-            // Data limit (bytes)
-            if (! empty($plan->data_limit) && $plan->data_limit > 0) {
-                RadCheck::create([
-                    'username' => $user->username,
-                    'attribute' => 'Max-Total-Octets',
-                    'op' => ':=',
-                    'value' => (string) $plan->data_limit,
-                ]);
-            }
+            // Calculate family usage
+            $masterId = $user->parent_id ?? $user->id;
+            $familyUsernames = User::where('id', $masterId)->orWhere('parent_id', $masterId)->pluck('username');
+            $startDate = $user->plan_started_at ?? now()->subYears(1);
+            $totalUsed = RadAcct::whereIn('username', $familyUsernames)
+                ->where('acctstarttime', '>=', $startDate)
+                ->sum(DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
 
-            // Session time limit
-            if (! empty($plan->time_limit) && $plan->time_limit > 0) {
-                RadCheck::create([
-                    'username' => $user->username,
-                    'attribute' => 'Max-All-Session-Time',
-                    'op' => ':=',
-                    'value' => (string) $plan->time_limit,
-                ]);
-            }
+            // Remaining data in bytes
+            $remainingBytes = max(0, ($plan->data_limit * 1024 * 1024) - $totalUsed);
 
-            // Speed limits go into radreply (Mikrotik specific)
-            if (! empty($plan->speed_limit_download)) {
-                $upload = $plan->speed_limit_upload ?? 0;
-                $download = $plan->speed_limit_download;
-
+            // Speed limits and data limit go into radreply (Mikrotik specific)
+            if (! empty($plan->speed_limit)) {
                 RadReply::create([
                     'username' => $user->username,
                     'attribute' => 'Mikrotik-Rate-Limit',
                     'op' => ':=',
-                    'value' => (string) $upload . 'k/' . (string) $download . 'k',
+                    'value' => $plan->speed_limit,
+                ]);
+            }
+
+            // Tell MikroTik the limit for THIS specific session
+            if ($remainingBytes > 0) {
+                RadReply::create([
+                    'username' => $user->username,
+                    'attribute' => 'Mikrotik-Total-Limit',
+                    'op' => ':=',
+                    'value' => (string) $remainingBytes,
                 ]);
             }
 

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use App\Models\Plan;
 use App\Models\User;
+use App\Models\Payment;
 
 class PaymentController extends Controller
 {
@@ -113,6 +114,14 @@ class PaymentController extends Controller
         $user->plan_expiry = now()->addDays($plan->validity_days ?? 0);
         $user->plan_started_at = now();
         $user->save(); // triggers observer -> RADIUS sync
+
+        // Record the payment
+        Payment::create([
+            'user_id' => $user->id,
+            'reference' => $data['reference'],
+            'amount' => $data['amount'] / 100, // Convert Kobo to Naira
+            'plan_name' => $plan->name,
+        ]);
 
         return redirect()->route('dashboard')->with('success', "Payment successful — you are now subscribed to {$plan->name}.");
     }

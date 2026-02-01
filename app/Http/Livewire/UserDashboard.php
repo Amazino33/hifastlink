@@ -8,6 +8,8 @@ use Illuminate\Support\Number;
 use Illuminate\Support\Facades\DB;
 use App\Models\Plan;
 use App\Models\RadAcct;
+use App\Models\Payment;
+use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Carbon;
 
@@ -87,8 +89,17 @@ class UserDashboard extends Component
         // Determine start date for counting usage (plan start). If missing, fallback to 1 year back to avoid huge scans
         $startDate = $user->plan_started_at ?? now()->subYears(1);
 
-        // Sum all historical sessions for this user since the plan started
-        $historyUsage = RadAcct::where('username', $user->username)
+        // Identify the family master ID (parent if exists, else self)
+        $masterId = $user->parent_id ?? $user->id;
+
+        // Get the master user with plan loaded
+        $masterUser = User::with('plan')->find($masterId);
+
+        // Get all family usernames (master + children)
+        $familyUsernames = User::where('id', $masterId)->orWhere('parent_id', $masterId)->pluck('username');
+
+        // Sum all historical sessions for the family since the plan started
+        $historyUsage = RadAcct::whereIn('username', $familyUsernames)
             ->where('acctstarttime', '>=', $startDate)
             ->sum(DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
 
@@ -105,7 +116,7 @@ class UserDashboard extends Component
             $currentSpeed = '0 kbps';
         }
 
-        $subscriptionStatus = $user->plan_id ? 'active' : 'inactive';
+        $subscriptionStatus = $masterUser->plan_id ? 'active' : 'inactive';
         $connectionStatus = ($activeSession) ? 'active' : 'offline';
 
         // Prefer the framed IP from the active RADIUS session; fall back to user current_ip or 'Offline'
@@ -118,12 +129,12 @@ class UserDashboard extends Component
         }
 
         // Formatted validity string (or 'N/A')
-        $validUntil = $user->plan_expiry ? $user->plan_expiry->format('d M Y, h:i A') : 'N/A';
-        $planValidityHuman = $user->plan_expiry ? Carbon::parse($user->plan_expiry)->diffForHumans() : '-';
+        $validUntil = $masterUser->plan_expiry ? $masterUser->plan_expiry->format('d M Y, h:i A') : 'N/A';
+        $planValidityHuman = $masterUser->plan_expiry ? Carbon::parse($masterUser->plan_expiry)->diffForHumans() : '-';
 
         // Days remaining (signed diff, clamp to 0)
-        if ($user->plan_expiry) {
-            $diff = now()->diffInDays($user->plan_expiry, false);
+        if ($masterUser->plan_expiry) {
+            $diff = now()->diffInDays($masterUser->plan_expiry, false);
             $subscriptionDays = (int) max(0, $diff);
 
             if ($subscriptionDays <= 7) {
@@ -138,9 +149,9 @@ class UserDashboard extends Component
             $daysBadgeClass = 'bg-gray-500 text-white';
         }
 
-        // Calculate data usage percentage based on totalUsed and plan data_limit
-        if ($user->plan && ! empty($user->plan->data_limit) && $user->plan->data_limit > 0) {
-            $percentage = ($totalUsed / (float) $user->plan->data_limit) * 100;
+        // Calculate data usage percentage based on totalUsed and master's plan data_limit
+        if ($masterUser && $masterUser->plan && ! empty($masterUser->plan->data_limit) && $masterUser->plan->data_limit > 0) {
+            $percentage = ($totalUsed / (float) $masterUser->plan->data_limit) * 100;
             $dataUsagePercentage = (int) min(100, round($percentage));
         } else {
             $dataUsagePercentage = 0;
@@ -148,12 +159,15 @@ class UserDashboard extends Component
 
         $uptime = $activeSession && $activeSession->acctstarttime ? Carbon::parse($activeSession->acctstarttime)->diffForHumans() : ($user->last_online ? $user->last_online->diffForHumans() : '-');
 
+        // Fetch recent payments
+        $recentPayments = Payment::where('user_id', Auth::id())->latest()->take(5)->get();
+
         return view('livewire.user-dashboard', [
             'user' => $user,
             'plans' => $plans,
             'totalUsed' => $totalUsed,
             'formattedTotalUsed' => $formattedTotalUsed,
-            'formattedDataLimit' => $user->plan?->data_limit ? Number::fileSize($user->plan->data_limit) : 'Unlimited',
+            'formattedDataLimit' => $masterUser?->plan?->data_limit ? Number::fileSize($masterUser->plan->data_limit) : 'Unlimited',
             'subscriptionStatus' => $subscriptionStatus,
             'connectionStatus' => $connectionStatus,
             'currentIp' => $currentIp,
@@ -164,6 +178,7 @@ class UserDashboard extends Component
             'currentSpeed' => $currentSpeed,
             'uptime' => $uptime,
             'daysBadgeClass' => $daysBadgeClass,
+            'recentPayments' => $recentPayments,
         ])->layout('layouts.app');
     }
 }

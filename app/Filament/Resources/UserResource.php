@@ -9,10 +9,9 @@ use Filament\Resources\Table as ResourceTable;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\IconColumn;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
-use Filament\Schemas\Components\Fieldset;
-use Filament\Schemas\Schema;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Fieldset;
 use Illuminate\Support\Number;
 use Illuminate\Support\Carbon;
 use App\Filament\Resources\UserResource\Pages;
@@ -74,7 +73,39 @@ class UserResource extends Resource
     {
         return $form
             ->schema([
-                Fieldset::make('User Details')
+                Fieldset::make('Basic Information')
+                    ->schema([
+                        TextInput::make('name')
+                            ->required()
+                            ->maxLength(255),
+                        TextInput::make('username')
+                            ->required()
+                            ->unique(ignoreRecord: true)
+                            ->maxLength(255)
+                            ->label('RADIUS Username'),
+                        TextInput::make('email')
+                            ->email()
+                            ->required()
+                            ->unique(ignoreRecord: true)
+                            ->maxLength(255),
+                        TextInput::make('password')
+                            ->password()
+                            ->required(fn ($context) => $context === 'create')
+                            ->minLength(8)
+                            ->confirmed()
+                            ->dehydrated(fn ($state) => filled($state)),
+                        TextInput::make('password_confirmation')
+                            ->password()
+                            ->required(fn ($context) => $context === 'create')
+                            ->minLength(8),
+                        TextInput::make('radius_password')
+                            ->label('RADIUS Password')
+                            ->password()
+                            ->helperText('Plain-text password used by RADIUS; leave blank to keep existing')
+                            ->dehydrated(fn ($state) => filled($state)),
+                    ])->columns(2),
+
+                Fieldset::make('Plan & Subscription')
                     ->schema([
                         Select::make('plan_id')
                             ->relationship('plan', 'name')
@@ -84,14 +115,31 @@ class UserResource extends Resource
                             ->afterStateUpdated(function ($state, $set) {
                                 // Placeholder: logic to reset expiry will go here later
                             }),
-                        TextInput::make('radius_password')
-                            ->label('RADIUS Password')
-                            ->password()
-                            ->helperText('Plain-text password used by RADIUS; leave blank to keep existing')
-                            ->dehydrated(fn ($state) => filled($state)),
-                    
-                    
-                    ]),
+                        DateTimePicker::make('plan_expiry')
+                            ->label('Plan Expiry')
+                            ->default(now()->addDays(30)),
+                        DateTimePicker::make('plan_started_at')
+                            ->label('Plan Started At')
+                            ->default(now()),
+                    ])->columns(3),
+
+                Fieldset::make('Family Settings')
+                    ->schema([
+                        Select::make('parent_id')
+                            ->relationship('parent', 'name')
+                            ->label('Parent User')
+                            ->searchable()
+                            ->preload()
+                            ->helperText('Leave blank if this is a family admin'),
+                        Toggle::make('is_family_admin')
+                            ->label('Is Family Admin')
+                            ->helperText('Can manage family members'),
+                        TextInput::make('family_limit')
+                            ->numeric()
+                            ->minValue(0)
+                            ->default(0)
+                            ->helperText('Maximum number of family members'),
+                    ])->columns(3),
             ]);
     }
 

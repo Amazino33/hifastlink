@@ -36,6 +36,9 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'connection_status',
         'current_ip',
         'plan_id',
+        'parent_id',
+        'is_family_admin',
+        'family_limit',
     ];
 
     /**
@@ -44,6 +47,19 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     public function plan(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(\App\Models\Plan::class);
+    }
+
+    /**
+     * Family relationships
+     */
+    public function children()
+    {
+        return $this->hasMany(User::class, 'parent_id');
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(User::class, 'parent_id');
     }
 
     /**
@@ -74,6 +90,8 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
             'last_online' => 'datetime',
             'data_used' => 'integer',
             'data_limit' => 'integer',
+            'is_family_admin' => 'boolean',
+            'family_limit' => 'integer',
         ];
     }
 
@@ -83,6 +101,14 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     public function dataPlan(): BelongsTo
     {
         return $this->belongsTo(DataPlan::class);
+    }
+
+    /**
+     * Get the RADIUS accounting records for this user.
+     */
+    public function radAccts()
+    {
+        return $this->hasMany(RadAcct::class, 'username', 'username');
     }
 
     /**

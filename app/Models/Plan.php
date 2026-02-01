@@ -32,4 +32,13 @@ class Plan extends Model
         return $this->hasMany(User::class);
     }
 
+    /**
+     * Get the speed limit attribute (combined upload/download).
+     */
+    protected function speedLimit(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->speed_limit_download ? ($this->speed_limit_upload ?? 0) . 'k/' . $this->speed_limit_download . 'k' : null,
+        );
+    }
 }

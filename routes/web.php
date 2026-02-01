@@ -16,6 +16,7 @@ Route::get('/about-us', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', \App\Http\Livewire\UserDashboard::class)->name('dashboard');
     Route::get('/dashboard/realtime-data', [DashboardController::class, 'getRealtimeData'])->name('dashboard.realtime');
+    Route::get('/family', \App\Http\Livewire\FamilyManager::class)->name('family');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

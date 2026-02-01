@@ -21,6 +21,9 @@ class Kernel extends ConsoleKernel
         // Check data limits every hour
         $schedule->command('network:check-limits')->hourly();
 
+        // Kick expired users every minute
+        $schedule->command('users:kick-expired')->everyMinute();
+
         // Generate daily reports at 1 AM
         $schedule->command('reports:generate --type=daily')->dailyAt('01:00');
 
