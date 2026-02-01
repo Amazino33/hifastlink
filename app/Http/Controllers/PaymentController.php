@@ -8,8 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use App\Models\Plan;
 use App\Models\User;
-use App\Models\Payment;
-
+use App\Models\Payment;use Illuminate\Support\Number;
 class PaymentController extends Controller
 {
     /**
@@ -108,23 +107,43 @@ class PaymentController extends Controller
             return redirect()->route('dashboard')->with('error', 'Plan not found for this payment.');
         }
 
-        // Activate the plan: reset usage, set expiry and mark plan start
-        $user->plan_id = $plan->id;
-        $user->data_used = 0;
-        $user->plan_expiry = now()->addDays($plan->validity_days ?? 0);
-        $user->plan_started_at = now();
-        $user->is_family_admin = $plan->is_family;
-        $user->family_limit = $plan->family_limit;
-        $user->save(); // triggers observer -> RADIUS sync
+        // Check if user has active plan with data left
+        $hasActivePlan = $user->plan_expiry && $user->plan_expiry->isFuture();
+        $hasDataLeft = $user->data_used < $user->data_limit;
 
-        // Record the payment
-        Payment::create([
-            'user_id' => $user->id,
-            'reference' => $data['reference'],
-            'amount' => $data['amount'] / 100, // Convert Kobo to Naira
-            'plan_name' => $plan->name,
-        ]);
+        if ($hasActivePlan && $hasDataLeft) {
+            // Queue the plan
+            $user->pending_plan_id = $plan->id;
+            $user->pending_plan_purchased_at = now();
+            $user->save();
 
-        return redirect()->route('dashboard')->with('success', "Payment successful — you are now subscribed to {$plan->name}.");
+            return redirect()->route('dashboard')->with('success', "Plan queued! It will start when your current plan expires.");
+        } else {
+            // Activate immediately with rollover
+            $rolloverData = 0;
+            if ($user->data_limit && $user->data_used < $user->data_limit) {
+                $rolloverData = $user->data_limit - $user->data_used;
+            }
+
+            $user->plan_id = $plan->id;
+            $user->data_used = 0;
+            $user->data_limit = $plan->data_limit + $rolloverData;
+            $user->plan_expiry = now()->addDays($plan->validity_days ?? 0);
+            $user->plan_started_at = now();
+            $user->is_family_admin = $plan->is_family;
+            $user->family_limit = $plan->family_limit;
+            $user->save(); // triggers observer -> RADIUS sync
+
+            // Record the payment
+            Payment::create([
+                'user_id' => $user->id,
+                'reference' => $data['reference'],
+                'amount' => $data['amount'] / 100, // Convert Kobo to Naira
+                'plan_name' => $plan->name,
+            ]);
+
+            $rolloverMessage = $rolloverData > 0 ? " with " . Number::fileSize($rolloverData) . " rollover data!" : "!";
+            return redirect()->route('dashboard')->with('success', "Payment successful — you are now subscribed to {$plan->name}{$rolloverMessage}");
+        }
     }
 }

@@ -5,16 +5,21 @@ namespace App\Filament\Resources;
 use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
-use Filament\Resources\Table as ResourceTable;
 use Filament\Tables\Table;
-use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Actions\DeleteAction;
+use App\Models\RadCheck;
+use App\Models\RadReply;
+use App\Models\RadAcct;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Fieldset;
 use Illuminate\Support\Number;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use App\Filament\Resources\UserResource\Pages;
+use Filament\Actions\DeleteAction as ActionsDeleteAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Fieldset as ComponentsFieldset;
@@ -37,6 +42,10 @@ class UserResource extends Resource
 
                 TextColumn::make('data_used')
                     ->label('Data Usage')
+                    ->getStateUsing(function ($record) {
+                        return RadAcct::where('username', $record->username)
+                            ->sum(DB::raw('acctinputoctets + acctoutputoctets'));
+                    })
                     ->formatStateUsing(fn (?int $state): string => Number::fileSize($state ?? 0)),
 
                 IconColumn::make('online_status')
@@ -70,7 +79,16 @@ class UserResource extends Resource
                     ->searchable()
                     ->sortable(),
             ])
-            ->defaultSort('name');
+            ->defaultSort('name')
+            ->actions([
+                ActionsDeleteAction::make()
+                    ->before(function (ActionsDeleteAction $action, $record) {
+                        // Delete from RADIUS before deleting user
+                        RadCheck::where('username', $record->username)->delete();
+                        RadReply::where('username', $record->username)->delete();
+                        // Note: RadAcct is kept for historical records
+                    }),
+            ]);
     }
 
     public static function form(Schema $schema): Schema

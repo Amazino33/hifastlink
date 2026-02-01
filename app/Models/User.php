@@ -39,6 +39,8 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'parent_id',
         'is_family_admin',
         'family_limit',
+        'pending_plan_id',
+        'pending_plan_purchased_at',
     ];
 
     /**
@@ -47,6 +49,14 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     public function plan(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(\App\Models\Plan::class);
+    }
+
+    /**
+     * Pending plan relationship
+     */
+    public function pendingPlan(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Plan::class, 'pending_plan_id');
     }
 
     /**
@@ -92,6 +102,7 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
             'data_limit' => 'integer',
             'is_family_admin' => 'boolean',
             'family_limit' => 'integer',
+            'pending_plan_purchased_at' => 'datetime',
         ];
     }
 
@@ -189,6 +200,32 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     public function getFormattedDataLimitAttribute(): string
     {
         return $this->formatBytes($this->data_limit);
+    }
+
+    /**
+     * Get human-readable plan validity.
+     */
+    public function getPlanValidityHumanAttribute(): string
+    {
+        if (!$this->plan_expiry) {
+            return 'No Active Plan';
+        }
+
+        $diff = now()->diffInMinutes($this->plan_expiry, false);
+
+        if ($diff < 0) {
+            return 'Expired';
+        }
+
+        if ($diff < 60) {
+            return $diff . ' Minutes';
+        }
+
+        if ($diff < 1440) {
+            return ceil($diff / 60) . ' Hours';
+        }
+
+        return ceil($diff / 1440) . ' Days';
     }
 
     /**

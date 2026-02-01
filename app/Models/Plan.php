@@ -20,6 +20,7 @@ class Plan extends Model
         'validity_days',
         'is_family',
         'family_limit',
+        'allowed_login_time',
     ];
 
     protected $casts = [

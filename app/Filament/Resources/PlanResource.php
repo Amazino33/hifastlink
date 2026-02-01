@@ -13,6 +13,7 @@ use Filament\Tables\Columns\IconColumn;
 use Illuminate\Support\Str;
 use App\Filament\Resources\PlanResource\Pages;
 use BackedEnum;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
@@ -76,6 +77,20 @@ class PlanResource extends Resource
                             ->minValue(0)
                             ->default(0)
                             ->helperText('Maximum family members allowed'),
+
+                        Select::make('allowed_login_time')
+                            ->label('Time Restriction')
+                            ->options([
+                                null => 'No Restriction (24/7)',
+                                'Al2300-0600' => 'Night Plan (11:00 PM - 6:00 AM)',
+                                'Al0000-0500' => 'Midnight Owl (12:00 AM - 5:00 AM)',
+                                'SaSu0000-2400' => 'Weekend Only (Sat & Sun)',
+                                'Wk0800-1700' => 'Work Hours (Mon-Fri, 8 AM - 5 PM)',
+                                'Al0800-1800' => 'Daytime Only (8 AM - 6 PM)',
+                            ])
+                            ->placeholder('Select a time rule (Optional)')
+                            ->helperText('Restricts when the user can connect. Leave empty for standard plans.')
+                            ->nullable(),
                     ]),
             ]);
     }
@@ -114,6 +129,22 @@ class PlanResource extends Resource
                 TextColumn::make('family_limit')
                     ->label('Family Limit')
                     ->sortable(),
+
+                TextColumn::make('allowed_login_time')
+                    ->label('Login Time')
+                    ->formatStateUsing(function ($state) {
+                        $options = [
+                            null => 'No Restriction (24/7)',
+                            'Al2300-0600' => 'Night Plan (11:00 PM - 6:00 AM)',
+                            'Al0000-0500' => 'Midnight Owl (12:00 AM - 5:00 AM)',
+                            'SaSu0000-2400' => 'Weekend Only (Sat & Sun)',
+                            'Wk0800-1700' => 'Work Hours (Mon-Fri, 8 AM - 5 PM)',
+                            'Al0800-1800' => 'Daytime Only (8 AM - 6 PM)',
+                        ];
+                        return $options[$state] ?? $state;
+                    })
+                    ->sortable()
+                    ->limit(25),
             ])
             ->defaultSort('name');
     }

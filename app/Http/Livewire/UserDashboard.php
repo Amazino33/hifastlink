@@ -130,7 +130,7 @@ class UserDashboard extends Component
 
         // Formatted validity string (or 'N/A')
         $validUntil = $masterUser->plan_expiry ? $masterUser->plan_expiry->format('d M Y, h:i A') : 'N/A';
-        $planValidityHuman = $masterUser->plan_expiry ? Carbon::parse($masterUser->plan_expiry)->diffForHumans() : '-';
+        $planValidityHuman = $masterUser->plan_validity_human;
 
         // Days remaining (signed diff, clamp to 0)
         if ($masterUser->plan_expiry) {
@@ -180,5 +180,31 @@ class UserDashboard extends Component
             'daysBadgeClass' => $daysBadgeClass,
             'recentPayments' => $recentPayments,
         ])->layout('layouts.app');
+    }
+
+    public function forceActivate()
+    {
+        $user = Auth::user();
+
+        if (!$user->pending_plan_id) return;
+
+        // Calculate Rollover
+        $rollover = max(0, $user->data_limit - $user->data_used);
+        $plan = $user->pendingPlan;
+
+        // Activate
+        $user->update([
+            'plan_id' => $plan->id,
+            'data_limit' => $plan->data_limit + $rollover,
+            'data_used' => 0,
+            'plan_expiry' => now()->addDays($plan->validity_days),
+            'pending_plan_id' => null,
+            'pending_plan_purchased_at' => null,
+        ]);
+
+        // Force Radius Sync
+        $user->save();
+
+        session()->flash('success', 'Plan activated! ' . Number::fileSize($rollover) . ' rolled over.');
     }
 }

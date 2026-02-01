@@ -105,6 +105,7 @@
                             <div class="text-blue-100 text-sm font-semibold uppercase tracking-wide mb-2">
                                 {{ $connectionStatus === 'active' ? 'Live Data Usage' : 'Data Usage' }}
                             </div>
+                            <div class="text-white text-lg font-bold mb-1">{{ $user->plan->name ?? 'No Active Plan' }}</div>
                             <div class="text-white/80 text-xs">Valid Until: {{ $validUntil }} ({{ $planValidityHuman }})</div>
                         </div>
                     </div>
@@ -141,6 +142,33 @@
                 </div>
             </div>
 
+            @if($user->pending_plan_id)
+                <div class="col-span-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-3xl p-6 mt-6 relative overflow-hidden">
+                    <div class="flex items-center justify-between relative z-10">
+                        <div>
+                            <div class="text-xs font-bold text-yellow-600 dark:text-yellow-400 uppercase tracking-wide mb-1">
+                                <i class="fa-solid fa-clock mr-1"></i> Queued Plan
+                            </div>
+                            <h3 class="text-xl font-black text-gray-900 dark:text-white">
+                                {{ $user->pendingPlan->name }}
+                            </h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                Will auto-activate when your current plan expires.
+                            </p>
+                        </div>
+
+                        <div class="text-right">
+                            <div class="text-2xl font-black text-gray-900 dark:text-white">
+                                {{ \Illuminate\Support\Number::fileSize($user->pendingPlan->data_limit) }}
+                            </div>
+                            <button wire:click="forceActivate" wire:confirm="This will end your current plan immediately. Remaining data will roll over. Continue?" class="mt-2 bg-yellow-500 hover:bg-yellow-400 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors">
+                                Activate Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-2xl font-black text-gray-900 dark:text-white">Hot Deals</h3>
@@ -157,7 +185,10 @@
                                         <div class="text-xl font-black text-gray-800">{{ \Illuminate\Support\Number::fileSize($plan->data_limit) }}</div>
                                         <div class="text-gray-400 text-xs">Data</div>
                                     </div>
-                                </div>   
+                                </div>
+                                <div class="text-white font-bold text-xs px-2 py-1 truncate">
+                                    {{ $plan->name }}
+                                </div>
                                 <div class="text-white font-black py-1 px-3 text-sm">
                                     ₦{{ number_format($plan->price) }}
                                 </div>
