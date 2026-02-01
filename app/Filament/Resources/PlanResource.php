@@ -3,19 +3,20 @@
 namespace App\Filament\Resources;
 
 use App\Models\Plan;
-use Filament\Forms;
-use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Grid;
 use Filament\Resources\Resource;
 use Filament\Resources\Form;
 use Filament\Resources\Table as ResourceTable;
-use Filament\Tables\Table;
-use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\IconColumn;
 use Illuminate\Support\Str;
 use App\Filament\Resources\PlanResource\Pages;
 use BackedEnum;
+use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
 
 class PlanResource extends Resource
 {
@@ -64,6 +65,17 @@ class PlanResource extends Resource
                             ->label('Validity')
                             ->numeric()
                             ->suffix('Days'),
+
+                        Toggle::make('is_family')
+                            ->label('Family Plan')
+                            ->helperText('Enables family admin status for subscribers'),
+
+                        TextInput::make('family_limit')
+                            ->label('Family Limit')
+                            ->numeric()
+                            ->minValue(0)
+                            ->default(0)
+                            ->helperText('Maximum family members allowed'),
                     ]),
             ]);
     }
@@ -89,6 +101,18 @@ class PlanResource extends Resource
 
                 TextColumn::make('validity_days')
                     ->label('Validity (Days)')
+                    ->sortable(),
+
+                IconColumn::make('is_family')
+                    ->label('Family')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-users')
+                    ->falseIcon('heroicon-o-user')
+                    ->trueColor('success')
+                    ->falseColor('gray'),
+
+                TextColumn::make('family_limit')
+                    ->label('Family Limit')
                     ->sortable(),
             ])
             ->defaultSort('name');

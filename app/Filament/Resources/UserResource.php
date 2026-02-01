@@ -15,6 +15,10 @@ use Filament\Forms\Components\Fieldset;
 use Illuminate\Support\Number;
 use Illuminate\Support\Carbon;
 use App\Filament\Resources\UserResource\Pages;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Fieldset as ComponentsFieldset;
+use Filament\Schemas\Schema;
 
 class UserResource extends Resource
 {
@@ -69,11 +73,11 @@ class UserResource extends Resource
             ->defaultSort('name');
     }
 
-    public static function form(Schema $form): Schema
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
-                Fieldset::make('Basic Information')
+                ComponentsFieldset::make('Basic Information')
                     ->schema([
                         TextInput::make('name')
                             ->required()
@@ -105,7 +109,7 @@ class UserResource extends Resource
                             ->dehydrated(fn ($state) => filled($state)),
                     ])->columns(2),
 
-                Fieldset::make('Plan & Subscription')
+                ComponentsFieldset::make('Plan & Subscription')
                     ->schema([
                         Select::make('plan_id')
                             ->relationship('plan', 'name')
@@ -123,7 +127,7 @@ class UserResource extends Resource
                             ->default(now()),
                     ])->columns(3),
 
-                Fieldset::make('Family Settings')
+                ComponentsFieldset::make('Family Settings')
                     ->schema([
                         Select::make('parent_id')
                             ->relationship('parent', 'name')

@@ -113,6 +113,8 @@ class PaymentController extends Controller
         $user->data_used = 0;
         $user->plan_expiry = now()->addDays($plan->validity_days ?? 0);
         $user->plan_started_at = now();
+        $user->is_family_admin = $plan->is_family;
+        $user->family_limit = $plan->family_limit;
         $user->save(); // triggers observer -> RADIUS sync
 
         // Record the payment

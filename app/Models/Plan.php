@@ -18,6 +18,8 @@ class Plan extends Model
         'speed_limit_upload',
         'speed_limit_download',
         'validity_days',
+        'is_family',
+        'family_limit',
     ];
 
     protected $casts = [
