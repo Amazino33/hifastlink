@@ -169,6 +169,37 @@
                 </div>
             @endif
 
+            <div class="bg-gradient-to-br from-blue-600 to-blue-400 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+                
+                <div class="relative z-10">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                            <i class="fa-solid fa-ticket text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Have a Voucher?</h3>
+                            <p class="text-white/60 text-xs">Enter your code to redeem data</p>
+                        </div>
+                    </div>
+
+                    <form wire:submit.prevent="redeemVoucher">
+                        <div class="relative">
+                            <input 
+                                wire:model="voucherCode" 
+                                type="text" 
+                                placeholder="XXXX-0000" 
+                                class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:ring-2 focus:ring-blue-300 focus:border-transparent font-mono uppercase tracking-widest text-center"
+                            >
+                        </div>
+                        <button type="submit" class="w-full mt-3 bg-white text-blue-900 font-bold py-2 rounded-xl hover:bg-gray-100 transition-colors shadow-lg">
+                            Redeem Code
+                        </button>
+                    </form>
+                    @error('voucherCode') <span class="text-red-300 text-xs mt-2 block text-center">{{ $message }}</span> @enderror
+                </div>
+            </div>
+
             <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-2xl font-black text-gray-900 dark:text-white">Hot Deals</h3>

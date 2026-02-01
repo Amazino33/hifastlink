@@ -10,6 +10,7 @@ use App\Models\Plan;
 use App\Models\RadAcct;
 use App\Models\Payment;
 use App\Models\User;
+use App\Models\Voucher;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Carbon;
 
@@ -24,6 +25,8 @@ class UserDashboard extends Component
     protected $listeners = [
         'subscribeEvent' => 'subscribe',
     ];
+
+    public $voucherCode = '';
 
     public function subscribe(int $planId): void
     {
@@ -80,8 +83,12 @@ class UserDashboard extends Component
 
         $plans = Plan::all();
 
-        // Active RADIUS session (acctstoptime NULL)
-        $activeSession = RadAcct::forUser($user->username)->active()->latest('acctstarttime')->first();
+        // Active RADIUS session (acctstoptime NULL AND started within last 10 minutes)
+        $activeSession = RadAcct::forUser($user->username)
+            ->active()
+            ->where('acctstarttime', '>=', now()->subMinutes(10))
+            ->latest('acctstarttime')
+            ->first();
 
         // Live usage from the active session (kept for reference)
         $liveUsage = $activeSession ? (($activeSession->acctinputoctets ?? 0) + ($activeSession->acctoutputoctets ?? 0)) : 0;
@@ -206,5 +213,81 @@ class UserDashboard extends Component
         $user->save();
 
         session()->flash('success', 'Plan activated! ' . Number::fileSize($rollover) . ' rolled over.');
+    }
+
+    public function redeemVoucher()
+    {
+        // Clean and validate input
+        $this->voucherCode = trim(strtoupper($this->voucherCode));
+        
+        $this->validate([
+            'voucherCode' => 'required|regex:/^[A-Z0-9]{4}-[0-9]{4}$/',
+        ], [
+            'voucherCode.required' => 'Please enter a voucher code.',
+            'voucherCode.regex' => 'Voucher code must be in format XXXX-0000.',
+        ]);
+
+        $voucher = Voucher::where('code', $this->voucherCode)->first();
+
+        if (!$voucher) {
+            Notification::make()
+                ->title('Invalid Voucher')
+                ->body('The voucher code you entered is invalid.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        if ($voucher->is_used) {
+            Notification::make()
+                ->title('Voucher Already Used')
+                ->body('This voucher has already been redeemed.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $plan = $voucher->plan;
+        $user = Auth::user();
+
+        if ($user->plan_id && $user->plan_expiry && $user->plan_expiry->isFuture()) {
+            // Queue the plan
+            $user->update([
+                'pending_plan_id' => $plan->id,
+                'pending_plan_purchased_at' => now(),
+            ]);
+
+            Notification::make()
+                ->title('Voucher Redeemed!')
+                ->body("Plan queued for activation after current plan expires.")
+                ->success()
+                ->send();
+        } else {
+            // Activate immediately
+            $user->update([
+                'plan_id' => $plan->id,
+                'data_limit' => $plan->data_limit,
+                'data_used' => 0,
+                'plan_expiry' => now()->addDays($plan->validity_days),
+            ]);
+
+            // Trigger observer for RADIUS sync
+            $user->save();
+
+            Notification::make()
+                ->title('Voucher Redeemed!')
+                ->body("{$plan->name} plan activated successfully.")
+                ->success()
+                ->send();
+        }
+
+        // Mark voucher as used
+        $voucher->update([
+            'is_used' => true,
+            'used_by' => Auth::id(),
+            'used_at' => now(),
+        ]);
+
+        $this->voucherCode = '';
     }
 }
