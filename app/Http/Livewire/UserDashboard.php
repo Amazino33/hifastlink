@@ -5,6 +5,7 @@ namespace App\Http\Livewire;
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Number;
+use Illuminate\Support\Facades\DB;
 use App\Models\Plan;
 use App\Models\RadAcct;
 use Filament\Notifications\Notification;
@@ -80,11 +81,19 @@ class UserDashboard extends Component
         // Active RADIUS session (acctstoptime NULL)
         $activeSession = RadAcct::forUser($user->username)->active()->latest('acctstarttime')->first();
 
-        // Live usage from the active session
+        // Live usage from the active session (kept for reference)
         $liveUsage = $activeSession ? (($activeSession->acctinputoctets ?? 0) + ($activeSession->acctoutputoctets ?? 0)) : 0;
 
-        // Total usage = stored data_used + live session usage
-        $totalUsed = ($user->data_used ?? 0) + $liveUsage;
+        // Determine start date for counting usage (plan start). If missing, fallback to 1 year back to avoid huge scans
+        $startDate = $user->plan_started_at ?? now()->subYears(1);
+
+        // Sum all historical sessions for this user since the plan started
+        $historyUsage = RadAcct::where('username', $user->username)
+            ->where('acctstarttime', '>=', $startDate)
+            ->sum(DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
+
+        // Total usage derived from radacct history
+        $totalUsed = (int) $historyUsage;
         $formattedTotalUsed = Number::fileSize($totalUsed);
 
         // Current speed: show plan speed limits when online
