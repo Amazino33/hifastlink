@@ -141,7 +141,7 @@ class Plan extends Model
             RadGroupReply::where('groupname', $plan->name)->delete();
         });
     }
-
+ 
     public function getDataLimitHumanAttribute(): string
     {
         if ($this->limit_unit === 'Unlimited' || ! $this->data_limit) {
