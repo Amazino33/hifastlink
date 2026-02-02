@@ -46,6 +46,8 @@ class RadGroupReplyResource extends Resource
                         'Mikrotik-Total-Limit' => 'Total Data (Bytes)',
                         'Mikrotik-Rate-Limit' => 'Speed Limit (rx/tx)',
                         'Session-Timeout' => 'Time Limit (Seconds)',
+                        'Login-Time' => 'Login Time Restriction',
+                        'Acct-Interim-Interval' => 'Validity Interval (Seconds)',
                     ])
                     ->required(),
 

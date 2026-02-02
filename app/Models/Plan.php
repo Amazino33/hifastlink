@@ -1,10 +1,13 @@
 <?php
+<?php
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Models\RadGroupReply;
+use Illuminate\Support\Facades\Log;
 
 class Plan extends Model
 {
@@ -27,6 +30,7 @@ class Plan extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+        'is_family' => 'boolean',
     ];
 
     /**
@@ -50,32 +54,91 @@ class Plan extends Model
     protected static function booted()
     {
         static::saved(function ($plan) {
-            // 1. Calculate the Bytes
-            $bytes = 0;
-            if ($plan->limit_unit === 'MB') {
-                $bytes = $plan->data_limit * 1024 * 1024;
-            } elseif ($plan->limit_unit === 'GB') {
-                $bytes = $plan->data_limit * 1024 * 1024 * 1024;
+            // Remove entries for old name if the plan was renamed
+            $originalName = $plan->getOriginal('name');
+            if ($originalName && $originalName !== $plan->name) {
+                RadGroupReply::where('groupname', $originalName)->delete();
             }
 
-            // 2. Create/Update the Radius Rule (radgroupreply)
-            if ($plan->limit_unit !== 'Unlimited') {
-                \App\Models\RadGroupReply::updateOrCreate(
-                    [
-                        'groupname' => $plan->name, // The link (e.g., "Daily-1GB")
-                        'attribute' => 'Mikrotik-Total-Limit'
-                    ],
-                    [
-                        'op'    => ':=',
-                        'value' => (string) $bytes // The long number (e.g., 1073741824)
-                    ]
-                );
-            } else {
-                // If Unlimited, remove any limits
-                \App\Models\RadGroupReply::where('groupname', $plan->name)
-                    ->where('attribute', 'Mikrotik-Total-Limit')
-                    ->delete();
+            // Remove existing radgroupreply entries for this plan to avoid duplicates
+            RadGroupReply::where('groupname', $plan->name)->delete();
+
+            $attributes = [];
+
+            // Data limit -> Mikrotik-Total-Limit (bytes)
+            if ($plan->limit_unit !== 'Unlimited' && $plan->data_limit) {
+                if ($plan->limit_unit === 'GB') {
+                    $bytes = (int) ($plan->data_limit * 1073741824);
+                } else { // MB
+                    $bytes = (int) ($plan->data_limit * 1048576);
+                }
+
+                $attributes[] = [
+                    'groupname' => $plan->name,
+                    'attribute' => 'Mikrotik-Total-Limit',
+                    'op' => ':=',
+                    'value' => (string) $bytes,
+                ];
             }
+
+            // Rate limit -> Mikrotik-Rate-Limit (uploadk/downloadk)
+            if ($plan->speed_limit_upload || $plan->speed_limit_download) {
+                $upload = $plan->speed_limit_upload ? (int) $plan->speed_limit_upload : 0;
+                $download = $plan->speed_limit_download ? (int) $plan->speed_limit_download : 0;
+                // Use k suffix (as existing UI expects Kbps)
+                $rate = "{$upload}k/{$download}k";
+
+                $attributes[] = [
+                    'groupname' => $plan->name,
+                    'attribute' => 'Mikrotik-Rate-Limit',
+                    'op' => ':=',
+                    'value' => $rate,
+                ];
+            }
+
+            // Session timeout -> Session-Timeout (seconds)
+            if ($plan->time_limit) {
+                $attributes[] = [
+                    'groupname' => $plan->name,
+                    'attribute' => 'Session-Timeout',
+                    'op' => ':=',
+                    'value' => (string) ((int) $plan->time_limit),
+                ];
+            }
+
+            // Login-time restriction -> Login-Time (raw string from select)
+            if ($plan->allowed_login_time) {
+                $attributes[] = [
+                    'groupname' => $plan->name,
+                    'attribute' => 'Login-Time',
+                    'op' => ':=',
+                    'value' => $plan->allowed_login_time,
+                ];
+            }
+
+            // Validity (optional) -> Acct-Interim-Interval (or other attribute as needed)
+            if ($plan->validity_days) {
+                $attributes[] = [
+                    'groupname' => $plan->name,
+                    'attribute' => 'Acct-Interim-Interval',
+                    'op' => ':=',
+                    'value' => (string) ($plan->validity_days * 86400),
+                ];
+            }
+
+            // Insert all attributes
+            foreach ($attributes as $attr) {
+                try {
+                    RadGroupReply::create($attr);
+                } catch (\Exception $e) {
+                    Log::error("Failed to sync RadGroupReply for plan {$plan->name}: " . $e->getMessage(), ['attr' => $attr]);
+                }
+            }
+        });
+
+        // Remove all radgroupreply entries when a plan is deleted
+        static::deleting(function ($plan) {
+            RadGroupReply::where('groupname', $plan->name)->delete();
         });
     }
 }
