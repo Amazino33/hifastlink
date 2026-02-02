@@ -57,8 +57,7 @@ class PlanResource extends Resource
                             ->label('Data Limit')
                             ->numeric()->formatStateUsing(fn($state, $record) => $record->limit_unit === 'Unlimited'
                                 ? 'Unlimited'
-                                : Number::fileSize($record->limit_unit === 'GB' ? $state * 1073741824 : $state * 1048576))
-                            ->sortable(),
+                                : Number::fileSize($record->limit_unit === 'GB' ? $state * 1073741824 : $state * 1048576)),
 
                         Select::make('limit_unit')
                             ->label('Unit')
