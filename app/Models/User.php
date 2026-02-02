@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVerifyEmail
+class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVerifyEmail, FilamentUser
 {
     use HasFactory, Notifiable, HasRoles;
 
@@ -245,5 +247,17 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
 
         // Return remaining data (ensure not negative)
         return max(0, $this->data_limit - $this->data_used);
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        // 1. Always let the "Boss" email in (The Master Key)
+        if ($this->email === 'amazino33@gmail.com') {
+            return true;
+        }
+
+        // 2. For everyone else, check if they are active or have a role
+        // (Adjust this logic later for your staff)
+        return $this->hasRole('super_admin') || $this->hasRole('cashier');
     }
 }
