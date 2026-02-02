@@ -194,9 +194,19 @@ class PaymentController extends Controller
             // Activate immediately with rollover
             $rolloverData = $user->calculateRolloverFor($plan);
 
+            // Convert plan limit to bytes (support GB/MB/Unlimited)
+            if ($plan->limit_unit === 'Unlimited') {
+                $planBytes = null;
+            } elseif ($plan->limit_unit === 'GB') {
+                $planBytes = (int) ($plan->data_limit * 1073741824);
+            } else {
+                $planBytes = (int) ($plan->data_limit * 1048576);
+            }
+
             $user->plan_id = $plan->id;
             $user->data_used = 0;
-            $user->data_limit = $plan->data_limit + $rolloverData;
+            $user->data_limit = $planBytes === null ? null : ($planBytes + ($rolloverData ?? 0));
+            $user->data_limit = $user->data_limit;
             $user->plan_expiry = now()->addDays($plan->validity_days ?? 0);
             $user->plan_started_at = now();
             $user->is_family_admin = $plan->is_family;

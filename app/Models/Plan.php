@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use App\Models\RadGroupReply;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Number;
 
 class Plan extends Model
 {
