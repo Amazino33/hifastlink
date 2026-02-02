@@ -42,6 +42,11 @@ class RadAcct extends Model
      */
     public function scopeForUser(Builder $query, string $username): Builder
     {
+        if (empty($username)) {
+            // If no username, return a query that finds nothing (instead of crashing)
+            return $query->whereRaw('1 = 0');
+        }
+
         return $query->where('username', $username);
     }
 
