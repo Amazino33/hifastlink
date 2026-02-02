@@ -46,7 +46,7 @@ class PlanResource extends Resource
                         //     ->formatStateUsing(fn ($state) => $state ? ($state / 1048576) : null)
                         //     ->dehydrateStateUsing(fn ($state) => $state ? (int) round($state * 1048576) : null),
 
-                        TextInput::make('limit_value')
+                        TextInput::make('data_limit')
                             ->label('Data Limit')
                             ->numeric()
                             ->required(),
@@ -59,7 +59,7 @@ class PlanResource extends Resource
                                 'Unlimited' => 'Unlimited',
                             ])
                             ->required(),
-                            
+
                         TextInput::make('time_limit')
                             ->label('Time Limit (Minutes)')
                             ->numeric()

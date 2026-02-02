@@ -21,7 +21,7 @@ class Plan extends Model
         'is_family',
         'family_limit',
         'allowed_login_time',
-        'limit_value',
+        'data_limit',
         'limit_unit',
     ];
 
@@ -53,9 +53,9 @@ class Plan extends Model
             // 1. Calculate the Bytes
             $bytes = 0;
             if ($plan->limit_unit === 'MB') {
-                $bytes = $plan->limit_value * 1024 * 1024;
+                $bytes = $plan->data_limit * 1024 * 1024;
             } elseif ($plan->limit_unit === 'GB') {
-                $bytes = $plan->limit_value * 1024 * 1024 * 1024;
+                $bytes = $plan->data_limit * 1024 * 1024 * 1024;
             }
 
             // 2. Create/Update the Radius Rule (radgroupreply)
