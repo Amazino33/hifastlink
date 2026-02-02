@@ -8,7 +8,11 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use App\Models\Plan;
 use App\Models\User;
-use App\Models\Payment;use Illuminate\Support\Number;
+use App\Models\Payment;
+use Illuminate\Support\Number;
+use App\Models\RadCheck;
+use App\Models\RadUserGroup;
+use Illuminate\Support\Facades\Log;
 class PaymentController extends Controller
 {
     /**
@@ -145,6 +149,33 @@ class PaymentController extends Controller
                 'paid_at' => now(),
             ]);
 
+            // RADIUS sync logic
+            try {
+                RadCheck::updateOrCreate(
+                    ['username' => $user->username],
+                    [
+                        'attribute' => 'Cleartext-Password',
+                        'op' => ':=',
+                        'value' => $user->radius_password ?? 'default_password',
+                    ]
+                );
+                Log::info("RadCheck created/updated for user {$user->username}");
+            } catch (\Exception $e) {
+                Log::error("Failed to create/update RadCheck for user {$user->username}: " . $e->getMessage());
+            }
+
+            try {
+                RadUserGroup::updateOrCreate(
+                    ['username' => $user->username],
+                    [
+                        'groupname' => 'default_group',
+                    ]
+                );
+                Log::info("RadUserGroup created/updated for user {$user->username}");
+            } catch (\Exception $e) {
+                Log::error("Failed to create/update RadUserGroup for user {$user->username}: " . $e->getMessage());
+            }
+
             return redirect()->route('dashboard')->with('success', "Plan queued! It will start when your current plan expires.");
         } else {
             // Activate immediately with rollover
@@ -198,6 +229,33 @@ class PaymentController extends Controller
                     'plan_exists' => \App\Models\Plan::find($plan->id) ? 'yes' : 'no',
                     'user_exists' => \App\Models\User::find($user->id) ? 'yes' : 'no',
                 ]);
+            }
+
+            // RADIUS sync logic
+            try {
+                RadCheck::updateOrCreate(
+                    ['username' => $user->username],
+                    [
+                        'attribute' => 'Cleartext-Password',
+                        'op' => ':=',
+                        'value' => $user->radius_password ?? 'default_password',
+                    ]
+                );
+                Log::info("RadCheck created/updated for user {$user->username}");
+            } catch (\Exception $e) {
+                Log::error("Failed to create/update RadCheck for user {$user->username}: " . $e->getMessage());
+            }
+
+            try {
+                RadUserGroup::updateOrCreate(
+                    ['username' => $user->username],
+                    [
+                        'groupname' => 'default_group',
+                    ]
+                );
+                Log::info("RadUserGroup created/updated for user {$user->username}");
+            } catch (\Exception $e) {
+                Log::error("Failed to create/update RadUserGroup for user {$user->username}: " . $e->getMessage());
             }
 
             $rolloverMessage = $rolloverData > 0 ? " with " . Number::fileSize($rolloverData) . " rollover data!" : "!";
