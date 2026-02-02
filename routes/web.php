@@ -13,7 +13,7 @@ Route::get('/about-us', function () {
     return view('about');
 })->name('about');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware([])->group(function () {
     Route::get('/dashboard', \App\Http\Livewire\UserDashboard::class)->name('dashboard');
     Route::get('/dashboard/realtime-data', [DashboardController::class, 'getRealtimeData'])->name('dashboard.realtime');
     Route::get('/family', \App\Http\Livewire\FamilyManager::class)->name('family');
@@ -22,7 +22,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Paystack payment route (authenticated)
-    Route::post('/pay', [PaymentController::class, 'redirectToGateway'])->name('pay');
+    Route::post('/pay', [PaymentController::class, 'redirectToGateway'])->middleware('auth')->name('pay');
 });
 
 // Paystack callback (public - Paystack redirects the browser back here)

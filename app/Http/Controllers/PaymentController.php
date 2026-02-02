@@ -16,12 +16,6 @@ class PaymentController extends Controller
      */
     public function redirectToGateway(Request $request)
     {
-        // --- DEBUG START ---
-        // 1. Check if we are receiving the Plan ID
-        // dd($request->all()); 
-
-        // 2. See the response from Paystack (Comment out step 1 and uncomment this after)
-        // --- DEBUG END ---
         $request->validate([
             'plan_id' => ['required', 'integer', 'exists:plans,id'],
         ]);
@@ -46,8 +40,22 @@ class PaymentController extends Controller
             ],
         ];
 
-        $response = Http::withToken(env('PAYSTACK_SECRET_KEY'))
-            ->post(rtrim(env('PAYSTACK_PAYMENT_URL', 'https://api.paystack.co'), '/') . '/transaction/initialize', $payload);
+        try {
+            $response = Http::withToken(env('PAYSTACK_SECRET_KEY'))
+                ->post(rtrim(env('PAYSTACK_PAYMENT_URL', 'https://api.paystack.co'), '/') . '/transaction/initialize', $payload);
+
+            \Log::info('Paystack API response', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'successful' => $response->successful(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Paystack API call failed', [
+                'error' => $e->getMessage(),
+                'payload' => $payload,
+            ]);
+            return back()->with('error', 'Network error: Unable to connect to payment gateway.');
+        }
 
         // dd($response->json()); // --- DEBUG ---
 

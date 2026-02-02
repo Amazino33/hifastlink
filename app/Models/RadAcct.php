@@ -14,13 +14,15 @@ class RadAcct extends Model
         'nasportid', 'nasporttype', 'acctstarttime', 'acctstoptime',
         'acctsessiontime', 'acctauthentic', 'connectinfo_start', 'connectinfo_stop',
         'acctinputoctets', 'acctoutputoctets', 'calledstationid', 'callingstationid',
-        'acctterminatecause', 'servicetype', 'framedprotocol', 'framedipaddress'
+        'acctterminatecause', 'servicetype', 'framedprotocol', 'framedipaddress',
+        'acctupdatetime'
     ];
     public $timestamps = false;
 
     protected $casts = [
         'acctstarttime' => 'datetime',
         'acctstoptime' => 'datetime',
+        'acctupdatetime' => 'datetime',
         'acctsessiontime' => 'integer',
         'acctinputoctets' => 'integer',
         'acctoutputoctets' => 'integer',
@@ -31,7 +33,8 @@ class RadAcct extends Model
      */
     public function scopeActive(Builder $query): Builder
     {
-        return $query->whereNull('acctstoptime');
+        return $query->whereNull('acctstoptime')
+            ->where('acctupdatetime', '>=', now()->subMinutes(5));
     }
 
     /**

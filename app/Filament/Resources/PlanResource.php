@@ -91,7 +91,7 @@ class PlanResource extends Resource
                             ->placeholder('Select a time rule (Optional)')
                             ->helperText('Restricts when the user can connect. Leave empty for standard plans.')
                             ->nullable(),
-                    ]),
+                    ])->columns(1),
             ]);
     }
 
