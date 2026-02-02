@@ -13,7 +13,12 @@ use Filament\Tables\Columns\IconColumn;
 use Illuminate\Support\Str;
 use App\Filament\Resources\PlanResource\Pages;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
@@ -161,14 +166,15 @@ class PlanResource extends Resource
                     ->sortable()
                     ->limit(25),
             ])
+            ->recordActions([
+                EditAction::make(),
+                DeleteAction::make(),
+            ])
             ->defaultSort('name')
             ->toolbarActions([
-                BulkAction::make('delete')
-                    ->label('Delete Selected')
-                    ->action(fn (array $records) => Plan::whereIn('id', $records)->delete())
-                    ->requiresConfirmation()
-                    ->color('danger')
-                    ->icon('heroicon-o-trash'),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                ])
             ]);
     }
 
