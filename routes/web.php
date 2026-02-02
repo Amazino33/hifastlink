@@ -45,6 +45,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 });
 
+Route::get('/clear-config', function () {
+    Artisan::call('config:clear');
+    Artisan::call('cache:clear');
+    return "Config Cleared! New .env values are now active.";
+});
+
 // Paystack callback (public - Paystack redirects the browser back here)
 Route::get('/payment/callback', [PaymentController::class, 'handleGatewayCallback'])->name('payment.callback');
 
