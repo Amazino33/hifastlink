@@ -25,7 +25,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/pay', [PaymentController::class, 'redirectToGateway'])->name('pay');
 
     Route::get('/fix-admin', function () {
-        $user = \App\Models\User::where('email', 'admin@hifastlink.com')->first();
+        $user = \App\Models\User::where('email', 'amazino33@gmail.com')->first();
         
         if (!$user) return "User not found";
 
