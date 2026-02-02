@@ -280,7 +280,7 @@ class UserDashboard extends Component
         // Force Radius Sync
         $user->save();
 
-        session()->flash('success', 'Plan activated! ' . Number::fileSize($rollover) . ' rolled over.');
+        session()->flash('success', 'Plan activated! ' . Number::fileSize($rolloverBytes) . ' rolled over.');
     }
 
     public function redeemVoucher()
@@ -310,18 +310,36 @@ class UserDashboard extends Component
     }
     // SCENARIO B: User is EXPIRED or NEW -> Activate Immediately
     else {
-        // Calculate Rollover (if any small amount remains from a just-expired plan)
-        $rollover = $user->calculateRolloverFor($newPlan);
+        // Calculate rollover in bytes using accessor
+        $rolloverBytes = $user->getRemainingDataAttribute();
+
+        // Convert new plan limit to bytes (respect unit)
+        if ($newPlan->limit_unit === 'Unlimited') {
+            $newPlanBytes = null;
+        } else {
+            $npval = (int) $newPlan->data_limit;
+            if ($npval > 1048576) {
+                $newPlanBytes = $npval;
+            } else {
+                $newPlanBytes = $newPlan->limit_unit === 'GB' ? (int) ($npval * 1073741824) : (int) ($npval * 1048576);
+            }
+        }
+
+        $newLimit = is_null($newPlanBytes) ? null : ($newPlanBytes + ($rolloverBytes ?? 0));
 
         $user->update([
             'plan_id' => $newPlan->id,
-            'data_limit' => $newPlan->data_limit + $rollover,
+            'data_limit' => $newLimit,
             'data_used' => 0,
             'plan_expiry' => now()->addDays($newPlan->validity_days),
         ]);
 
         // Note: The UserObserver will automatically sync this to Radius/MikroTik
-        session()->flash('success', "Success! {$newPlan->name} is now active.");
+        $msg = "Success! {$newPlan->name} is now active.";
+        if (($rolloverBytes ?? 0) > 0) {
+            $msg .= ' ' . Number::fileSize($rolloverBytes) . ' rolled over.';
+        }
+        session()->flash('success', $msg);
     }
 
     // 5. Mark Voucher as Used
