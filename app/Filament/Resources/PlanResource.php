@@ -40,12 +40,26 @@ class PlanResource extends Resource
 
                 Fieldset::make('Limits')
                     ->schema([
-                        TextInput::make('data_limit')
-                            ->label('Data Limit (MB)')
-                            ->numeric()
-                            ->formatStateUsing(fn ($state) => $state ? ($state / 1048576) : null)
-                            ->dehydrateStateUsing(fn ($state) => $state ? (int) round($state * 1048576) : null),
+                        // TextInput::make('data_limit')
+                        //     ->label('Data Limit (MB)')
+                        //     ->numeric()
+                        //     ->formatStateUsing(fn ($state) => $state ? ($state / 1048576) : null)
+                        //     ->dehydrateStateUsing(fn ($state) => $state ? (int) round($state * 1048576) : null),
 
+                        TextInput::make('limit_value')
+                            ->label('Data Limit')
+                            ->numeric()
+                            ->required(),
+
+                        Select::make('limit_unit')
+                            ->label('Unit')
+                            ->options([
+                                'MB' => 'Megabytes (MB)',
+                                'GB' => 'Gigabytes (GB)',
+                                'Unlimited' => 'Unlimited',
+                            ])
+                            ->required(),
+                            
                         TextInput::make('time_limit')
                             ->label('Time Limit (Minutes)')
                             ->numeric()

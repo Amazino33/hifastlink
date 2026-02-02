@@ -21,6 +21,8 @@ class Plan extends Model
         'is_family',
         'family_limit',
         'allowed_login_time',
+        'limit_value',
+        'limit_unit',
     ];
 
     protected $casts = [
@@ -43,5 +45,37 @@ class Plan extends Model
         return Attribute::make(
             get: fn () => $this->speed_limit_download ? ($this->speed_limit_upload ?? 0) . 'k/' . $this->speed_limit_download . 'k' : null,
         );
+    }
+
+    protected static function booted()
+    {
+        static::saved(function ($plan) {
+            // 1. Calculate the Bytes
+            $bytes = 0;
+            if ($plan->limit_unit === 'MB') {
+                $bytes = $plan->limit_value * 1024 * 1024;
+            } elseif ($plan->limit_unit === 'GB') {
+                $bytes = $plan->limit_value * 1024 * 1024 * 1024;
+            }
+
+            // 2. Create/Update the Radius Rule (radgroupreply)
+            if ($plan->limit_unit !== 'Unlimited') {
+                \App\Models\RadGroupReply::updateOrCreate(
+                    [
+                        'groupname' => $plan->name, // The link (e.g., "Daily-1GB")
+                        'attribute' => 'Mikrotik-Total-Limit'
+                    ],
+                    [
+                        'op'    => ':=',
+                        'value' => (string) $bytes // The long number (e.g., 1073741824)
+                    ]
+                );
+            } else {
+                // If Unlimited, remove any limits
+                \App\Models\RadGroupReply::where('groupname', $plan->name)
+                    ->where('attribute', 'Mikrotik-Total-Limit')
+                    ->delete();
+            }
+        });
     }
 }
