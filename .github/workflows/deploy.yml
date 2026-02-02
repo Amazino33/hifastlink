@@ -17,7 +17,7 @@ jobs:
       with:
         host: ${{ secrets.HIFASTLINK_HOST }}
         username: ${{ secrets.HIFASTLINK_USER }}
-        key: ${{ secrets.HIFASTLINK_SSH_KEY }}
+        key: ${{ secrets.HIFASTLINK_KEY }}
         port: ${{ secrets.HIFASTLINK_PORT }}
         script: |
           cd domains/hifastlink.com/public_html  # <--- VERIFY THIS PATH ON HIFASTLINK
