@@ -20,5 +20,5 @@ jobs:
         key: ${{ secrets.HIFASTLINK_KEY }}
         port: ${{ secrets.HIFASTLINK_PORT }}
         script: |
-          cd domains/hifastlink.com/public_html  # <--- VERIFY THIS PATH ON HIFASTLINK
+          cd domains/hifastlink.com/hifastlink  # <--- VERIFY THIS PATH ON HIFASTLINK
           ./deploy.sh
