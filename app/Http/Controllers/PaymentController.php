@@ -160,6 +160,18 @@ class PaymentController extends Controller
                         'value' => $user->radius_password ?? 'default_password',
                     ]
                 );
+
+                // This assumes your $plan object has a 'name' like "Daily-100MB"
+                if (isset($plan) && $plan) {
+                    // Ensure the Group Model is imported at the top!
+                    RadUserGroup::updateOrCreate(
+                        ['username' => $user->username],
+                        [
+                            'groupname' => $plan->name, // e.g., "Daily-100MB"
+                            'priority'  => 10
+                        ]
+                    );
+                }
                 Log::info("RadCheck created/updated for user {$user->username}");
             } catch (\Exception $e) {
                 Log::error("Failed to create/update RadCheck for user {$user->username}: " . $e->getMessage());
