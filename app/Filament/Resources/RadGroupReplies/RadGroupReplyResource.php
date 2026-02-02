@@ -63,8 +63,6 @@ class RadGroupReplyResource extends Resource
         return $table
             ->recordTitleAttribute('name')
             ->columns([
-                TextColumn::make('name')
-                    ->searchable(),
                 TextColumn::make('groupname')
                     ->label('Plan Name')
                     ->searchable()
