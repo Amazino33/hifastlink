@@ -154,4 +154,4 @@ class Plan extends Model
 
         return Number::fileSize($bytes);
     }
-}
+} 
