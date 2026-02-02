@@ -38,20 +38,23 @@ class KickExpiredUsers extends Command
             ->get();
 
         foreach ($expiredUsers as $user) {
-            if ($user->pending_plan_id && $user->pendingPlan) {
-                // Auto-renew from pending plan
-                $leftover = max(0, $user->data_limit - $user->data_used);
+            $nextSubscription = $user->pendingSubscriptions()->first();
 
-                $user->plan_id = $user->pending_plan_id;
-                $user->data_limit = $user->pendingPlan->data_limit + $leftover;
+            if ($nextSubscription) {
+                // Auto-renew from pending subscription queue
+                $leftover = $user->calculateRolloverFor($nextSubscription->plan);
+
+                $user->plan_id = $nextSubscription->plan_id;
+                $user->data_limit = $nextSubscription->plan->data_limit + $leftover;
                 $user->data_used = 0;
-                $user->plan_expiry = now()->addDays($user->pendingPlan->validity_days ?? 0);
+                $user->plan_expiry = now()->addDays($nextSubscription->plan->validity_days ?? 0);
                 $user->plan_started_at = now();
-                $user->is_family_admin = $user->pendingPlan->is_family;
-                $user->family_limit = $user->pendingPlan->family_limit;
-                $user->pending_plan_id = null;
-                $user->pending_plan_purchased_at = null;
+                $user->is_family_admin = $nextSubscription->plan->is_family;
+                $user->family_limit = $nextSubscription->plan->family_limit;
                 $user->save(); // Triggers observer to sync RADIUS
+
+                // Delete the processed subscription
+                $nextSubscription->delete();
 
                 Log::info("User {$user->username} auto-renewed from pending queue with {$leftover} bytes rollover.");
             } else {

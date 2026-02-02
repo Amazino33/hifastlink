@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\User;
 use App\Services\PlanSyncService;
 use App\Models\RadReply;
+use App\Models\RadCheck;
 
 class UserObserver
 {

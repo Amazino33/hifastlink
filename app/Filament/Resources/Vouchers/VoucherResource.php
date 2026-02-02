@@ -16,7 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 
-class VoucherResource extends Resource
+class OldVoucherResource extends Resource
 {
     protected static ?string $model = Voucher::class;
 

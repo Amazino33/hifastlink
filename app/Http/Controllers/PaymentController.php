@@ -113,17 +113,34 @@ class PaymentController extends Controller
 
         if ($hasActivePlan && $hasDataLeft) {
             // Queue the plan
-            $user->pending_plan_id = $plan->id;
-            $user->pending_plan_purchased_at = now();
-            $user->save();
+            \App\Models\PendingSubscription::create([
+                'user_id' => $user->id,
+                'plan_id' => $plan->id,
+            ]);
+
+            // Record the payment even for queued plans
+            Payment::create([
+                'user_id' => $user->id,
+                'reference' => $data['reference'],
+                'amount' => $data['amount'] / 100, // Convert Kobo to Naira
+                'plan_name' => $plan->name,
+            ]);
+
+            // Also create transaction record
+            \App\Models\Transaction::create([
+                'user_id' => $user->id,
+                'plan_id' => $plan->id,
+                'amount' => $data['amount'] / 100,
+                'reference' => $data['reference'],
+                'status' => 'success',
+                'gateway' => 'paystack',
+                'paid_at' => now(),
+            ]);
 
             return redirect()->route('dashboard')->with('success', "Plan queued! It will start when your current plan expires.");
         } else {
             // Activate immediately with rollover
-            $rolloverData = 0;
-            if ($user->data_limit && $user->data_used < $user->data_limit) {
-                $rolloverData = $user->data_limit - $user->data_used;
-            }
+            $rolloverData = $user->calculateRolloverFor($plan);
 
             $user->plan_id = $plan->id;
             $user->data_used = 0;
@@ -141,6 +158,39 @@ class PaymentController extends Controller
                 'amount' => $data['amount'] / 100, // Convert Kobo to Naira
                 'plan_name' => $plan->name,
             ]);
+
+            // Also create transaction record
+            try {
+                \Illuminate\Support\Facades\Log::info("Attempting to create transaction for payment {$data['reference']}", [
+                    'user_id' => $user->id,
+                    'plan_id' => $plan->id,
+                    'amount' => $data['amount'] / 100,
+                    'reference' => $data['reference'],
+                    'status' => 'success',
+                    'gateway' => 'paystack',
+                    'paid_at' => now(),
+                ]);
+
+                $transaction = \App\Models\Transaction::create([
+                    'user_id' => $user->id,
+                    'plan_id' => $plan->id,
+                    'amount' => $data['amount'] / 100,
+                    'reference' => $data['reference'],
+                    'status' => 'success',
+                    'gateway' => 'paystack',
+                    'paid_at' => now(),
+                ]);
+
+                \Illuminate\Support\Facades\Log::info("Transaction created successfully for payment {$data['reference']} with ID: {$transaction->id}");
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to create transaction for payment {$data['reference']}: " . $e->getMessage(), [
+                    'exception' => $e,
+                    'user_id' => $user->id,
+                    'plan_id' => $plan->id,
+                    'plan_exists' => \App\Models\Plan::find($plan->id) ? 'yes' : 'no',
+                    'user_exists' => \App\Models\User::find($user->id) ? 'yes' : 'no',
+                ]);
+            }
 
             $rolloverMessage = $rolloverData > 0 ? " with " . Number::fileSize($rolloverData) . " rollover data!" : "!";
             return redirect()->route('dashboard')->with('success', "Payment successful — you are now subscribed to {$plan->name}{$rolloverMessage}");

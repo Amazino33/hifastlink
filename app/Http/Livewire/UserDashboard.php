@@ -3,7 +3,9 @@
 namespace App\Http\Livewire;
 
 use Livewire\Component;
+use Livewire\WithPagination;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
 use Illuminate\Support\Facades\DB;
 use App\Models\Plan;
@@ -22,9 +24,13 @@ use Illuminate\Support\Carbon;
  */
 class UserDashboard extends Component
 {
+    use WithPagination;
+
     protected $listeners = [
         'subscribeEvent' => 'subscribe',
     ];
+
+    protected $layout = 'layouts.app';
 
     public $voucherCode = '';
 
@@ -83,12 +89,19 @@ class UserDashboard extends Component
 
         $plans = Plan::all();
 
-        // Active RADIUS session (acctstoptime NULL AND started within last 10 minutes)
-        $activeSession = RadAcct::forUser($user->username)
-            ->active()
-            ->where('acctstarttime', '>=', now()->subMinutes(10))
-            ->latest('acctstarttime')
-            ->first();
+        // Active RADIUS session (acctstoptime NULL - no time restriction)
+        $radiusReachable = true;
+        try {
+            $activeSession = RadAcct::forUser($user->username)
+                ->active()
+                ->latest('acctstarttime')
+                ->first();
+        } catch (\Exception $e) {
+            // RADIUS server unreachable - log the error and set session to null
+            Log::warning('RADIUS database connection failed in UserDashboard: ' . $e->getMessage());
+            $activeSession = null;
+            $radiusReachable = false;
+        }
 
         // Live usage from the active session (kept for reference)
         $liveUsage = $activeSession ? (($activeSession->acctinputoctets ?? 0) + ($activeSession->acctoutputoctets ?? 0)) : 0;
@@ -126,11 +139,18 @@ class UserDashboard extends Component
         $subscriptionStatus = $masterUser->plan_id ? 'active' : 'inactive';
         $connectionStatus = ($activeSession) ? 'active' : 'offline';
 
+        // If RADIUS is unreachable, show 'unknown' status
+        if (!$radiusReachable) {
+            $connectionStatus = 'unknown';
+        }
+
         // Prefer the framed IP from the active RADIUS session; fall back to user current_ip or 'Offline'
         if ($activeSession && !empty($activeSession->framedipaddress)) {
             $currentIp = $activeSession->framedipaddress;
         } elseif ($connectionStatus === 'active') {
             $currentIp = $user->current_ip ?? '-';
+        } elseif ($connectionStatus === 'unknown') {
+            $currentIp = 'Server Unreachable';
         } else {
             $currentIp = 'Offline';
         }
@@ -166,8 +186,11 @@ class UserDashboard extends Component
 
         $uptime = $activeSession && $activeSession->acctstarttime ? Carbon::parse($activeSession->acctstarttime)->diffForHumans() : ($user->last_online ? $user->last_online->diffForHumans() : '-');
 
-        // Fetch recent payments
-        $recentPayments = Payment::where('user_id', Auth::id())->latest()->take(5)->get();
+        // Fetch all transactions
+        $recentTransactions = \App\Models\Transaction::where('user_id', Auth::id())
+            ->with('plan')
+            ->latest()
+            ->paginate(10);
 
         return view('livewire.user-dashboard', [
             'user' => $user,
@@ -185,19 +208,21 @@ class UserDashboard extends Component
             'currentSpeed' => $currentSpeed,
             'uptime' => $uptime,
             'daysBadgeClass' => $daysBadgeClass,
-            'recentPayments' => $recentPayments,
-        ])->layout('layouts.app');
+            'recentTransactions' => $recentTransactions,
+            'radiusReachable' => $radiusReachable,
+        ]);
     }
 
-    public function forceActivate()
+    public function forceActivate($subscriptionId)
     {
         $user = Auth::user();
 
-        if (!$user->pending_plan_id) return;
+        $subscription = $user->pendingSubscriptions()->find($subscriptionId);
+        if (!$subscription) return;
 
         // Calculate Rollover
         $rollover = max(0, $user->data_limit - $user->data_used);
-        $plan = $user->pendingPlan;
+        $plan = $subscription->plan;
 
         // Activate
         $user->update([
@@ -205,9 +230,10 @@ class UserDashboard extends Component
             'data_limit' => $plan->data_limit + $rollover,
             'data_used' => 0,
             'plan_expiry' => now()->addDays($plan->validity_days),
-            'pending_plan_id' => null,
-            'pending_plan_purchased_at' => null,
         ]);
+
+        // Delete the processed subscription
+        $subscription->delete();
 
         // Force Radius Sync
         $user->save();
@@ -217,77 +243,87 @@ class UserDashboard extends Component
 
     public function redeemVoucher()
     {
-        // Clean and validate input
-        $this->voucherCode = trim(strtoupper($this->voucherCode));
-        
+        // 1. Validate
         $this->validate([
-            'voucherCode' => 'required|regex:/^[A-Z0-9]{4}-[0-9]{4}$/',
-        ], [
-            'voucherCode.required' => 'Please enter a voucher code.',
-            'voucherCode.regex' => 'Voucher code must be in format XXXX-0000.',
+            'voucherCode' => 'required|string|exists:vouchers,code',
+        ]);
+    // 2. Find Voucher
+    $voucher = \App\Models\Voucher::where('code', $this->voucherCode)->first();
+    // 3. Check if Used
+    if ($voucher->is_used) {
+        $this->addError('voucherCode', 'This voucher has already been used.');
+        return;
+    }
+    $user = \Illuminate\Support\Facades\Auth::user();
+    $newPlan = $voucher->plan;
+    // 4. THE DECISION: Queue or Activate?
+    // SCENARIO A: User has an ACTIVE plan -> Queue It
+    if ($user->plan_expiry && $user->plan_expiry > now()) {
+        // Add to Queue
+        \App\Models\PendingSubscription::create([
+            'user_id' => $user->id,
+            'plan_id' => $newPlan->id,
+        ]);
+        session()->flash('success', "Voucher accepted! {$newPlan->name} added to your queue.");
+    }
+    // SCENARIO B: User is EXPIRED or NEW -> Activate Immediately
+    else {
+        // Calculate Rollover (if any small amount remains from a just-expired plan)
+        $rollover = $user->calculateRolloverFor($newPlan);
+
+        $user->update([
+            'plan_id' => $newPlan->id,
+            'data_limit' => $newPlan->data_limit + $rollover,
+            'data_used' => 0,
+            'plan_expiry' => now()->addDays($newPlan->validity_days),
         ]);
 
-        $voucher = Voucher::where('code', $this->voucherCode)->first();
+        // Note: The UserObserver will automatically sync this to Radius/MikroTik
+        session()->flash('success', "Success! {$newPlan->name} is now active.");
+    }
 
-        if (!$voucher) {
-            Notification::make()
-                ->title('Invalid Voucher')
-                ->body('The voucher code you entered is invalid.')
-                ->danger()
-                ->send();
-            return;
-        }
+    // 5. Mark Voucher as Used
+    $voucher->update([
+        'is_used' => true,
+        'used_by' => $user->id,
+        'used_at' => now(),
+    ]);
 
-        if ($voucher->is_used) {
-            Notification::make()
-                ->title('Voucher Already Used')
-                ->body('This voucher has already been redeemed.')
-                ->danger()
-                ->send();
-            return;
-        }
-
-        $plan = $voucher->plan;
-        $user = Auth::user();
-
-        if ($user->plan_id && $user->plan_expiry && $user->plan_expiry->isFuture()) {
-            // Queue the plan
-            $user->update([
-                'pending_plan_id' => $plan->id,
-                'pending_plan_purchased_at' => now(),
-            ]);
-
-            Notification::make()
-                ->title('Voucher Redeemed!')
-                ->body("Plan queued for activation after current plan expires.")
-                ->success()
-                ->send();
-        } else {
-            // Activate immediately
-            $user->update([
-                'plan_id' => $plan->id,
-                'data_limit' => $plan->data_limit,
-                'data_used' => 0,
-                'plan_expiry' => now()->addDays($plan->validity_days),
-            ]);
-
-            // Trigger observer for RADIUS sync
-            $user->save();
-
-            Notification::make()
-                ->title('Voucher Redeemed!')
-                ->body("{$plan->name} plan activated successfully.")
-                ->success()
-                ->send();
-        }
-
-        // Mark voucher as used
-        $voucher->update([
-            'is_used' => true,
-            'used_by' => Auth::id(),
-            'used_at' => now(),
+    // 6. Create Transaction Record
+    try {
+        \Illuminate\Support\Facades\Log::info("Attempting to create transaction for voucher {$voucher->code}", [
+            'user_id' => $user->id,
+            'plan_id' => $newPlan->id,
+            'amount' => $newPlan->price,
+            'reference' => 'VCH-' . $voucher->code,
+            'status' => 'success',
+            'gateway' => 'voucher',
+            'paid_at' => now(),
         ]);
 
-        $this->voucherCode = '';
+        $transaction = \App\Models\Transaction::create([
+            'user_id' => $user->id,
+            'plan_id' => $newPlan->id,
+            'amount' => $newPlan->price,
+            'reference' => 'VCH-' . $voucher->code,
+            'status' => 'success',
+            'gateway' => 'voucher',
+            'paid_at' => now(),
+        ]);
+
+        \Illuminate\Support\Facades\Log::info("Transaction created successfully for voucher {$voucher->code} with ID: {$transaction->id}");
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::error("Failed to create transaction for voucher {$voucher->code}: " . $e->getMessage(), [
+            'exception' => $e,
+            'user_id' => $user->id,
+            'plan_id' => $newPlan->id,
+            'plan_exists' => \App\Models\Plan::find($newPlan->id) ? 'yes' : 'no',
+            'user_exists' => \App\Models\User::find($user->id) ? 'yes' : 'no',
+        ]);
+        // Continue execution even if transaction creation fails
+    }
+
+    // 7. Reset Form
+    $this->reset('voucherCode');
     }
 }

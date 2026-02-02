@@ -39,8 +39,6 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'parent_id',
         'is_family_admin',
         'family_limit',
-        'pending_plan_id',
-        'pending_plan_purchased_at',
     ];
 
     /**
@@ -52,11 +50,11 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     }
 
     /**
-     * Pending plan relationship
+     * Pending subscriptions relationship
      */
-    public function pendingPlan(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function pendingSubscriptions()
     {
-        return $this->belongsTo(\App\Models\Plan::class, 'pending_plan_id');
+        return $this->hasMany(PendingSubscription::class)->orderBy('created_at', 'asc');
     }
 
     /**
@@ -102,7 +100,6 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
             'data_limit' => 'integer',
             'is_family_admin' => 'boolean',
             'family_limit' => 'integer',
-            'pending_plan_purchased_at' => 'datetime',
         ];
     }
 
@@ -234,5 +231,19 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     public function getFormattedRemainingDataAttribute(): string
     {
         return $this->formatBytes($this->remaining_data);
+    }
+
+    /**
+     * Calculate rollover data for a new plan (same validity only).
+     */
+    public function calculateRolloverFor(Plan $newPlan): int
+    {
+        // If no current plan or different validity, no rollover.
+        if (!$this->plan || $this->plan->validity_days != $newPlan->validity_days) {
+            return 0;
+        }
+
+        // Return remaining data (ensure not negative)
+        return max(0, $this->data_limit - $this->data_used);
     }
 }
