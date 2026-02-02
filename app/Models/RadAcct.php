@@ -40,7 +40,7 @@ class RadAcct extends Model
     /**
      * Get sessions for a specific username.
      */
-    public function scopeForUser(Builder $query, string $username): Builder
+    public function scopeForUser(Builder $query, ?string $username): Builder
     {
         if (empty($username)) {
             // If no username, return a query that finds nothing (instead of crashing)
