@@ -65,7 +65,21 @@ class RadGroupReplyResource extends Resource
             ->columns([
                 TextColumn::make('name')
                     ->searchable(),
+                TextColumn::make('groupname')
+                    ->label('Plan Name')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('attribute')
+                    ->label('Limit Type')
+                    ->searchable(),
+                TextColumn::make('value')
+                    ->label('Value')
+                    ->searchable(),
+                TextColumn::make('op')
+                    ->label('Operator')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
+            
             ->filters([
                 //
             ])
