@@ -48,7 +48,7 @@ class RadGroupReplyResource extends Resource
                         'Session-Timeout' => 'Time Limit (Seconds)',
                         'Login-Time' => 'Login Time Restriction',
                         'Acct-Interim-Interval' => 'Validity Interval (Seconds)',
-                    ])
+                    ]) 
                     ->required(),
 
                 TextInput::make('value')

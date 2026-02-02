@@ -140,7 +140,7 @@ class Plan extends Model
         static::deleting(function ($plan) {
             RadGroupReply::where('groupname', $plan->name)->delete();
         });
-    }
+    } 
  
     public function getDataLimitHumanAttribute(): string
     {

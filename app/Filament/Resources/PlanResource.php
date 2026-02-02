@@ -147,7 +147,7 @@ class PlanResource extends Resource
                         }
                         return Number::fileSize($bytes);
                     })
-                    ->sortable(),
+                    ->sortable(), 
 
                 TextColumn::make('validity_days')
                     ->label('Validity (Days)')

@@ -242,7 +242,7 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     {
         // If no current plan or different validity, no rollover.
         if (!$this->plan || $this->plan->validity_days != $newPlan->validity_days) {
-            return 0;
+            return 0; 
         }
 
         // Return remaining data (ensure not negative)

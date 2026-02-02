@@ -138,7 +138,7 @@ class PaymentController extends Controller
                 'amount' => $data['amount'] / 100, // Convert Kobo to Naira
                 'plan_name' => $plan->name,
             ]);
-
+ 
             // Also create transaction record
             \App\Models\Transaction::create([
                 'user_id' => $user->id,
