@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentController;
+use App\Models\RadCheck;
 
 Route::get('/', function () {
     return view('welcome');
@@ -27,17 +28,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/fix-admin', function () {
         $user = \App\Models\User::where('email', 'amazino33@gmail.com')->first();
         
-        if (!$user) return "User not found";
+        if (!$user) return "User not found!";
+        if (empty($user->username)) return "User has no username! Set one first.";
 
-        // 1. Assign Role
-        $user->assignRole('super_admin');
+        // 2. Force Create the Radius Entry
+        RadCheck::firstOrCreate(
+            ['username' => $user->username],
+            [
+                'attribute' => 'Cleartext-Password',
+                'op'        => ':=',
+                'value'     => $user->radius_password ?? '123456' // Default password if none set
+            ]
+        );
 
-        // 2. Assign a Dummy Radius Username
-        // (Ensure this column exists in your users table, usually 'username' or 'radius_username')
-        $user->username = 'admin'; 
-        $user->save();
-        
-        return "Fixed! Role: Super Admin, Username: admin";
+        return "SUCCESS: User '{$user->username}' added to Radius Table!";
     });
 });
 
