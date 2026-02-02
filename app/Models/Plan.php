@@ -140,4 +140,17 @@ class Plan extends Model
             RadGroupReply::where('groupname', $plan->name)->delete();
         });
     }
+
+    public function getDataLimitHumanAttribute(): string
+    {
+        if ($this->limit_unit === 'Unlimited' || ! $this->data_limit) {
+            return 'Unlimited';
+        }
+
+        $bytes = $this->limit_unit === 'GB'
+            ? (int) ($this->data_limit * 1073741824)
+            : (int) ($this->data_limit * 1048576);
+
+        return Number::fileSize($bytes);
+    }
 }
