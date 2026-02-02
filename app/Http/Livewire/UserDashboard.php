@@ -61,7 +61,23 @@ class UserDashboard extends Component
         }
 
         // Simulate free purchase / immediate activation
+        // Convert plan limit to bytes (respecting unit)
+        if ($plan->limit_unit === 'Unlimited') {
+            $planBytes = null;
+        } else {
+            $pval = (int) $plan->data_limit;
+            if ($pval > 1048576) {
+                $planBytes = $pval;
+            } else {
+                $planBytes = $plan->limit_unit === 'GB' ? (int) ($pval * 1073741824) : (int) ($pval * 1048576);
+            }
+        }
+
         $user->plan_id = $plan->id;
+        $user->data_used = 0;
+        $user->data_limit = is_null($planBytes) ? null : $planBytes;
+        $user->plan_expiry = now()->addDays($plan->validity_days ?? 0);
+        $user->plan_started_at = now();
         $user->save(); // triggers observer -> RADIUS sync
 
         Notification::make()
@@ -176,10 +192,22 @@ class UserDashboard extends Component
             $daysBadgeClass = 'bg-gray-500 text-white';
         }
 
-        // Calculate data usage percentage based on totalUsed and master's plan data_limit
-        if ($masterUser && $masterUser->plan && ! empty($masterUser->plan->data_limit) && $masterUser->plan->data_limit > 0) {
-            $percentage = ($totalUsed / (float) $masterUser->plan->data_limit) * 100;
-            $dataUsagePercentage = (int) min(100, round($percentage));
+        // Calculate data usage percentage based on totalUsed and master's plan data_limit (convert plan to bytes first)
+        if ($masterUser && $masterUser->plan && $masterUser->plan->limit_unit !== 'Unlimited' && $masterUser->plan->data_limit) {
+            $planVal = (int) $masterUser->plan->data_limit;
+            if ($planVal > 1048576) {
+                // already bytes
+                $planBytes = $planVal;
+            } else {
+                $planBytes = $masterUser->plan->limit_unit === 'GB' ? (int) ($planVal * 1073741824) : (int) ($planVal * 1048576);
+            }
+
+            if ($planBytes > 0) {
+                $percentage = ($totalUsed / (float) $planBytes) * 100;
+                $dataUsagePercentage = (int) min(100, round($percentage));
+            } else {
+                $dataUsagePercentage = 0;
+            }
         } else {
             $dataUsagePercentage = 0;
         }
@@ -197,7 +225,7 @@ class UserDashboard extends Component
             'plans' => $plans,
             'totalUsed' => $totalUsed,
             'formattedTotalUsed' => $formattedTotalUsed,
-            'formattedDataLimit' => $masterUser?->plan?->data_limit ? Number::fileSize($masterUser->plan->data_limit) : 'Unlimited',
+            'formattedDataLimit' => $masterUser?->plan?->data_limit_human ?? 'Unlimited',
             'subscriptionStatus' => $subscriptionStatus,
             'connectionStatus' => $connectionStatus,
             'currentIp' => $currentIp,
@@ -220,14 +248,28 @@ class UserDashboard extends Component
         $subscription = $user->pendingSubscriptions()->find($subscriptionId);
         if (!$subscription) return;
 
-        // Calculate Rollover
-        $rollover = max(0, $user->data_limit - $user->data_used);
+        // Calculate Rollover (in bytes) using User accessor
+        $rolloverBytes = $user->getRemainingDataAttribute();
         $plan = $subscription->plan;
+
+        // Convert plan limit to bytes (respecting unit)
+        if ($plan->limit_unit === 'Unlimited') {
+            $planBytes = null;
+        } else {
+            $pval = (int) $plan->data_limit;
+            if ($pval > 1048576) {
+                $planBytes = $pval;
+            } else {
+                $planBytes = $plan->limit_unit === 'GB' ? (int) ($pval * 1073741824) : (int) ($pval * 1048576);
+            }
+        }
+
+        $newLimit = is_null($planBytes) ? null : ($planBytes + ($rolloverBytes ?? 0));
 
         // Activate
         $user->update([
             'plan_id' => $plan->id,
-            'data_limit' => $plan->data_limit + $rollover,
+            'data_limit' => $newLimit,
             'data_used' => 0,
             'plan_expiry' => now()->addDays($plan->validity_days),
         ]);

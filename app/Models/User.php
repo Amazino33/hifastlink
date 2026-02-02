@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Number;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVerifyEmail, FilamentUser
@@ -148,13 +149,43 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     /**
      * Get remaining data in bytes.
      */
-    public function getRemainingDataAttribute(): int
+    /**
+     * Convert stored data value to bytes using heuristic.
+     * - null => null
+     * - small numbers (<= 1,048,576) are treated as MB and converted
+     * - larger numbers are assumed to be bytes already
+     */
+    protected function storedValueToBytes($value): ?int
     {
-        if (!$this->data_limit) {
+        if (is_null($value)) {
+            return null;
+        }
+
+        $v = (int) $value;
+
+        if ($v === 0) {
             return 0;
         }
 
-        return max(0, $this->data_limit - $this->data_used);
+        // Heuristic: values <= 1 MB (1048576) are likely MB counts (e.g., 100 => 100 MB)
+        if ($v <= 1048576) {
+            return $v * 1048576;
+        }
+
+        // Otherwise assume already bytes
+        return $v;
+    }
+
+    public function getRemainingDataAttribute(): int
+    {
+        $limitBytes = $this->storedValueToBytes($this->data_limit);
+        $usedBytes = $this->storedValueToBytes($this->data_used) ?? (int) $this->data_used;
+
+        if (!$limitBytes) {
+            return 0;
+        }
+
+        return max(0, $limitBytes - $usedBytes);
     }
 
     /**
@@ -162,11 +193,14 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
      */
     public function getDataUsagePercentageAttribute(): float
     {
-        if (!$this->data_limit || $this->data_limit === 0) {
+        $limitBytes = $this->storedValueToBytes($this->data_limit);
+        $usedBytes = $this->storedValueToBytes($this->data_used) ?? (int) $this->data_used;
+
+        if (!$limitBytes || $limitBytes === 0) {
             return 0;
         }
 
-        return min(100, ($this->data_used / $this->data_limit) * 100);
+        return min(100, ($usedBytes / $limitBytes) * 100);
     }
 
     /**
@@ -190,15 +224,8 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
      */
     public function getFormattedDataUsedAttribute(): string
     {
-        return $this->formatBytes($this->data_used);
-    }
-
-    /**
-     * Get formatted data limit.
-     */
-    public function getFormattedDataLimitAttribute(): string
-    {
-        return $this->formatBytes($this->data_limit);
+        $usedBytes = $this->storedValueToBytes($this->data_used) ?? (int) $this->data_used;
+        return $this->formatBytes($usedBytes);
     }
 
     /**
@@ -242,7 +269,7 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     {
         // If no current plan or different validity, no rollover.
         if (!$this->plan || $this->plan->validity_days != $newPlan->validity_days) {
-            return 0; 
+            return 0;
         }
 
         // Return remaining data (ensure not negative)
@@ -288,4 +315,53 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
             }
         });
     }
-} 
+
+    /**
+     * Human readable data limit.
+     *
+     * Heuristic:
+     * - null => Unlimited
+     * - small numeric values (<= 1,048,576) are treated as MB and multiplied to bytes
+     * - otherwise treated as bytes
+     */
+    public function getDataLimitHumanAttribute(): string
+    {
+        if (is_null($this->data_limit)) {
+            return 'Unlimited';
+        }
+
+        $val = (int) $this->data_limit;
+
+        if ($val <= 1048576) {
+            // most likely stored as MB (e.g. 100 => 100 MB)
+            $bytes = $val * 1048576;
+        } else {
+            // already bytes
+            $bytes = $val;
+        }
+
+        return Number::fileSize($bytes);
+    }
+
+    /**
+     * Human readable remaining data (data_limit - data_used).
+     * Uses the same heuristic as getDataLimitHumanAttribute.
+     */
+    public function getDataRemainingHumanAttribute(): string
+    {
+        if (is_null($this->data_limit)) {
+            return 'Unlimited';
+        }
+
+        $limitVal = (int) $this->data_limit;
+        $usedVal = (int) $this->data_used;
+
+        // convert both to bytes using same heuristic
+        $limitBytes = $limitVal <= 1048576 ? $limitVal * 1048576 : $limitVal;
+        $usedBytes  = $usedVal  <= 1048576 ? $usedVal  * 1048576 : $usedVal;
+
+        $remaining = max(0, $limitBytes - $usedBytes);
+
+        return Number::fileSize($remaining);
+    }
+}

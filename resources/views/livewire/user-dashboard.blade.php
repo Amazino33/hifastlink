@@ -185,7 +185,7 @@
                                     <div>
                                         <h4 class="text-gray-900 dark:text-white font-bold">{{ $queueItem->plan->name }}</h4>
                                         <p class="text-xs text-gray-600 dark:text-gray-400">
-                                            Data: {{ \Illuminate\Support\Number::fileSize($queueItem->plan->data_limit) }}
+                                            Data: {{ $user->data_remaining_human }}
                                             | Duration: {{ $queueItem->plan->validity_days }} Days
                                         </p>
                                     </div>
@@ -248,7 +248,7 @@
                                     <div class="text-2xl font-black text-blue-600">{{ $plan->validity_days }}</div>
                                     <div class="text-gray-400 text-xs font-bold uppercase tracking-wide">Days</div>
                                     <div class="border-t border-gray-100 pt-2 mt-2">
-                                        <div class="text-xl font-black text-gray-800">{{ \Illuminate\Support\Number::fileSize($plan->data_limit) }}</div>
+                                        <div class="text-xl font-black text-gray-800">{{ $plan->data_limit_human }}</div>
                                         <div class="text-gray-400 text-xs">Data</div>
                                     </div>
                                 </div>
