@@ -1,3 +1,4 @@
+<div class="px-4 py-6 md:px-6 lg:px-8">
 <div wire:poll.10s class="mb-8">
     <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-xl rounded-3xl p-8 mb-8">
         <div class="flex items-center justify-between mb-6">
@@ -395,6 +396,7 @@
                     </button>
                 </div>
             </div>
+        </div>
         </div>
     </div>
 </div>
