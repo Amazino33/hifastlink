@@ -260,4 +260,32 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         // (Adjust this logic later for your staff)
         return $this->hasRole('super_admin') || $this->hasRole('cashier');
     }
+
+    /**
+     * The "booted" method of the model.
+     * Automates creating/updating the Radius user.
+     */
+    protected static function booted()
+    {
+        // 1. When a User is CREATED -> Create a RadCheck entry
+        static::created(function ($user) {
+            // Only proceed if they have a username
+            if (!empty($user->username)) {
+                \App\Models\RadCheck::create([
+                    'username'  => $user->username,
+                    'attribute' => 'Cleartext-Password',
+                    'op'        => ':=',
+                    'value'     => $user->radius_password ?? '123456', // Default if empty
+                ]);
+            }
+        });
+
+        // 2. When a User is UPDATED -> Update Radius password if changed
+        static::updated(function ($user) {
+            if ($user->isDirty('radius_password') && !empty($user->username)) {
+                \App\Models\RadCheck::where('username', $user->username)
+                    ->update(['value' => $user->radius_password]);
+            }
+        });
+    }
 }
