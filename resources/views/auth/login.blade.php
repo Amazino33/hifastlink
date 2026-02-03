@@ -10,6 +10,15 @@
     <!-- Session Status -->
     <x-auth-session-status class="mb-6" :status="session('status')" />
 
+    <!-- Magic link request (send link to email) -->
+    <div class="text-center mb-4">
+        <form method="POST" action="{{ route('router.send_link') }}" class="inline-block">
+            @csrf
+            <input type="email" name="email" placeholder="Email for magic link" class="px-3 py-2 rounded-md text-sm" required>
+            <button type="submit" class="ml-2 px-3 py-2 bg-primary text-white rounded-md text-sm">Send login link</button>
+        </form>
+    </div>
+
     <!-- Login Form -->
     <form method="POST" action="{{ route('login') }}" class="space-y-6">
         @csrf

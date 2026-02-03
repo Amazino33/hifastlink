@@ -22,6 +22,10 @@ Route::middleware('guest')->group(function () {
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
+    // Router magic link flows
+    Route::post('send-magic-link', [\App\Http\Controllers\RouterAuthController::class, 'sendMagicLink'])->name('router.send_link');
+    Route::get('magic-login', [\App\Http\Controllers\RouterAuthController::class, 'handleMagicLogin'])->name('router.magic_login');
+
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
