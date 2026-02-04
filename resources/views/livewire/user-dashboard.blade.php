@@ -168,8 +168,8 @@
                         
                         @if($formattedDataLimit !== 'Unlimited')
                             @php
-                                // Usage-based percentage: use the user's own data usage (not family totals)
-                                $usedPercent = (int) ($user->data_usage_percentage ?? 0);
+                                // Usage-based percentage: prefer the controller's family-aware percentage; fallback to the user's own accessor
+                                $usedPercent = (int) ($dataUsagePercentage ?? ($user->data_usage_percentage ?? 0));
                                 $pct = min(100, max(0, $usedPercent));
 
                                 // Color logic: 0-70 Safe, 71-90 Warning, 91-100 Danger
