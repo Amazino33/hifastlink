@@ -23,6 +23,21 @@
     <form method="POST" action="{{ route('login') }}" class="space-y-6">
         @csrf
 
+        {{-- Captive portal router parameters (preserve router redirect params so controller can handle bridge) --}}
+        @if(request()->has('link-login') || request()->has('link-login-only') || request()->has('link-orig') || request()->has('link_login') || request()->has('link_orig'))
+            <input type="hidden" name="link_login" value="{{ request()->get('link-login') ?? request()->get('link-login-only') ?? request()->get('link_login') ?? request()->get('link-orig') ?? request()->get('link_orig') }}">
+            <input type="hidden" name="link_orig" value="{{ request()->get('link-orig') ?? request()->get('link_orig') ?? '' }}">
+        @endif
+        @if(request()->has('mac'))
+            <input type="hidden" name="mac" value="{{ request()->get('mac') }}">
+        @endif
+        @if(request()->has('ip'))
+            <input type="hidden" name="ip" value="{{ request()->get('ip') }}">
+        @endif
+        @if(request()->has('username'))
+            <input type="hidden" name="router_username" value="{{ request()->get('username') }}">
+        @endif
+
         <!-- Login Field with Icon -->
         <div class="group">
             <label for="login" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">

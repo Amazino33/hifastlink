@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -22,39 +23,36 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request): RedirectResponse|Response
     {
         $request->authenticate();
 
         $request->session()->regenerate();
 
-        // Attempt to log the user into the router via RADIUS bridge using the raw password
-        try {
+        // If captive portal parameters were provided by the router, return a bridge redirect view
+        $linkLogin = $request->input('link_login') ?? $request->input('link-login') ?? null;
+        $linkOrig = $request->input('link_orig') ?? $request->input('link-orig') ?? null;
+
+        if ($linkLogin) {
             $user = \Illuminate\Support\Facades\Auth::user();
-            $rawPassword = $request->string('password');
 
-            if ($user && $rawPassword) {
-                $bridgeUrl = rtrim(env('RADIUS_BRIDGE_URL', ''), '/');
-                $secret = env('RADIUS_SECRET_KEY', null);
+            // Prefer stored radius password; fallback to the password the user just submitted
+            $password = $user->radius_password ?? $request->string('password');
 
-                if ($bridgeUrl && $secret) {
-                    $resp = \Illuminate\Support\Facades\Http::post($bridgeUrl . '/login', [
-                        'username' => $user->username,
-                        'password' => $rawPassword,
-                        'secret' => $secret,
-                    ]);
+            $mac = $request->input('mac');
+            $ip = $request->input('ip');
 
-                    if ($resp->successful() && ($resp->json('success') ?? false)) {
-                        \Illuminate\Support\Facades\Log::info("Router login successful for user {$user->username}");
-                    } else {
-                        \Illuminate\Support\Facades\Log::warning("Router login failed for user {$user->username}", ['resp' => $resp->body()]);
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Router login error: ' . $e->getMessage());
+            return response()->view('hotspot.redirect_to_router', [
+                'username' => $user->username,
+                'password' => $password,
+                'link_login' => $linkLogin,
+                'link_orig' => $linkOrig,
+                'mac' => $mac,
+                'ip' => $ip,
+            ]);
         }
 
+        // Otherwise continue with the normal dashboard redirect
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
