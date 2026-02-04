@@ -30,8 +30,8 @@ class RouterController extends Controller
             return response()->json(['message' => 'User credentials missing. Please contact support.'], 500);
         }
 
-        // Determine login URL (use services.mikrotik.gateway or default MikroTik gateway)
-        $gateway = config('services.mikrotik.gateway') ?: '192.168.88.1';
+        // Determine login URL (use services.mikrotik.gateway or env MIKROTIK_LOGIN_URL, fallback to sensible default)
+        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL') ?? 'http://10.5.50.1/login';
 
         $loginUrl = (strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway);
         if (!preg_match('#/login#', $loginUrl)) {
@@ -42,6 +42,7 @@ class RouterController extends Controller
             'username' => $user->username,
             'password' => $user->radius_password,
             'login_url' => $loginUrl,
+            'dashboard_url' => route('dashboard'),
         ]);
     }
 
@@ -98,12 +99,20 @@ class RouterController extends Controller
             // If bridge failed, fallthrough to client-side submission fallback
         }
 
-        // Fallback: return login info for client to submit directly (Note: this avoids exposing password unless requested by authenticated client)
+        // Fallback: return login info for client to submit directly (includes dashboard URL so router can return the user)
+        $fallbackGateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL') ?? 'http://10.5.50.1/login';
+        $fallbackLoginUrl = (strpos($fallbackGateway, '://') === false ? 'http://' . $fallbackGateway : $fallbackGateway);
+        if (!preg_match('#/login#', $fallbackLoginUrl)) {
+            $fallbackLoginUrl = rtrim($fallbackLoginUrl, '/') . '/login';
+        }
+
         return response()->json([
             'success' => false,
             'message' => 'Bridge unavailable. You will be redirected to router to complete login.',
             'username' => $user->username,
             'password' => $user->radius_password,
+            'login_url' => $fallbackLoginUrl,
+            'dashboard_url' => route('dashboard'),
             'redirect' => $linkLogin ?? null,
         ]);
     }

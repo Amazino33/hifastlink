@@ -515,7 +515,8 @@
 
                         const username = data.username;
                         const password = data.password;
-                        const loginUrl = data.login_url || data.loginUrl;
+                        const routerUrl = data.login_url || data.loginUrl || "{{ config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL', 'http://10.5.50.1/login') }}";
+                        const dashboardUrl = data.dashboard_url || "{{ route('dashboard') }}";
 
                         if(!username || !password){
                             if(errorBox){ errorBox.textContent = 'Missing credentials received from server.'; errorBox.classList.remove('hidden'); }
@@ -524,42 +525,16 @@
                             return;
                         }
 
-                        // Try a quick network check by posting to router with a short timeout.
-                        const routerParams = new URLSearchParams();
-                        routerParams.append('username', username);
-                        routerParams.append('password', password);
+                        // Build GET-based login URL and navigate (bypasses mixed-content POST block)
+                        const loginUrl = routerUrl
+                            + '?username=' + encodeURIComponent(username)
+                            + '&password=' + encodeURIComponent(password)
+                            + '&dst=' + encodeURIComponent(dashboardUrl);
 
-                        let routerPost;
-                        try{
-                            routerPost = promiseTimeout(fetch(loginUrl, { method: 'POST', body: routerParams, mode: 'no-cors' }), 5000);
-                            await routerPost;
-                        }catch(err){
-                            alert('Cannot reach Router. Please turn off Mobile Data and connect to WiFi.');
-                            confirmBtn.disabled = false;
-                            confirmBtn.textContent = 'Confirm & Connect';
-                            return;
-                        }
+                        // Redirect the whole page to the router login URL (GET)
+                        window.location.href = loginUrl;
 
-                        // If the quick check succeeds (no network error), create and submit a hidden form to navigate to router.
-                        const form = document.createElement('form');
-                        form.method = 'POST';
-                        form.action = loginUrl;
-
-                        const inUser = document.createElement('input');
-                        inUser.type = 'hidden';
-                        inUser.name = 'username';
-                        inUser.value = username;
-
-                        const inPass = document.createElement('input');
-                        inPass.type = 'hidden';
-                        inPass.name = 'password';
-                        inPass.value = password;
-
-                        form.appendChild(inUser);
-                        form.appendChild(inPass);
-                        document.body.appendChild(form);
-
-                        form.submit();
+                        // Navigation will occur; no further UI updates are necessary.
 
                     }catch(e){
                         console.error('Error during connect to router flow', e);
