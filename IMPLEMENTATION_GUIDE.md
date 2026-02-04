@@ -27,7 +27,7 @@ Add to `routes/web.php`:
 Route::middleware('auth')->group(function () {
     Route::get('/subscriptions', [SubscriptionController::class, 'plans'])->name('subscriptions.plans');
     Route::post('/subscriptions/{plan}/subscribe', [SubscriptionController::class, 'subscribe'])->name('subscription.subscribe');
-    Route::get('/wallet', [SubscriptionController::class, 'wallet'])->name('wallet');
+Note: added new migration to snapshot rollover bytes on expiry and a scheduled `subscriptions:check-expiry` command (runs daily at 02:00) that moves expired subscriptions to rollover storage and kicks users when no pending renewal exists.    Route::get('/wallet', [SubscriptionController::class, 'wallet'])->name('wallet');
     Route::post('/wallet/topup', [SubscriptionController::class, 'topUp'])->name('wallet.topup');
 });
 

@@ -58,35 +58,13 @@ class KickExpiredUsers extends Command
 
                 Log::info("User {$user->username} auto-renewed from pending queue with {$leftover} bytes rollover.");
             } else {
-                // Kick the user by setting data limit to 0
-                RadReply::updateOrCreate(
-                    [
-                        'username' => $user->username,
-                        'attribute' => 'Mikrotik-Total-Limit',
-                    ],
-                    [
-                        'op' => ':=',
-                        'value' => '0',
-                    ]
-                );
-
-                // Move user back to default group
+                // No pending subscription — expire and snapshot rollover
                 try {
-                    \App\Models\RadUserGroup::updateOrCreate(
-                        ['username' => $user->username],
-                        ['groupname' => 'default_group', 'priority' => 10]
-                    );
-                    Log::info("RadUserGroup set to default_group for expired user {$user->username}");
+                    $subscriptionService = new \App\Services\SubscriptionService();
+                    $subscriptionService->expireForExpiry($user);
                 } catch (\Exception $e) {
-                    Log::error("Failed to set RadUserGroup for expired user {$user->username}: " . $e->getMessage());
+                    Log::error("Failed to expire user {$user->username}: " . $e->getMessage());
                 }
-
-                // Update user status
-                $user->connection_status = 'inactive';
-                $user->save();
-
-                // Log the action
-                Log::info("Kicked expired user by setting data limit to 0: {$user->username}");
             }
         }
 

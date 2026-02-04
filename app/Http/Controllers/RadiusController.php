@@ -119,20 +119,12 @@ class RadiusController extends Controller
                     'limit' => $user->data_limit,
                 ]);
 
-                // Remove plan assignment and mark as exhausted
-                $user->plan_id = null;
-                $user->plan_expiry = null;
-                $user->connection_status = 'exhausted';
-                $user->save(); // triggers observer -> PlanSyncService -> will set radusergroup to default_group
-
-                // Also set Mikrotik total limit to 0 to ensure immediate enforcement
+                // Expire due to exhaustion (no rollover)
                 try {
-                    \App\Models\RadReply::updateOrCreate(
-                        ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
-                        ['op' => ':=', 'value' => '0']
-                    );
+                    $subscriptionService = new \App\Services\SubscriptionService();
+                    $subscriptionService->expireForExhaustion($user);
                 } catch (\Exception $e) {
-                    Log::error('Failed to set Mikrotik-Total-Limit to 0 for ' . $user->username . ': ' . $e->getMessage());
+                    Log::error('Failed to expire exhausted user ' . $user->username . ': ' . $e->getMessage());
                 }
             }
         }

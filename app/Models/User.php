@@ -42,6 +42,8 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'parent_id',
         'is_family_admin',
         'family_limit',
+        'rollover_available_bytes',
+        'rollover_validity_days',
     ];
 
     /**
@@ -103,6 +105,8 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
             'data_limit' => 'integer',
             'is_family_admin' => 'boolean',
             'family_limit' => 'integer',
+            'rollover_available_bytes' => 'integer',
+            'rollover_validity_days' => 'integer',
         ];
     }
 

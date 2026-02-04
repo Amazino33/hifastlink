@@ -200,7 +200,13 @@ class PaymentController extends Controller
             return redirect()->route('dashboard')->with('success', "Plan queued! It will start when your current plan expires.");
         } else {
             // Activate immediately with rollover
-            $rolloverData = $user->calculateRolloverFor($plan);
+            $subscriptionService = new \App\Services\SubscriptionService();
+            $rolloverData = $subscriptionService->consumeRolloverOnPurchase($user, $plan);
+
+            // If there was no stored rollover, fall back to calculating from active plan (same-validity only)
+            if (empty($rolloverData)) {
+                $rolloverData = $user->calculateRolloverFor($plan);
+            }
 
             // Convert plan limit to bytes (support GB/MB/Unlimited)
             if ($plan->limit_unit === 'Unlimited') {
@@ -214,7 +220,6 @@ class PaymentController extends Controller
             $user->plan_id = $plan->id;
             $user->data_used = 0;
             $user->data_limit = $planBytes === null ? null : ($planBytes + ($rolloverData ?? 0));
-            $user->data_limit = $user->data_limit;
             $user->plan_expiry = now()->addDays($plan->validity_days ?? 0);
             $user->plan_started_at = now();
             $user->is_family_admin = $plan->is_family;
