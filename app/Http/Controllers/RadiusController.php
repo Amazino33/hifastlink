@@ -109,8 +109,32 @@ class RadiusController extends Controller
                 'session_bytes' => $totalBytes,
                 'total_used' => $user->data_used,
                 'limit' => $user->data_limit,
-                'remaining' => max(0, $user->data_limit - $user->data_used)
+                'remaining' => max(0, ($user->data_limit ?? 0) - $user->data_used)
             ]);
+
+            // If the user has a numeric data limit and has reached or exceeded it, expire their plan
+            if ($user->data_limit && $user->data_used >= $user->data_limit) {
+                Log::warning("User {$user->username} exhausted data during session stop", [
+                    'used' => $user->data_used,
+                    'limit' => $user->data_limit,
+                ]);
+
+                // Remove plan assignment and mark as exhausted
+                $user->plan_id = null;
+                $user->plan_expiry = null;
+                $user->connection_status = 'exhausted';
+                $user->save(); // triggers observer -> PlanSyncService -> will set radusergroup to default_group
+
+                // Also set Mikrotik total limit to 0 to ensure immediate enforcement
+                try {
+                    \App\Models\RadReply::updateOrCreate(
+                        ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
+                        ['op' => ':=', 'value' => '0']
+                    );
+                } catch (\Exception $e) {
+                    Log::error('Failed to set Mikrotik-Total-Limit to 0 for ' . $user->username . ': ' . $e->getMessage());
+                }
+            }
         }
 
         $user->update([
@@ -143,12 +167,44 @@ class RadiusController extends Controller
                              ->first();
 
         if ($session) {
+            $newUsed = ($data['Acct-Input-Octets'] ?? 0) + ($data['Acct-Output-Octets'] ?? 0);
+            $oldUsed = $session->used_bytes ?? 0;
+            $delta = max(0, $newUsed - $oldUsed);
+
             $session->update([
                 'bytes_in' => $data['Acct-Input-Octets'] ?? $session->bytes_in,
                 'bytes_out' => $data['Acct-Output-Octets'] ?? $session->bytes_out,
-                'used_bytes' => ($data['Acct-Input-Octets'] ?? 0) + ($data['Acct-Output-Octets'] ?? 0),
+                'used_bytes' => $newUsed,
                 'uptime' => $data['Acct-Session-Time'] ?? $session->uptime,
             ]);
+
+            // Increment user's total data usage by the delta since last interim
+            if ($delta > 0) {
+                $user->increment('data_used', $delta);
+                Log::info('Interim update increased user usage', ['username' => $user->username, 'delta' => $delta, 'total_used' => $user->data_used]);
+
+                // If data exhausted now, expire plan immediately
+                if ($user->data_limit && $user->data_used >= $user->data_limit) {
+                    Log::warning("User {$user->username} exhausted data during interim update", [
+                        'used' => $user->data_used,
+                        'limit' => $user->data_limit,
+                    ]);
+
+                    $user->plan_id = null;
+                    $user->plan_expiry = null;
+                    $user->connection_status = 'exhausted';
+                    $user->save(); // triggers PlanSyncService to move user to default_group
+
+                    try {
+                        \App\Models\RadReply::updateOrCreate(
+                            ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
+                            ['op' => ':=', 'value' => '0']
+                        );
+                    } catch (\Exception $e) {
+                        Log::error('Failed to set Mikrotik-Total-Limit to 0 for ' . $user->username . ': ' . $e->getMessage());
+                    }
+                }
+            }
         }
 
         $user->update(['last_online' => now()]);

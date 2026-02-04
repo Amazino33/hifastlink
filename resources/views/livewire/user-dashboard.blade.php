@@ -95,10 +95,14 @@
                                 @endif
                             </span>
 
-                            <!-- Connect to Router button -->
-                            <button id="connect-to-router-btn" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none" aria-haspopup="dialog" aria-controls="connect-router-modal">
-                                Connect to Router
-                            </button>
+                            <!-- Connect to Router button (hidden when data exhausted) -->
+                            @if($subscriptionStatus !== 'exhausted')
+                                <button id="connect-to-router-btn" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none" aria-haspopup="dialog" aria-controls="connect-router-modal">
+                                    Connect to Router
+                                </button>
+                            @else
+                                <a href="#hot-deals" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors">Buy Data</a>
+                            @endif
                         </div>
                     </div>
 
@@ -107,6 +111,9 @@
                             <div class="text-6xl font-black text-white mb-2">{{ $subscriptionDays }}</div>
                             <div class="text-sm text-white/80 font-semibold mb-3">{{ $subscriptionDays === 1 ? 'day remaining' : 'days remaining' }}</div>
                             <div class="text-blue-100 text-lg">{{ $formattedDataLimit }} connection</div>
+                        @elseif($subscriptionStatus === 'exhausted')
+                            <div class="text-6xl font-black text-white mb-2">Data Depleted</div>
+                            <div class="text-blue-100 text-lg">0 MB remaining</div>
                         @else
                             <div class="text-6xl font-black text-white mb-2">Expired</div>
                             <div class="text-blue-100 text-lg">Please renew your subscription</div>
@@ -145,8 +152,14 @@
                     </div>
                     
                     <div class="mb-4">
-                        <div class="text-6xl font-black text-white mb-2">{{ $formattedTotalUsed }}</div>
-                        <div class="text-blue-100 text-lg mb-6">{{ $connectionStatus === 'active' ? 'Current session' : 'Total used' }}</div>
+                        <div class="text-6xl font-black text-white mb-2">
+                            @if($subscriptionStatus === 'exhausted')
+                                0 MB
+                            @else
+                                {{ $formattedTotalUsed }}
+                            @endif
+                        </div>
+                        <div class="text-blue-100 text-lg mb-6">{{ $subscriptionStatus === 'exhausted' ? 'Data Depleted' : ($connectionStatus === 'active' ? 'Current session' : 'Total used') }}</div>
                         
                         @if($formattedDataLimit !== 'Unlimited')
                             @php
@@ -155,7 +168,7 @@
                             @endphp
 
                             <div class="flex items-center justify-between mb-2 text-xs text-blue-100">
-                                <div class="font-semibold">{{ $formattedTotalUsed }} used</div>
+                                <div class="font-semibold">@if($subscriptionStatus === 'exhausted') 0 MB used @else {{ $formattedTotalUsed }} used @endif</div>
                                 <div class="font-medium">{{ $pct }}%</div>
                             </div>
 
@@ -163,7 +176,7 @@
                                 <div class="absolute inset-0 rounded-full bg-gradient-to-r {{ $barGradient }} transition-all duration-500" style="width: {{ $pct }}%"></div>
                             </div>
                             <div class="flex justify-between text-xs text-blue-100 mt-2">
-                                <span class="text-sm">{{ $formattedTotalUsed }} used</span>
+                                <span class="text-sm">@if($subscriptionStatus === 'exhausted') 0 MB used @else {{ $formattedTotalUsed }} used @endif</span>
                                 <span class="text-sm">{{ $formattedDataLimit }} total</span>
                             </div>
                         @else
@@ -242,7 +255,7 @@
 
             <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
                 <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-2xl font-black text-gray-900 dark:text-white">Hot Deals</h3>
+                    <h3 id="hot-deals" class="text-2xl font-black text-gray-900 dark:text-white">Hot Deals</h3>
                 </div>
 
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">

@@ -160,6 +160,29 @@ class UserDashboard extends Component
             $connectionStatus = 'unknown';
         }
 
+        // Determine remaining bytes and check for exhaustion
+        $remainingBytes = null;
+        $formattedRemaining = null;
+
+        if ($masterUser && $masterUser->plan && $masterUser->plan->limit_unit !== 'Unlimited' && $masterUser->plan->data_limit) {
+            $planVal = (int) $masterUser->plan->data_limit;
+            if ($planVal > 1048576) {
+                $planBytes = $planVal;
+            } else {
+                $planBytes = $masterUser->plan->limit_unit === 'GB' ? (int) ($planVal * 1073741824) : (int) ($planVal * 1048576);
+            }
+
+            $remainingBytes = max(0, $planBytes - $totalUsed);
+            $formattedRemaining = Number::fileSize($remainingBytes);
+
+            // If used >= limit, mark subscription as exhausted
+            if ($planBytes > 0 && $totalUsed >= $planBytes) {
+                $subscriptionStatus = 'exhausted';
+            }
+        } else {
+            $formattedRemaining = 'Unlimited';
+        }
+
         // Prefer the framed IP from the active RADIUS session; fall back to user current_ip or 'Offline'
         if ($activeSession && !empty($activeSession->framedipaddress)) {
             $currentIp = $activeSession->framedipaddress;
