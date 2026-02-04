@@ -9,18 +9,17 @@
 </head>
 <body>
     <div class="card">
-        <p class="mb-4"><strong>Connecting to Router…</strong></p>
-        <p class="text-sm text-gray-500">You will be redirected to your hotspot login. If nothing happens, use the button below.</p>
+        <p class="mb-4"><strong class="text-lg font-bold">Logging you in...</strong></p>
+        <p class="text-sm text-gray-500">You will be redirected back to your dashboard shortly.</p>
 
-        <!-- Fallback visible button that performs the same GET-based login -->
+        <!-- Subtle fallback button that performs the same GET-based login -->
         <div style="margin-top:12px">
-            <a id="connectBtn" class="btn" href="{{ $link_login }}?username={{ urlencode($username) }}&amp;password={{ urlencode($password) }}&amp;dst={{ urlencode($link_orig) }}">Click here to connect</a>
+            <a id="connectBtn" class="btn" href="{{ $link_login }}?username={{ urlencode($username) }}&amp;password={{ urlencode($password) }}&amp;dst={{ urlencode($link_orig) }}">Click here if not redirected</a>
         </div>
     </div>
 
     <script>
         (function(){
-            // Build a safe URL using JSON-encoded values and encodeURIComponent
             const base = @json($link_login);
             const u = @json($username);
             const p = @json($password);
@@ -28,25 +27,20 @@
 
             const target = `${base}?username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}&dst=${encodeURIComponent(d)}`;
 
-            // Automatically navigate using a GET request (bypasses mixed-content form POST issues)
+            // Automatically navigate using a GET request; this bypasses mixed-content POST restrictions
             setTimeout(function(){
                 try{
                     window.location.href = target;
                 }catch(e){
                     console.error('Redirect to router failed:', e);
-                    // If JS redirect fails, ensure the connect button points to the same URL
-                    const btn = document.getElementById('connectBtn');
-                    if (btn) {
-                        btn.href = target;
-                    }
+                    var btn = document.getElementById('connectBtn');
+                    if (btn) btn.href = target;
                 }
             }, 100);
 
-            // Also ensure the fallback link uses the computed URL
-            const btn = document.getElementById('connectBtn');
-            if (btn) {
-                btn.href = target;
-            }
+            // Ensure fallback link uses the same URL
+            var btn = document.getElementById('connectBtn');
+            if (btn) btn.href = target;
         })();
     </script>
 </body>

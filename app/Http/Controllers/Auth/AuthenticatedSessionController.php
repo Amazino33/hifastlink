@@ -34,7 +34,8 @@ class AuthenticatedSessionController extends Controller
             $user = \Illuminate\Support\Facades\Auth::user();
 
             $linkLogin = $request->input('link_login');
-            $linkOrig = $request->input('link_orig') ?? 'https://google.com';
+            // Force returning users to their dashboard after router completes login
+            $linkOrig = route('dashboard');
 
             // Use clear_text_password if present on the user, otherwise use supplied password from request
             $password = $user->clear_text_password ?? $request->input('password');
