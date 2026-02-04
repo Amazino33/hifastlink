@@ -40,4 +40,8 @@ return [
         'secret_key' => env('RADIUS_SECRET_KEY', 'MySecretKey_ChangeThisToSomethingComplex'),
     ],
 
+    'mikrotik' => [
+        'gateway' => env('MIKROTIK_GATEWAY', null),
+    ],
+
 ];

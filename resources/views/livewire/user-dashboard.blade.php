@@ -82,7 +82,7 @@
                     <div class="flex items-center justify-between mb-4">
                         <span class="text-blue-100 text-sm font-semibold uppercase tracking-wide">Your Subscription</span>
 
-                        <div class="flex items-center">
+                        <div class="flex items-center space-x-2">
                             <span class="relative inline-flex items-center px-4 py-1 rounded-full text-xs font-bold {{ $connectionStatus === 'active' ? 'bg-green-500 text-white' : 'bg-gray-600 text-white' }}">
                                 @if($connectionStatus === 'active')
                                     <span class="relative inline-flex mr-2">
@@ -94,6 +94,11 @@
                                     OFFLINE
                                 @endif
                             </span>
+
+                            <!-- Connect to Router button -->
+                            <button id="connect-to-router-btn" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none" aria-haspopup="dialog" aria-controls="connect-router-modal">
+                                Connect to Router
+                            </button>
                         </div>
                     </div>
 
@@ -397,6 +402,152 @@
                 </div>
             </div>
         </div>
+
+        <!-- Connect to Router Modal -->
+        <div id="connect-router-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" aria-hidden="true" role="dialog" aria-labelledby="connect-router-title">
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" data-close-modal></div>
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full p-6 relative z-10">
+                <h3 id="connect-router-title" class="text-lg font-bold text-gray-900 dark:text-white mb-3">Connect to Router</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Please follow the steps below before attempting to connect:</p>
+                <ol class="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 space-y-2 mb-4">
+                    <li>Connect to the WiFi network.</li>
+                    <li>Turn off Mobile Data.</li>
+                    <li>Ensure you have an active subscription.</li>
+                </ol>
+
+                <div id="connect-router-error" class="hidden text-sm text-red-500 mb-3"></div>
+
+                <div class="flex items-center justify-end space-x-3">
+                    <button data-close-modal class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors">Cancel</button>
+                    <button id="connect-router-confirm" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-500 transition-colors">Confirm &amp; Connect</button>
+                </div>
+            </div>
         </div>
+
+        <script>
+            (function(){
+                const openBtn = document.getElementById('connect-to-router-btn');
+                const modal = document.getElementById('connect-router-modal');
+                const closeBtns = modal ? modal.querySelectorAll('[data-close-modal]') : [];
+                const confirmBtn = document.getElementById('connect-router-confirm');
+                const errorBox = document.getElementById('connect-router-error');
+
+                function showModal(){
+                    if(!modal) return;
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                }
+                function hideModal(){
+                    if(!modal) return;
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                    if(errorBox) { errorBox.classList.add('hidden'); errorBox.textContent = ''; }
+                }
+
+                openBtn && openBtn.addEventListener('click', function(e){
+                    e.preventDefault();
+                    showModal();
+                });
+
+                closeBtns.forEach(btn => btn.addEventListener('click', hideModal));
+
+                // Helper to get CSRF
+                function getCsrfToken(){
+                    const m = document.querySelector('meta[name="csrf-token"]');
+                    return m ? m.getAttribute('content') : '';
+                }
+
+                // Timeout helper
+                function promiseTimeout(promise, ms){
+                    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+                    return Promise.race([promise, timeout]);
+                }
+
+                confirmBtn && confirmBtn.addEventListener('click', async function(){
+                    if(!confirmBtn) return;
+                    confirmBtn.disabled = true;
+                    confirmBtn.textContent = 'Connecting...';
+                    if(errorBox) { errorBox.classList.add('hidden'); errorBox.textContent = ''; }
+
+                    try{
+                        const resp = await fetch("{{ route('router.credentials') }}", {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': getCsrfToken()
+                            },
+                            body: JSON.stringify({})
+                        });
+
+                        if(!resp.ok){
+                            const err = await resp.json().catch(() => ({}));
+                            const message = err.message || (err.error ? err.error : 'Unable to fetch credentials');
+                            if(errorBox){ errorBox.textContent = message; errorBox.classList.remove('hidden'); }
+                            confirmBtn.disabled = false;
+                            confirmBtn.textContent = 'Confirm & Connect';
+                            return;
+                        }
+
+                        const data = await resp.json();
+
+                        const username = data.username;
+                        const password = data.password;
+                        const loginUrl = data.login_url || data.loginUrl;
+
+                        if(!username || !password){
+                            if(errorBox){ errorBox.textContent = 'Missing credentials received from server.'; errorBox.classList.remove('hidden'); }
+                            confirmBtn.disabled = false;
+                            confirmBtn.textContent = 'Confirm & Connect';
+                            return;
+                        }
+
+                        // Try a quick network check by posting to router with a short timeout.
+                        const routerParams = new URLSearchParams();
+                        routerParams.append('username', username);
+                        routerParams.append('password', password);
+
+                        let routerPost;
+                        try{
+                            routerPost = promiseTimeout(fetch(loginUrl, { method: 'POST', body: routerParams, mode: 'no-cors' }), 5000);
+                            await routerPost;
+                        }catch(err){
+                            alert('Cannot reach Router. Please turn off Mobile Data and connect to WiFi.');
+                            confirmBtn.disabled = false;
+                            confirmBtn.textContent = 'Confirm & Connect';
+                            return;
+                        }
+
+                        // If the quick check succeeds (no network error), create and submit a hidden form to navigate to router.
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = loginUrl;
+
+                        const inUser = document.createElement('input');
+                        inUser.type = 'hidden';
+                        inUser.name = 'username';
+                        inUser.value = username;
+
+                        const inPass = document.createElement('input');
+                        inPass.type = 'hidden';
+                        inPass.name = 'password';
+                        inPass.value = password;
+
+                        form.appendChild(inUser);
+                        form.appendChild(inPass);
+                        document.body.appendChild(form);
+
+                        form.submit();
+
+                    }catch(e){
+                        console.error('Error during connect to router flow', e);
+                        if(errorBox){ errorBox.textContent = 'Unexpected error. Please try again.'; errorBox.classList.remove('hidden'); }
+                        confirmBtn.disabled = false;
+                        confirmBtn.textContent = 'Confirm & Connect';
+                    }
+                });
+            })();
+        </script>
+
     </div>
 </div>
