@@ -33,7 +33,7 @@ class KickExpiredUsers extends Command
         $activeUsernames = RadAcct::whereNull('acctstoptime')->pluck('username')->toArray();
 
         // Find users with expired plans and active sessions
-        $expiredUsers = User::where('plan_expiry', '<', now())
+        $expiredUsers = User::where('plan_expiry', '<=', now())
             ->whereIn('username', $activeUsernames)
             ->get();
 

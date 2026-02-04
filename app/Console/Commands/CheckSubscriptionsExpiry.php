@@ -18,7 +18,7 @@ class CheckSubscriptionsExpiry extends Command
         $subscriptionService = new SubscriptionService();
 
         $users = User::whereNotNull('plan_expiry')
-            ->where('plan_expiry', '<', now())
+            ->where('plan_expiry', '<=', now())
             ->get();
 
         foreach ($users as $user) {

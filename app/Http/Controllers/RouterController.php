@@ -19,9 +19,46 @@ class RouterController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        // Subscription check
-        if (!method_exists($user, 'isSubscriptionActive') || !$user->isSubscriptionActive()) {
+        // Determine if user has an active subscription.
+        // Prefer direct subscription table query if Subscription model exists; otherwise fall back to user plan fields.
+        $validSubscription = null;
+
+        if (class_exists(\App\Models\Subscription::class)) {
+            $validSubscription = \App\Models\Subscription::where('user_id', $user->id)
+                ->where('status', 'ACTIVE')
+                ->where('expires_at', '>', now())
+                ->where(function ($q) {
+                    $q->where('data_remaining', '>', 0)
+                      ->orWhereNull('data_limit');
+                })
+                ->orderBy('expires_at', 'desc')
+                ->first();
+        } else {
+            // fallback: check user's plan_expiry and remaining bytes
+            $hasExpiry = $user->plan_expiry && $user->plan_expiry->isFuture();
+            $dataRemaining = is_null($user->data_limit) ? null : max(0, ($user->data_limit ?? 0) - ($user->data_used ?? 0));
+
+            if ($hasExpiry && (is_null($user->data_limit) || $dataRemaining > 0)) {
+                $validSubscription = (object) [
+                    'plan_id' => $user->plan_id,
+                    'expires_at' => $user->plan_expiry,
+                ];
+            }
+        }
+
+        if (! $validSubscription) {
             return response()->json(['message' => 'No active subscription. Please renew to connect.'], 422);
+        }
+
+        // Self-repair: if a valid subscription exists but user.plan_id is missing, repair it immediately
+        if (isset($validSubscription->plan_id) && empty($user->plan_id) && $validSubscription->plan_id) {
+            try {
+                $user->plan_id = $validSubscription->plan_id;
+                $user->save();
+                \Illuminate\Support\Facades\Log::info('Repaired missing plan_id for user '.$user->id.' using subscription.'.($validSubscription->id ?? ''));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to repair user.plan_id for user '.$user->id.': '.$e->getMessage());
+            }
         }
 
         // Check for required credentials
