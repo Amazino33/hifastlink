@@ -19,6 +19,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', \App\Http\Livewire\UserDashboard::class)->name('dashboard');
     Route::get('/dashboard/realtime-data', [DashboardController::class, 'getRealtimeData'])->name('dashboard.realtime');
 
+    // Bridge connector that returns a page which redirects to router using GET (bridge flow)
+    Route::get('/connect-bridge', [\App\Http\Controllers\HotspotController::class, 'connectBridge'])->name('connect.bridge')->middleware(['auth','web']);
+
     // Build GET-based router login link and return it to client
     Route::post('/dashboard/connect', [DashboardController::class, 'connectToRouter'])->name('dashboard.connect')->middleware(['auth','web']);
     Route::get('/family', \App\Http\Livewire\FamilyManager::class)->name('family');

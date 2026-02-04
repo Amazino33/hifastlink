@@ -97,9 +97,9 @@
 
                             <!-- Connect to Router button (hidden when data exhausted) -->
                             @if($subscriptionStatus !== 'exhausted')
-                                <button id="connect-to-router-btn" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none" aria-haspopup="dialog" aria-controls="connect-router-modal">
+                                <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none">
                                     Connect to Router
-                                </button>
+                                </a>
                             @else
                                 <a href="#hot-deals" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors">Buy Data</a>
                             @endif
@@ -526,7 +526,7 @@
 
                         const username = data.username;
                         const password = data.password;
-                        const routerUrl = data.login_url || data.loginUrl || "{{ config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL', 'http://10.5.50.1/login') }}";
+                        const routerUrl = data.login_url || data.loginUrl || "{{ config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL', 'http://192.168.88.1/login') }}";
                         const dashboardUrl = data.dashboard_url || "{{ route('dashboard') }}";
 
                         if(!username || !password){

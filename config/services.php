@@ -41,7 +41,7 @@ return [
     ],
 
     'mikrotik' => [
-        'gateway' => env('MIKROTIK_GATEWAY', null),
+        'gateway' => env('MIKROTIK_GATEWAY', 'http://192.168.88.1/login'),
     ],
 
 ];
