@@ -168,8 +168,12 @@
                         
                         @if($formattedDataLimit !== 'Unlimited')
                             @php
-                                $pct = min(100, $dataUsagePercentage);
-                                $barGradient = $pct < 70 ? 'from-green-400 to-green-600' : ($pct < 90 ? 'from-yellow-400 to-pink-500' : 'from-red-500 to-red-700');
+                                // Usage-based percentage: use the user's own data usage (not family totals)
+                                $usedPercent = (int) ($user->data_usage_percentage ?? 0);
+                                $pct = min(100, max(0, $usedPercent));
+
+                                // Color logic: 0-70 Safe, 71-90 Warning, 91-100 Danger
+                                $barGradient = $pct <= 70 ? 'from-green-400 to-green-600' : ($pct <= 90 ? 'from-yellow-400 to-pink-500' : 'from-red-500 to-red-700');
                             @endphp
 
                             <div class="flex items-center justify-between mb-2 text-xs text-blue-100">
