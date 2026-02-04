@@ -152,16 +152,18 @@ class UserDashboard extends Component
         $totalUsed = (int) $historyUsage;
         $formattedTotalUsed = Number::fileSize($totalUsed);
 
-        // Current speed: show plan speed limits when online
-        if ($activeSession && $user->plan) {
-            $upload = $user->plan->speed_limit_upload ?? 0;
-            $download = $user->plan->speed_limit_download ?? 0;
+        // Current speed: show plan speed limits when online (use current plan instead of stored plan)
+        $currentPlan = $masterUser->current_plan ?? null;
+        if ($activeSession && $currentPlan) {
+            $upload = $currentPlan->speed_limit_upload ?? 0;
+            $download = $currentPlan->speed_limit_download ?? 0;
             $currentSpeed = ($download || $upload) ? ($download . 'k/' . $upload . 'k') : '0 kbps';
         } else {
             $currentSpeed = '0 kbps';
         }
 
-        $subscriptionStatus = $masterUser->plan_id ? 'active' : 'inactive';
+        // Determine subscription status from the prioritized current plan
+        $subscriptionStatus = $masterUser->current_plan_status ?? 'inactive';
         $connectionStatus = ($activeSession) ? 'active' : 'offline';
 
         // If RADIUS is unreachable, show 'unknown' status
@@ -257,7 +259,7 @@ class UserDashboard extends Component
             'plans' => $plans,
             'totalUsed' => $totalUsed,
             'formattedTotalUsed' => $formattedTotalUsed,
-            'formattedDataLimit' => $masterUser?->plan?->data_limit_human ?? 'Unlimited',
+            'formattedDataLimit' => $currentPlan?->data_limit_human ?? 'Unlimited',
             'subscriptionStatus' => $subscriptionStatus,
             'connectionStatus' => $connectionStatus,
             'currentIp' => $currentIp,

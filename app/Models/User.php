@@ -209,7 +209,6 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
      */
     public function getDisplayStatusAttribute(): string
     {
-        // Use remaining_data accessor which returns bytes remaining (0 when unlimited or none)
         try {
             if ($this->remaining_data <= 0 && $this->plan_id) {
                 return 'PLAN EXPIRED';
@@ -219,6 +218,53 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         }
 
         return 'OK';
+    }
+
+    /**
+     * Return the current plan considering data exhaustion and queued subscriptions.
+     */
+    public function getCurrentPlanAttribute()
+    {
+        // First, prefer user's active plan if it has remaining data or is unlimited
+        if ($this->plan) {
+            $limitBytes = $this->storedValueToBytes($this->plan->data_limit);
+            $remaining = $this->remaining_data ?? 0;
+
+            if (is_null($limitBytes) || $remaining > 0) {
+                return $this->plan;
+            }
+        }
+
+        // Next, check pending subscriptions (first in queue) - they should be active if current plan exhausted
+        $pending = $this->pendingSubscriptions()->with('plan')->orderBy('created_at', 'asc')->first();
+        if ($pending && $pending->plan) {
+            return $pending->plan;
+        }
+
+        // Fallback to stored plan (even if exhausted) so something is always returned (nullable)
+        return $this->plan;
+    }
+
+    /**
+     * Return a simple status for the current plan: 'active', 'exhausted', 'inactive'
+     */
+    public function getCurrentPlanStatusAttribute(): string
+    {
+        $plan = $this->current_plan;
+        if (! $plan) return 'inactive';
+
+        $limitBytes = $this->storedValueToBytes($plan->data_limit);
+        $remaining = $this->remaining_data ?? 0;
+
+        if (is_null($limitBytes)) {
+            return 'active'; // Unlimited
+        }
+
+        if ($remaining <= 0) {
+            return 'exhausted';
+        }
+
+        return 'active';
     }
 
     /**

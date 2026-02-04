@@ -190,6 +190,13 @@ class PaymentController extends Controller
 
             // RadUserGroup will be set by PlanSyncService when the user's plan changes.
 
+            // Clear current plan cache if set
+            try {
+                \Illuminate\Support\Facades\Cache::forget('user:current_plan:' . $user->id);
+            } catch (\Exception $e) {
+                // ignore cache failures
+            }
+
             return redirect()->route('dashboard')->with('success', "Plan queued! It will start when your current plan expires.");
         } else {
             // Activate immediately with rollover
