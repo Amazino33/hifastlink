@@ -33,8 +33,16 @@ class RadAcct extends Model
      */
     public function scopeActive(Builder $query): Builder
     {
+        // Consider a session active if it has no stop time and either:
+        // - the account update time is recent (last 5 minutes), OR
+        // - the session start time is recent (last 60 minutes), OR
+        // - acctupdatetime is null but acctstarttime is present
         return $query->whereNull('acctstoptime')
-            ->where('acctupdatetime', '>=', now()->subMinutes(5));
+            ->where(function (Builder $q) {
+                $q->where('acctupdatetime', '>=', now()->subMinutes(5))
+                  ->orWhere('acctstarttime', '>=', now()->subHours(1))
+                  ->orWhereNull('acctupdatetime');
+            });
     }
 
     /**

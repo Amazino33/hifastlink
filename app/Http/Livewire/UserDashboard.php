@@ -121,6 +121,20 @@ class UserDashboard extends Component
                 ->active()
                 ->latest('acctstarttime')
                 ->first();
+
+            // If there is no active session but RADIUS has records for this username, log details to help debug
+            if (!$activeSession) {
+                $hasAny = RadAcct::forUser($user->username)->whereNull('acctstoptime')->exists();
+                if ($hasAny) {
+                    $last = RadAcct::forUser($user->username)->latest('acctupdatetime')->first();
+                    Log::warning('RadAcct has entries for user but none matched active() filter in UserDashboard', [
+                        'username' => $user->username,
+                        'has_active_rows' => $hasAny,
+                        'last_acctupdatetime' => $last?->acctupdatetime?->toDateTimeString(),
+                        'last_acctstarttime' => $last?->acctstarttime?->toDateTimeString(),
+                    ]);
+                }
+            }
         } catch (\Exception $e) {
             // RADIUS server unreachable - log the error and set session to null
             Log::warning('RADIUS database connection failed in UserDashboard: ' . $e->getMessage());
