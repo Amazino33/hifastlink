@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use App\Models\RadCheck;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -122,5 +124,77 @@ class DashboardController extends Controller
             'ip_address' => $sessionData['ip_address'],
             'last_updated' => $sessionData['last_updated'],
         ]);
+    }
+
+    /**
+     * Build a GET-based redirect URL to the router and return it to the client.
+     * The browser will navigate to this URL to perform captive portal login and return to dashboard.
+     */
+    public function connectToRouter(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Determine if user has an active subscription using Subscription model when available
+        $validSubscription = null;
+        if (class_exists(\App\Models\Subscription::class)) {
+            $validSubscription = \App\Models\Subscription::where('user_id', $user->id)
+                ->where('status', 'ACTIVE')
+                ->where('expires_at', '>', now())
+                ->where(function ($q) {
+                    $q->where('data_remaining', '>', 0)->orWhereNull('data_limit');
+                })
+                ->orderBy('expires_at', 'desc')
+                ->first();
+        } else {
+            $hasExpiry = $user->plan_expiry && $user->plan_expiry->isFuture();
+            $dataRemaining = is_null($user->data_limit) ? null : max(0, ($user->data_limit ?? 0) - ($user->data_used ?? 0));
+
+            if ($hasExpiry && (is_null($user->data_limit) || $dataRemaining > 0)) {
+                $validSubscription = (object) ['plan_id' => $user->plan_id, 'expires_at' => $user->plan_expiry];
+            }
+        }
+
+        if (! $validSubscription) {
+            return response()->json(['message' => 'No active subscription. Please renew to connect.'], 422);
+        }
+
+        // Self-repair plan_id if missing
+        if (isset($validSubscription->plan_id) && empty($user->plan_id) && $validSubscription->plan_id) {
+            try {
+                $user->plan_id = $validSubscription->plan_id;
+                $user->save();
+                Log::info('Repaired missing plan_id for user '.$user->id.' with subscription.');
+            } catch (\Exception $e) {
+                Log::warning('Failed to repair plan_id for user '.$user->id.': '.$e->getMessage());
+            }
+        }
+
+        // Fetch password from radcheck if present
+        $rad = RadCheck::where('username', $user->username)->where('attribute', 'Cleartext-Password')->first();
+        $password = $rad ? $rad->value : ($user->radius_password ?? null);
+
+        if (! $password) {
+            Log::warning("No cleartext password found for user {$user->username}");
+            return response()->json(['message' => 'Missing credentials. Please contact support.'], 500);
+        }
+
+        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL') ?? 'http://10.5.50.1/login';
+        $loginUrl = (strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway);
+        if (! preg_match('#/login#', $loginUrl)) {
+            $loginUrl = rtrim($loginUrl, '/') . '/login';
+        }
+
+        $params = http_build_query([
+            'username' => $user->username,
+            'password' => $password,
+            'dst' => route('dashboard'),
+        ]);
+
+        $redirectUrl = $loginUrl . '?' . $params;
+
+        return response()->json(['redirect_url' => $redirectUrl]);
     }
 }

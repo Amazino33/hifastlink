@@ -492,7 +492,7 @@
                     if(errorBox) { errorBox.classList.add('hidden'); errorBox.textContent = ''; }
 
                     try{
-                        const resp = await fetch("{{ route('router.credentials') }}", {
+                        const resp = await fetch("{{ route('dashboard.connect') }}", {
                             method: 'POST',
                             headers: {
                                 'Accept': 'application/json',
@@ -504,7 +504,7 @@
 
                         if(!resp.ok){
                             const err = await resp.json().catch(() => ({}));
-                            const message = err.message || (err.error ? err.error : 'Unable to fetch credentials');
+                            const message = err.message || (err.error ? err.error : 'Unable to build router login URL');
                             if(errorBox){ errorBox.textContent = message; errorBox.classList.remove('hidden'); }
                             confirmBtn.disabled = false;
                             confirmBtn.textContent = 'Confirm & Connect';
@@ -512,6 +512,17 @@
                         }
 
                         const data = await resp.json();
+
+                        // Redirect the browser to the router login URL (GET)
+                        if (data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                            return;
+                        } else {
+                            if(errorBox){ errorBox.textContent = 'Router login URL not returned by server.'; errorBox.classList.remove('hidden'); }
+                            confirmBtn.disabled = false;
+                            confirmBtn.textContent = 'Confirm & Connect';
+                            return;
+                        }
 
                         const username = data.username;
                         const password = data.password;

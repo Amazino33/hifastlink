@@ -18,6 +18,9 @@ Route::get('/about-us', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', \App\Http\Livewire\UserDashboard::class)->name('dashboard');
     Route::get('/dashboard/realtime-data', [DashboardController::class, 'getRealtimeData'])->name('dashboard.realtime');
+
+    // Build GET-based router login link and return it to client
+    Route::post('/dashboard/connect', [DashboardController::class, 'connectToRouter'])->name('dashboard.connect')->middleware(['auth','web']);
     Route::get('/family', \App\Http\Livewire\FamilyManager::class)->name('family');
 
     // Router connect credentials endpoint
