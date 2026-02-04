@@ -22,6 +22,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Router connect credentials endpoint
     Route::post('/router/credentials', [RouterController::class, 'credentials'])->name('router.credentials');
+
+    // Server-side bridge login for captive portal flow
+    Route::post('/router/bridge-login', [RouterController::class, 'bridgeLogin'])->name('router.bridge_login');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

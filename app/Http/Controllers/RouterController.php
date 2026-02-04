@@ -44,4 +44,67 @@ class RouterController extends Controller
             'login_url' => $loginUrl,
         ]);
     }
+
+    /**
+     * Attempt a server-side login via the RADIUS bridge. Intended for captive portal flows.
+     * Expects optional 'mac', 'ip', 'link-login' in the request.
+     */
+    public function bridgeLogin(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        if (!method_exists($user, 'isSubscriptionActive') || !$user->isSubscriptionActive()) {
+            return response()->json(['message' => 'No active subscription. Please renew to connect.'], 422);
+        }
+
+        if (empty($user->username) || empty($user->radius_password)) {
+            Log::error('Router bridge login failed - missing credentials for user id: ' . $user->id);
+            return response()->json(['message' => 'User credentials missing. Please contact support.'], 500);
+        }
+
+        $mac = $request->input('mac');
+        $ip = $request->input('ip');
+        $linkLogin = $request->input('link-login') ?? $request->input('link-login-only') ?? $request->input('link-orig');
+
+        $bridgeUrl = rtrim(config('services.radius.bridge_url') ?? env('RADIUS_BRIDGE_URL', ''), '/');
+        $secret = config('services.radius.secret_key') ?? env('RADIUS_SECRET_KEY', null);
+
+        // If we have a bridge, attempt server-side POST to router via bridge
+        if ($bridgeUrl && $secret) {
+            try {
+                $resp = \Illuminate\Support\Facades\Http::post($bridgeUrl . '/login', array_filter([
+                    'username' => $user->username,
+                    'password' => $user->radius_password,
+                    'secret' => $secret,
+                    'mac' => $mac,
+                    'ip' => $ip,
+                    'link' => $linkLogin,
+                ]));
+
+                if ($resp->successful()) {
+                    Log::info('Router bridge login successful for user id: ' . $user->id);
+                    return response()->json(['success' => true, 'redirect' => $linkLogin ?? null]);
+                }
+
+                Log::warning('Router bridge login returned non-200 for user id ' . $user->id, ['body' => $resp->body()]);
+            } catch (\Exception $e) {
+                Log::error('Router bridge login error for user id ' . $user->id . ': ' . $e->getMessage());
+            }
+
+            // If bridge failed, fallthrough to client-side submission fallback
+        }
+
+        // Fallback: return login info for client to submit directly (Note: this avoids exposing password unless requested by authenticated client)
+        return response()->json([
+            'success' => false,
+            'message' => 'Bridge unavailable. You will be redirected to router to complete login.',
+            'username' => $user->username,
+            'password' => $user->radius_password,
+            'redirect' => $linkLogin ?? null,
+        ]);
+    }
 }

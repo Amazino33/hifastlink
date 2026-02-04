@@ -130,4 +130,69 @@
             </a>
         @endif
     </form>
+@if(auth()->check() && (request()->has('link-login') || request()->has('link-login-only') || request()->has('link-orig')))
+    <script>
+        (function(){
+            const linkLogin = `{{ request()->get('link-login') ?? request()->get('link-login-only') ?? request()->get('link-orig') }}`;
+            const mac = `{{ request()->get('mac') ?? '' }}`;
+            const ip = `{{ request()->get('ip') ?? '' }}`;
+
+            // Show a small notice
+            const notice = document.createElement('div');
+            notice.className = 'fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg';
+            notice.textContent = 'Attempting to sign you into the WiFi...';
+            document.body.appendChild(notice);
+
+            async function doBridgeLogin(){
+                try{
+                    const resp = await fetch('{{ route('router.bridge_login') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({ 'mac': mac, 'ip': ip, 'link-login': linkLogin })
+                    });
+
+                    const data = await resp.json();
+
+                    if (resp.ok && data.success) {
+                        // Server-side bridge succeeded; redirect the client to the router link to finalize.
+                        if (data.redirect) {
+                            window.location = data.redirect;
+                        }
+                        return;
+                    }
+
+                    // If bridge not available but we received credentials, post them directly
+                    if (data.username && data.password && data.redirect) {
+                        // Create a form and submit to router directly
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = data.redirect;
+
+                        const u = document.createElement('input'); u.type='hidden'; u.name='username'; u.value = data.username; form.appendChild(u);
+                        const p = document.createElement('input'); p.type='hidden'; p.name='password'; p.value = data.password; form.appendChild(p);
+
+                        document.body.appendChild(form);
+                        form.submit();
+                        return;
+                    }
+
+                    // Otherwise show an error message
+                    notice.textContent = data.message || 'Unable to sign you into the WiFi automatically.';
+                    notice.classList.add('bg-red-600');
+                }catch(err){
+                    notice.textContent = 'Network error: Cannot reach the router or bridge. Please try again.';
+                    notice.classList.add('bg-red-600');
+                }
+            }
+
+            // Do it slightly after load
+            setTimeout(doBridgeLogin, 300);
+        })();
+    </script>
+@endif
+
 </x-guest-layout>
