@@ -113,7 +113,7 @@
                             <div class="text-blue-100 text-lg">{{ $formattedDataLimit }} connection</div>
                         @elseif($subscriptionStatus === 'exhausted')
                             <div class="flex items-center space-x-3">
-                                <div class="text-6xl font-black text-white mb-2">Data Depleted</div>
+                                <div class="text-6xl font-black text-white mb-2">Data Exhausted</div>
                                 @if($user->display_status === 'PLAN EXPIRED')
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white">Plan Expired</span>
                                 @endif
@@ -164,7 +164,7 @@
                                 {{ $formattedTotalUsed }}
                             @endif
                         </div>
-                        <div class="text-blue-100 text-lg mb-6">{{ $subscriptionStatus === 'exhausted' ? 'Data Depleted' : ($connectionStatus === 'active' ? 'Current session' : 'Total used') }}</div>
+                        <div class="text-blue-100 text-lg mb-6">{{ $subscriptionStatus === 'exhausted' ? 'Data Exhausted' : ($connectionStatus === 'active' ? 'Current session' : 'Total used') }}</div>
                         
                         @if($formattedDataLimit !== 'Unlimited')
                             @php

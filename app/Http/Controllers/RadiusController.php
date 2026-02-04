@@ -129,13 +129,21 @@ class RadiusController extends Controller
             }
         }
 
-        $user->update([
-            'connection_status' => 'inactive',
-            'last_online' => now(),
-        ]);
+        // Refresh the user model because expireForExhaustion may have modified it
+        $user->refresh();
 
-        // Check if user exceeded data limit and take action
-        if ($user->data_used >= $user->data_limit) {
+        // Only set to inactive if user is currently active (do not overwrite 'exhausted' or other states)
+        if ($user->connection_status === 'active') {
+            $user->update([
+                'connection_status' => 'inactive',
+                'last_online' => now(),
+            ]);
+        } else {
+            $user->update(['last_online' => now()]);
+        }
+
+        // Check if user exceeded data limit and take action (do not overwrite 'exhausted' status)
+        if ($user->data_limit && $user->data_used >= $user->data_limit && $user->connection_status !== 'exhausted') {
             Log::warning("User {$user->username} exceeded data limit - DISCONNECTING", [
                 'used' => $user->data_used,
                 'limit' => $user->data_limit,
@@ -182,18 +190,11 @@ class RadiusController extends Controller
                         'limit' => $user->data_limit,
                     ]);
 
-                    $user->plan_id = null;
-                    $user->plan_expiry = null;
-                    $user->connection_status = 'exhausted';
-                    $user->save(); // triggers PlanSyncService to move user to default_group
-
                     try {
-                        \App\Models\RadReply::updateOrCreate(
-                            ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
-                            ['op' => ':=', 'value' => '0']
-                        );
+                        $subscriptionService = new \App\Services\SubscriptionService();
+                        $subscriptionService->expireForExhaustion($user);
                     } catch (\Exception $e) {
-                        Log::error('Failed to set Mikrotik-Total-Limit to 0 for ' . $user->username . ': ' . $e->getMessage());
+                        Log::error('Failed to expire exhausted user ' . $user->username . ': ' . $e->getMessage());
                     }
                 }
             }
