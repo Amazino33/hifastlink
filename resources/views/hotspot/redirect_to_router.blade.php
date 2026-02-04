@@ -9,8 +9,8 @@
 </head>
 <body>
     <div class="card">
-        <p class="mb-4">Redirecting you to the WiFi hotspot to complete login...</p>
-        <p class="text-sm text-gray-500">If you are not redirected automatically, click the button below.</p>
+        <p class="mb-4"><strong>Manual Debug Mode:</strong> Click a button below to connect.</p>
+        <p class="text-sm text-gray-500">Auto-submit disabled for debugging. Use the POST button or the GET link to test connectivity with your router.</p>
 
         <form id="loginForm" method="POST" action="{{ $link_login }}">
             <input type="hidden" name="username" value="{{ $username }}">
@@ -22,26 +22,28 @@
             @if(!empty($ip))
                 <input type="hidden" name="ip" value="{{ $ip }}">
             @endif
-            <button id="manualBtn" type="submit" class="btn hidden">Click here if not redirected</button>
+            <!-- Manual POST submit button (visible immediately for debugging) -->
+            <button id="manualBtn" type="submit" class="btn">Submit via POST (Manual)</button>
         </form>
+
+        <!-- Force Connect (GET) link for debugging -->
+        <div style="margin-top:10px">
+            <a id="forceGet" href="{{ $link_login }}?username={{ urlencode($username) }}&amp;password={{ urlencode($password) }}&amp;dst={{ urlencode($link_orig) }}" style="color:#b91c1c;font-weight:bold;text-decoration:underline;">Force Connect (GET)</a>
+        </div>
     </div>
 
     <script>
         (function(){
-            // Auto-submit after 100ms
-            setTimeout(function(){
-                try{
-                    document.getElementById('loginForm').submit();
-                }catch(e){
-                    console.error('Auto-submit failed:', e);
-                }
-            }, 100);
+            // Auto-submit disabled for debugging - developer will click the POST button manually.
+            // setTimeout(function(){
+            //     try{
+            //         document.getElementById('loginForm').submit();
+            //     }catch(e){
+            //         console.error('Auto-submit failed:', e);
+            //     }
+            // }, 100);
 
-            // Show manual button after 3s
-            setTimeout(function(){
-                var b = document.getElementById('manualBtn');
-                if (b) { b.classList.remove('hidden'); }
-            }, 3000);
+            // Manual button is visible immediately; no delayed reveal needed.
         })();
     </script>
 </body>
