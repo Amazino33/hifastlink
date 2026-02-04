@@ -9,41 +9,44 @@
 </head>
 <body>
     <div class="card">
-        <p class="mb-4"><strong>Manual Debug Mode:</strong> Click a button below to connect.</p>
-        <p class="text-sm text-gray-500">Auto-submit disabled for debugging. Use the POST button or the GET link to test connectivity with your router.</p>
+        <p class="mb-4"><strong>Connecting to Router…</strong></p>
+        <p class="text-sm text-gray-500">You will be redirected to your hotspot login. If nothing happens, use the button below.</p>
 
-        <form id="loginForm" method="POST" action="{{ $link_login }}">
-            <input type="hidden" name="username" value="{{ $username }}">
-            <input type="hidden" name="password" value="{{ $password }}">
-            <input type="hidden" name="dst" value="{{ $link_orig }}">
-            @if(!empty($mac))
-                <input type="hidden" name="mac" value="{{ $mac }}">
-            @endif
-            @if(!empty($ip))
-                <input type="hidden" name="ip" value="{{ $ip }}">
-            @endif
-            <!-- Manual POST submit button (visible immediately for debugging) -->
-            <button id="manualBtn" type="submit" class="btn">Submit via POST (Manual)</button>
-        </form>
-
-        <!-- Force Connect (GET) link for debugging -->
-        <div style="margin-top:10px">
-            <a id="forceGet" href="{{ $link_login }}?username={{ urlencode($username) }}&amp;password={{ urlencode($password) }}&amp;dst={{ urlencode($link_orig) }}" style="color:#b91c1c;font-weight:bold;text-decoration:underline;">Force Connect (GET)</a>
+        <!-- Fallback visible button that performs the same GET-based login -->
+        <div style="margin-top:12px">
+            <a id="connectBtn" class="btn" href="{{ $link_login }}?username={{ urlencode($username) }}&amp;password={{ urlencode($password) }}&amp;dst={{ urlencode($link_orig) }}">Click here to connect</a>
         </div>
     </div>
 
     <script>
         (function(){
-            // Auto-submit disabled for debugging - developer will click the POST button manually.
-            // setTimeout(function(){
-            //     try{
-            //         document.getElementById('loginForm').submit();
-            //     }catch(e){
-            //         console.error('Auto-submit failed:', e);
-            //     }
-            // }, 100);
+            // Build a safe URL using JSON-encoded values and encodeURIComponent
+            const base = @json($link_login);
+            const u = @json($username);
+            const p = @json($password);
+            const d = @json($link_orig);
 
-            // Manual button is visible immediately; no delayed reveal needed.
+            const target = `${base}?username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}&dst=${encodeURIComponent(d)}`;
+
+            // Automatically navigate using a GET request (bypasses mixed-content form POST issues)
+            setTimeout(function(){
+                try{
+                    window.location.href = target;
+                }catch(e){
+                    console.error('Redirect to router failed:', e);
+                    // If JS redirect fails, ensure the connect button points to the same URL
+                    const btn = document.getElementById('connectBtn');
+                    if (btn) {
+                        btn.href = target;
+                    }
+                }
+            }, 100);
+
+            // Also ensure the fallback link uses the computed URL
+            const btn = document.getElementById('connectBtn');
+            if (btn) {
+                btn.href = target;
+            }
         })();
     </script>
 </body>
