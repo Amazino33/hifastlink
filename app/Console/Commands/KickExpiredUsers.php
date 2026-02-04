@@ -70,6 +70,17 @@ class KickExpiredUsers extends Command
                     ]
                 );
 
+                // Move user back to default group
+                try {
+                    \App\Models\RadUserGroup::updateOrCreate(
+                        ['username' => $user->username],
+                        ['groupname' => 'default_group', 'priority' => 10]
+                    );
+                    Log::info("RadUserGroup set to default_group for expired user {$user->username}");
+                } catch (\Exception $e) {
+                    Log::error("Failed to set RadUserGroup for expired user {$user->username}: " . $e->getMessage());
+                }
+
                 // Update user status
                 $user->connection_status = 'inactive';
                 $user->save();

@@ -177,17 +177,7 @@ class PaymentController extends Controller
                 Log::error("Failed to create/update RadCheck for user {$user->username}: " . $e->getMessage());
             }
 
-            try {
-                RadUserGroup::updateOrCreate(
-                    ['username' => $user->username],
-                    [
-                        'groupname' => 'default_group',
-                    ]
-                );
-                Log::info("RadUserGroup created/updated for user {$user->username}");
-            } catch (\Exception $e) {
-                Log::error("Failed to create/update RadUserGroup for user {$user->username}: " . $e->getMessage());
-            }
+            // RadUserGroup will be set by PlanSyncService when the user's plan changes.
 
             return redirect()->route('dashboard')->with('success', "Plan queued! It will start when your current plan expires.");
         } else {
@@ -269,17 +259,7 @@ class PaymentController extends Controller
                 Log::error("Failed to create/update RadCheck for user {$user->username}: " . $e->getMessage());
             }
 
-            try {
-                RadUserGroup::updateOrCreate(
-                    ['username' => $user->username],
-                    [
-                        'groupname' => 'default_group',
-                    ]
-                );
-                Log::info("RadUserGroup created/updated for user {$user->username}");
-            } catch (\Exception $e) {
-                Log::error("Failed to create/update RadUserGroup for user {$user->username}: " . $e->getMessage());
-            }
+            // RadUserGroup will be set by PlanSyncService when the user's plan changes.
 
             $rolloverMessage = $rolloverData > 0 ? " with " . Number::fileSize($rolloverData) . " rollover data!" : "!";
             return redirect()->route('dashboard')->with('success', "Payment successful — you are now subscribed to {$plan->name}{$rolloverMessage}");

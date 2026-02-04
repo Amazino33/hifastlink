@@ -81,6 +81,19 @@ class PlanSyncService
                 $user->plan_expiry = null;
             }
 
+            // Ensure radusergroup is set to the appropriate groupname
+            try {
+                $groupName = $plan ? ($plan->radius_group_name ?: $plan->name) : 'default_group';
+
+                \App\Models\RadUserGroup::updateOrCreate(
+                    ['username' => $user->username],
+                    ['groupname' => $groupName, 'priority' => 10]
+                );
+            } catch (\Exception $e) {
+                // Don't let radusergroup failures prevent user updates
+                \Illuminate\Support\Facades\Log::error('Failed to sync RadUserGroup for user ' . $user->username . ': ' . $e->getMessage());
+            }
+
             $user->saveQuietly();
         });
     }
