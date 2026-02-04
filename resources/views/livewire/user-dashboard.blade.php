@@ -112,7 +112,12 @@
                             <div class="text-sm text-white/80 font-semibold mb-3">{{ $subscriptionDays === 1 ? 'day remaining' : 'days remaining' }}</div>
                             <div class="text-blue-100 text-lg">{{ $formattedDataLimit }} connection</div>
                         @elseif($subscriptionStatus === 'exhausted')
-                            <div class="text-6xl font-black text-white mb-2">Data Depleted</div>
+                            <div class="flex items-center space-x-3">
+                                <div class="text-6xl font-black text-white mb-2">Data Depleted</div>
+                                @if($user->display_status === 'PLAN EXPIRED')
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white">Plan Expired</span>
+                                @endif
+                            </div>
                             <div class="text-blue-100 text-lg">0 MB remaining</div>
                         @else
                             <div class="text-6xl font-black text-white mb-2">Expired</div>

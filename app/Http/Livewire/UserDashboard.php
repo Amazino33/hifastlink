@@ -50,14 +50,23 @@ class UserDashboard extends Component
 
         $user = Auth::user();
 
+        // If the user's current plan still has time remaining but no data, expire it immediately
         if ($user->plan_id && $user->plan_expiry && $user->plan_expiry->isFuture()) {
-            Notification::make()
-                ->title('Subscription Active')
-                ->body('You already have an active plan. Please wait for it to expire.')
-                ->warning()
-                ->send();
+            $remaining = $user->remaining_data ?? 0;
+            if ($remaining <= 0) {
+                // expire current plan so new plan can activate
+                $user->plan_id = null;
+                $user->plan_expiry = null;
+                $user->save(); // triggers observer -> PlanSyncService
+            } else {
+                Notification::make()
+                    ->title('Subscription Active')
+                    ->body('You already have an active plan. Please wait for it to expire.')
+                    ->warning()
+                    ->send();
 
-            return;
+                return;
+            }
         }
 
         // Simulate free purchase / immediate activation
@@ -322,14 +331,23 @@ class UserDashboard extends Component
     $user = \Illuminate\Support\Facades\Auth::user();
     $newPlan = $voucher->plan;
     // 4. THE DECISION: Queue or Activate?
-    // SCENARIO A: User has an ACTIVE plan -> Queue It
+    // SCENARIO A: User has an ACTIVE plan -> Queue It (unless data exhausted)
     if ($user->plan_expiry && $user->plan_expiry > now()) {
-        // Add to Queue
-        \App\Models\PendingSubscription::create([
-            'user_id' => $user->id,
-            'plan_id' => $newPlan->id,
-        ]);
-        session()->flash('success', "Voucher accepted! {$newPlan->name} added to your queue.");
+        // If current plan has no remaining data -> expire it and activate immediately
+        if (($user->remaining_data ?? 0) <= 0) {
+            $user->plan_id = null;
+            $user->plan_expiry = null;
+            $user->save(); // triggers PlanSyncService -> will set radusergroup to default_group
+            // fall through to activation
+        } else {
+            // Add to Queue
+            \App\Models\PendingSubscription::create([
+                'user_id' => $user->id,
+                'plan_id' => $newPlan->id,
+            ]);
+            session()->flash('success', "Voucher accepted! {$newPlan->name} added to your queue.");
+            return;
+        }
     }
     // SCENARIO B: User is EXPIRED or NEW -> Activate Immediately
     else {

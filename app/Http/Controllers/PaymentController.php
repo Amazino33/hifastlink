@@ -124,6 +124,17 @@ class PaymentController extends Controller
         $hasActivePlan = $user->plan_expiry && $user->plan_expiry->isFuture();
         $hasDataLeft = $user->data_used < $user->data_limit;
 
+        // If the current plan has no data remaining, expire it so the new plan can activate immediately
+        if ($hasActivePlan && ($user->remaining_data ?? 0) <= 0) {
+            $user->plan_id = null;
+            $user->plan_expiry = null;
+            $user->save(); // triggers PlanSyncService
+
+            // recompute flags
+            $hasActivePlan = false;
+            $hasDataLeft = false;
+        }
+
         if ($hasActivePlan && $hasDataLeft) {
             // Queue the plan
             \App\Models\PendingSubscription::create([

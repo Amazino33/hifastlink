@@ -204,6 +204,24 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     }
 
     /**
+     * Friendly display status for the user's subscription.
+     * Returns 'PLAN EXPIRED' when data remaining is 0 or less.
+     */
+    public function getDisplayStatusAttribute(): string
+    {
+        // Use remaining_data accessor which returns bytes remaining (0 when unlimited or none)
+        try {
+            if ($this->remaining_data <= 0 && $this->plan_id) {
+                return 'PLAN EXPIRED';
+            }
+        } catch (\Exception $e) {
+            // ignore and fallthrough
+        }
+
+        return 'OK';
+    }
+
+    /**
      * Format bytes to human readable format.
      */
     public function formatBytes(int $bytes, int $precision = 2): string
