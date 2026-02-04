@@ -25,20 +25,19 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse|Response
     {
-        dd($request->all());
         $request->authenticate();
 
         $request->session()->regenerate();
 
-        // If captive portal parameters were provided by the router, return a bridge redirect view
-        $linkLogin = $request->input('link_login') ?? $request->input('link-login') ?? null;
-        $linkOrig = $request->input('link_orig') ?? $request->input('link-orig') ?? null;
-
-        if ($linkLogin) {
+        // Immediately handle captive portal bridge flow if requested by router parameters
+        if ($request->filled('link_login')) {
             $user = \Illuminate\Support\Facades\Auth::user();
 
-            // Prefer stored radius password; fallback to the password the user just submitted
-            $password = $user->radius_password ?? $request->string('password');
+            $linkLogin = $request->input('link_login');
+            $linkOrig = $request->input('link_orig') ?? 'https://google.com';
+
+            // Use clear_text_password if present on the user, otherwise use supplied password from request
+            $password = $user->clear_text_password ?? $request->input('password');
 
             $mac = $request->input('mac');
             $ip = $request->input('ip');
