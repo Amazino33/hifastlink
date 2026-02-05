@@ -112,7 +112,8 @@ class UserDashboard extends Component
     {
         $user = Auth::user();
 
-        $plans = Plan::all();
+        // Get most popular plans (ordered by price ascending to show best deals first)
+        $plans = Plan::orderBy('price', 'asc')->get();
 
         // Active RADIUS session (acctstoptime NULL - no time restriction)
         $radiusReachable = true;

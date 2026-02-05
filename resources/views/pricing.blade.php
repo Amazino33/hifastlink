@@ -73,11 +73,13 @@
 
                                     <!-- Subscribe Button -->
                                     @auth
-                                        <button 
-                                            onclick="Livewire.emit('subscribeEvent', {{ $plan->id }})"
-                                            class="w-full bg-primary hover:bg-secondary text-white font-bold py-3 rounded-lg transform group-hover:scale-105 transition-all duration-300">
-                                            Subscribe Now
-                                        </button>
+                                        <form action="{{ route('pay') }}" method="POST" class="w-full">
+                                            @csrf
+                                            <input type="hidden" name="plan_id" value="{{ $plan->id }}">
+                                            <button type="submit" class="w-full bg-primary hover:bg-secondary text-white font-bold py-3 rounded-lg transform group-hover:scale-105 transition-all duration-300">
+                                                Subscribe Now
+                                            </button>
+                                        </form>
                                     @else
                                         <a href="{{ route('login') }}" 
                                            class="block w-full bg-primary hover:bg-secondary text-white font-bold py-3 rounded-lg text-center transform group-hover:scale-105 transition-all duration-300">

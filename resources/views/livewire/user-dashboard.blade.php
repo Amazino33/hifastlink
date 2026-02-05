@@ -269,10 +269,13 @@
             <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
                 <div class="flex items-center justify-between mb-6">
                     <h3 id="hot-deals" class="text-2xl font-black text-gray-900 dark:text-white">Hot Deals</h3>
+                    <a href="{{ route('pricing') }}" class="text-sm font-bold text-primary hover:text-secondary transition-colors">
+                        Show All <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </a>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    @foreach($plans as $plan)
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    @foreach($plans->take(4) as $plan)
                         <div class="bg-gradient-to-br from-blue-600 to-blue-400 rounded-3xl shadow-lg transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
                             <div class="text-center space-y-2 p-1">
                                 <div class="bg-white py-4 rounded-3xl m-1">
