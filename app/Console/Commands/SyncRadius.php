@@ -101,12 +101,17 @@ class SyncRadius extends Command
 
                     // Check if user has exhausted their data
                     if ($user->hasExceededDataLimit() && $user->plan_id) {
-                        $this->warn("Data exhausted for {$username} - clearing plan and disconnecting");
+                        $this->warn("Data exhausted for {$username} - clearing ALL plan details and disconnecting");
                         
-                        // Clear plan_id and expiry
+                        // Clear ALL plan-related fields
                         $user->plan_id = null;
+                        $user->data_plan_id = null;
                         $user->plan_expiry = null;
-                        $user->data_limit = null;
+                        $user->plan_started_at = null;
+                        $user->data_limit = 0; // Set to 0 instead of null (NOT NULL constraint)
+                        $user->data_used = (int) $total; // Keep the usage record for history
+                        $user->subscription_start_date = null;
+                        $user->subscription_end_date = null;
                         $user->connection_status = 'exhausted';
                         $user->save();
 

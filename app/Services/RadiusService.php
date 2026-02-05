@@ -113,11 +113,16 @@ class RadiusService
         try {
             \Log::info("Handling data exhaustion for user: {$user->username}");
 
-            // Clear plan_id and expiry
+            // Clear ALL plan-related fields
             $user->plan_id = null;
+            $user->data_plan_id = null;
             $user->plan_expiry = null;
-            $user->data_limit = null;
+            $user->plan_started_at = null;
+            $user->data_limit = 0; // Set to 0 instead of null (NOT NULL constraint)
+            $user->subscription_start_date = null;
+            $user->subscription_end_date = null;
             $user->connection_status = 'exhausted';
+            // Keep data_used for history/reporting
             $user->save();
 
             // Disconnect active sessions

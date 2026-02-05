@@ -32,6 +32,7 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'data_limit',
         'online_status',
         'plan_expiry',
+        'plan_started_at',
         'simultaneous_sessions',
         'subscription_start_date',
         'subscription_end_date',
