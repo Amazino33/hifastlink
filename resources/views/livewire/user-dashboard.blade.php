@@ -120,8 +120,8 @@
                             </div>
                             <div class="text-blue-100 text-lg">0 MB remaining</div>
                         @else
-                            <div class="text-6xl font-black text-white mb-2">Expired</div>
-                            <div class="text-blue-100 text-lg">Please renew your subscription</div>
+                            <div class="text-6xl font-black text-white mb-2">No Active Plan</div>
+                            <div class="text-blue-100 text-lg">You have no active data plan. Please subscribe to use data services.</div>
                         @endif
                         
                         @if($connectionStatus === 'active')
@@ -166,7 +166,7 @@
                         </div>
                         <div class="text-blue-100 text-lg mb-6">{{ $subscriptionStatus === 'exhausted' ? 'Data Exhausted' : ($connectionStatus === 'active' ? 'Current session' : 'Total used') }}</div>
                         
-                        @if($formattedDataLimit !== 'Unlimited')
+                        @if($subscriptionStatus !== 'inactive' && $formattedDataLimit !== 'Unlimited')
                             @php
                                 // Usage-based percentage: prefer the controller's family-aware percentage; fallback to the user's own accessor
                                 $usedPercent = (int) ($dataUsagePercentage ?? ($user->data_usage_percentage ?? 0));
@@ -189,10 +189,14 @@
                                 <span class="text-sm">{{ $formattedDataLimit }} total</span>
                             </div>
                         @else
-                            <div class="flex justify-between text-xs text-blue-100 mt-2">
-                                <span>{{ $formattedTotalUsed }} used</span>
-                                <span>Unlimited</span>
-                            </div>
+                            @if($subscriptionStatus === 'inactive')
+                                <div class="text-sm text-blue-100 mt-2">No usage to display — subscribe to a plan to start using data.</div>
+                            @else
+                                <div class="flex justify-between text-xs text-blue-100 mt-2">
+                                    <span>{{ $formattedTotalUsed }} used</span>
+                                    <span>Unlimited</span>
+                                </div>
+                            @endif
                         @endif
                     </div>
                 </div>

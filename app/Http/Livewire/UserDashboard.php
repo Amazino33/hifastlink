@@ -260,6 +260,13 @@ class UserDashboard extends Component
             $dataUsagePercentage = 0;
         }
 
+        // If there is no active plan, clear usage display and make the UI show 'No Active Plan'
+        if ($subscriptionStatus === 'inactive') {
+            $formattedTotalUsed = Number::fileSize(0);
+            $formattedDataLimit = 'No Active Plan';
+            $dataUsagePercentage = 0;
+        }
+
         $uptime = $activeSession && $activeSession->acctstarttime ? Carbon::parse($activeSession->acctstarttime)->diffForHumans() : ($user->last_online ? $user->last_online->diffForHumans() : '-');
 
         // Fetch all transactions
