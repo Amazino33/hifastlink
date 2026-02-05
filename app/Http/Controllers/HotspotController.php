@@ -79,4 +79,25 @@ class HotspotController extends Controller
             'link_orig' => $link_orig,
         ]);
     }
+
+    /**
+     * Disconnect from router (logout)
+     */
+    public function disconnectBridge(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return redirect()->route('dashboard')->with('error', 'Please sign in.');
+        }
+
+        // Router logout URL - typically accessed via GET
+        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL') ?? 'http://192.168.88.1/login';
+        $logoutUrl = (strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway);
+        $logoutUrl = rtrim(str_replace('/login', '', $logoutUrl), '/') . '/logout';
+
+        return view('hotspot.disconnect_from_router', [
+            'logout_url' => $logoutUrl,
+            'redirect_url' => route('dashboard'),
+        ]);
+    }
 }

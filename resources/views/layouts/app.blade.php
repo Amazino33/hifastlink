@@ -81,31 +81,31 @@
                         <h3 class="text-white font-bold text-lg mb-6 uppercase tracking-wide">Quick Links</h3>
                         <ul class="space-y-3">
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
+                                <a href="{{ route('home') }}" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Home
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
+                                <a href="{{ route('about') }}" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     About Us
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
+                                <a href="{{ route('services') }}" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Services
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
+                                <a href="{{ route('pricing') }}" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Pricing Plans
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
+                                <a href="{{ route('coverage') }}" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Coverage Map
                                 </a>
@@ -118,31 +118,31 @@
                         <h3 class="text-white font-bold text-lg mb-6 uppercase tracking-wide">Support</h3>
                         <ul class="space-y-3">
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
+                                <a href="{{ route('help') }}" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Help Center
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
+                                <a href="{{ route('contact') }}" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Contact Us
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
+                                <a href="{{ route('faq') }}" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     FAQs
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
+                                <a href="{{ route('installation') }}" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Installation Guide
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
+                                <a href="{{ route('status') }}" class="text-gray-300 hover:text-blue-400 transition-colors duration-300 flex items-center group">
                                     <i class="fa-solid fa-chevron-right text-xs mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                                     Network Status
                                 </a>

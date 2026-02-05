@@ -58,4 +58,44 @@ class PageController extends Controller
             return back()->with('error', 'Sorry, something went wrong. Please try again later or contact us directly.');
         }
     }
+
+    /**
+     * Display the coverage map page.
+     */
+    public function coverage()
+    {
+        return view('coverage');
+    }
+
+    /**
+     * Display the help center page.
+     */
+    public function help()
+    {
+        return view('help');
+    }
+
+    /**
+     * Display the FAQ page.
+     */
+    public function faq()
+    {
+        return view('faq');
+    }
+
+    /**
+     * Display the installation guide page.
+     */
+    public function installation()
+    {
+        return view('installation');
+    }
+
+    /**
+     * Display the network status page.
+     */
+    public function status()
+    {
+        return view('status');
+    }
 }

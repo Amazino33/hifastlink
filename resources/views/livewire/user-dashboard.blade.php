@@ -95,8 +95,12 @@
                                 @endif
                             </span>
 
-                            <!-- Connect to Router button (hidden when data exhausted or already connected) -->
-                            @if($subscriptionStatus !== 'exhausted' && $connectionStatus !== 'active')
+                            <!-- Connect/Disconnect Router buttons -->
+                            @if($connectionStatus === 'active')
+                                <a href="{{ route('disconnect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">
+                                    <i class="fa-solid fa-power-off mr-1"></i>Disconnect
+                                </a>
+                            @elseif($subscriptionStatus !== 'exhausted' && $connectionStatus !== 'active')
                                 <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none">
                                     Connect to Router
                                 </a>
@@ -173,7 +177,7 @@
                                 $pct = min(100, max(0, $usedPercent));
 
                                 // Color logic: 0-70 Safe, 71-90 Warning, 91-100 Danger
-                                $barGradient = $pct <= 70 ? 'from-green-400 to-green-600' : ($pct <= 90 ? 'from-blue-400 to-blue-600' : 'from-red-500 to-red-700');
+                                $barGradient = $pct <= 70 ? 'from-green-400 to-green-600' : ($pct <= 90 ? 'from-yellow-400 to-orange-500' : 'from-red-500 to-red-700');
                             @endphp
 
                             <div class="flex items-center justify-between mb-2 text-xs text-blue-100">

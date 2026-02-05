@@ -21,6 +21,11 @@ Route::get('/pricing', [PageController::class, 'pricing'])->name('pricing');
 Route::get('/services', [PageController::class, 'services'])->name('services');
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
 Route::post('/contact', [PageController::class, 'submitContact'])->name('contact.submit');
+Route::get('/coverage', [PageController::class, 'coverage'])->name('coverage');
+Route::get('/help', [PageController::class, 'help'])->name('help');
+Route::get('/faq', [PageController::class, 'faq'])->name('faq');
+Route::get('/installation-guide', [PageController::class, 'installation'])->name('installation');
+Route::get('/network-status', [PageController::class, 'status'])->name('status');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', \App\Http\Livewire\UserDashboard::class)->name('dashboard');
@@ -28,6 +33,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Bridge connector that returns a page which redirects to router using GET (bridge flow)
     Route::get('/connect-bridge', [\App\Http\Controllers\HotspotController::class, 'connectBridge'])->name('connect.bridge')->middleware(['auth','web']);
+    
+    // Disconnect from router
+    Route::get('/disconnect-bridge', [\App\Http\Controllers\HotspotController::class, 'disconnectBridge'])->name('disconnect.bridge')->middleware(['auth','web']);
 
     // Build GET-based router login link and return it to client
     Route::post('/dashboard/connect', [DashboardController::class, 'connectToRouter'])->name('dashboard.connect')->middleware(['auth','web']);
