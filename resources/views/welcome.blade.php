@@ -33,9 +33,9 @@
                     <p class="text-sm leading-relaxed mb-6 lg:block hidden">
                         HiFastLink delivers a stable, powerful connection engineered for remote Nigerian<br>environments. Our satellite service ensures you receive consistent speeds up to<br>80 Mbps—even when others fail. Finally, internet that truly works.
                     </p>
-                    <button class="w-fit bg-secondary hover:bg-blue-800 font-bold py-4 px-8 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-white">
+                    <a href="{{ route('pricing') }}" class="inline-block w-fit bg-secondary hover:bg-blue-800 font-bold py-4 px-8 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-white">
                         Get Started Now →
-                    </button>
+                    </a>
                 </div>
             </div>
 
@@ -130,9 +130,9 @@
                     </p>
                 </div>
                 
-                <button class="w-fit bg-secondary hover:bg-blue-800 font-bold py-4 px-8 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-white">
+                <a href="{{ route('pricing') }}" class="inline-block w-fit bg-secondary hover:bg-blue-800 font-bold py-4 px-8 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-white">
                     Get Started Now →
-                </button>
+                </a>
             </div>
         </div>
     </section>
@@ -205,10 +205,10 @@
             <p class="text-2xl text-white mb-12 font-medium">
                 Get connected now, and enjoy super fast and reliable internet connection.
             </p>
-            <button class="bg-white text-gray-900 font-black text-xl py-6 px-12 rounded-full hover:bg-gray-100 transform hover:scale-110 transition-all duration-300 shadow-2xl hover:shadow-3xl inline-flex items-center gap-3">
+            <a href="{{ route('pricing') }}" class="inline-flex items-center gap-3 bg-white text-gray-900 font-black text-xl py-6 px-12 rounded-full hover:bg-gray-100 transform hover:scale-110 transition-all duration-300 shadow-2xl hover:shadow-3xl">
                 Get Started Today
                 <i class="fa-solid fa-arrow-right"></i>
-            </button>
+            </a>
         </div>
     </section>
 

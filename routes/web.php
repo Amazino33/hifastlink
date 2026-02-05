@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\RouterController;
+use App\Http\Controllers\PageController;
 use App\Models\RadCheck;
 
 Route::get('/', function () {
@@ -14,6 +15,12 @@ Route::get('/', function () {
 Route::get('/about-us', function () {
     return view('about');
 })->name('about');
+
+// Public pages
+Route::get('/pricing', [PageController::class, 'pricing'])->name('pricing');
+Route::get('/services', [PageController::class, 'services'])->name('services');
+Route::get('/contact', [PageController::class, 'contact'])->name('contact');
+Route::post('/contact', [PageController::class, 'submitContact'])->name('contact.submit');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', \App\Http\Livewire\UserDashboard::class)->name('dashboard');

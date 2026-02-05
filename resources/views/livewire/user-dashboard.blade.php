@@ -21,15 +21,15 @@
                 @elseif($connectionStatus === 'unknown')
                     <div class="flex items-center space-x-3 mt-2">
                         <span class="relative flex h-3 w-3">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-60"></span>
-                            <span class="relative inline-flex rounded-full h-3 w-3 bg-yellow-500 ring-2 ring-yellow-300"></span>
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-60"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500 ring-2 ring-blue-300"></span>
                         </span>
                         <p class="text-sm font-semibold">
-                            <span class="text-yellow-600 dark:text-yellow-400">Connection status unknown</span>
-                            <span class="ml-2 text-yellow-600 dark:text-yellow-400">IP: {{ $currentIp }}</span>
+                            <span class="text-blue-600 dark:text-blue-400">Connection status unknown</span>
+                            <span class="ml-2 text-blue-600 dark:text-blue-400">IP: {{ $currentIp }}</span>
                         </p>
                     </div>
-                    <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">Unable to verify connection - RADIUS server unreachable</p>
+                    <p class="text-xs text-blue-600 dark:text-blue-400 mt-1">Unable to verify connection - RADIUS server unreachable</p>
                 @else
                     <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">Currently offline</p>
                 @endif
@@ -95,12 +95,12 @@
                                 @endif
                             </span>
 
-                            <!-- Connect to Router button (hidden when data exhausted) -->
-                            @if($subscriptionStatus !== 'exhausted')
+                            <!-- Connect to Router button (hidden when data exhausted or already connected) -->
+                            @if($subscriptionStatus !== 'exhausted' && $connectionStatus !== 'active')
                                 <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none">
                                     Connect to Router
                                 </a>
-                            @else
+                            @elseif($subscriptionStatus === 'exhausted')
                                 <a href="#hot-deals" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors">Buy Data</a>
                             @endif
                         </div>
@@ -173,7 +173,7 @@
                                 $pct = min(100, max(0, $usedPercent));
 
                                 // Color logic: 0-70 Safe, 71-90 Warning, 91-100 Danger
-                                $barGradient = $pct <= 70 ? 'from-green-400 to-green-600' : ($pct <= 90 ? 'from-yellow-400 to-pink-500' : 'from-red-500 to-red-700');
+                                $barGradient = $pct <= 70 ? 'from-green-400 to-green-600' : ($pct <= 90 ? 'from-blue-400 to-blue-600' : 'from-red-500 to-red-700');
                             @endphp
 
                             <div class="flex items-center justify-between mb-2 text-xs text-blue-100">
@@ -210,7 +210,7 @@
                         @foreach($user->pendingSubscriptions as $queueItem)
                             <div class="bg-gray-100 dark:bg-gray-700/70 border border-gray-200 dark:border-gray-600 rounded-xl p-4 flex items-center justify-between shadow-sm">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 rounded-full bg-yellow-500/20 text-yellow-500 flex items-center justify-center font-bold text-sm">
+                                    <div class="w-10 h-10 rounded-full bg-blue-500/20 text-blue-500 flex items-center justify-center font-bold text-sm">
                                         {{ $loop->iteration }}
                                     </div>
                                     <div>
@@ -223,7 +223,7 @@
                                 </div>
 
                                 @if($loop->first)
-                                     <button wire:click="forceActivate({{ $queueItem->id }})" wire:confirm="Activate this now? Current plan will be stopped." class="text-xs bg-yellow-500 text-black font-bold px-3 py-1 rounded-lg hover:bg-yellow-400 transition-colors">
+                                     <button wire:click="forceActivate({{ $queueItem->id }})" wire:confirm="Activate this now? Current plan will be stopped." class="text-xs bg-blue-500 text-white font-bold px-3 py-1 rounded-lg hover:bg-blue-600 transition-colors">
                                         Start Now
                                      </button>
                                 @else

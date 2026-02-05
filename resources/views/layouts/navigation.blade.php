@@ -23,18 +23,23 @@
                         <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
                     </x-nav-link>
                     
-                    <a href="#" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group">
+                    <a href="{{ route('services') }}" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group {{ request()->routeIs('services') ? 'bg-white/10 rounded-lg' : '' }}">
                         <span class="relative z-10">Services</span>
                         <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
                     </a>
                     
-                    <a href="#" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group">
+                    <a href="{{ route('pricing') }}" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group {{ request()->routeIs('pricing') ? 'bg-white/10 rounded-lg' : '' }}">
                         <span class="relative z-10">Pricing</span>
                         <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
                     </a>
                     
-                    <a href="{{ route('about') }}" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group">
+                    <a href="{{ route('about') }}" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group {{ request()->routeIs('about') ? 'bg-white/10 rounded-lg' : '' }}">
                         <span class="relative z-10">About Us</span>
+                        <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
+                    </a>
+                    
+                    <a href="{{ route('contact') }}" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group {{ request()->routeIs('contact') ? 'bg-white/10 rounded-lg' : '' }}">
+                        <span class="relative z-10">Contact</span>
                         <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
                     </a>
                 </div>
@@ -124,19 +129,24 @@
                 <span>{{ __('Dashboard') }}</span>
             </x-responsive-nav-link>
 
-            <a href="#" class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 transition-all duration-300">
+            <a href="{{ route('services') }}" class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 transition-all duration-300 {{ request()->routeIs('services') ? 'bg-white/20' : '' }}">
                 <i class="fa-solid fa-server"></i>
                 <span>Services</span>
             </a>
 
-            <a href="#" class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 transition-all duration-300">
+            <a href="{{ route('pricing') }}" class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 transition-all duration-300 {{ request()->routeIs('pricing') ? 'bg-white/20' : '' }}">
                 <i class="fa-solid fa-tag"></i>
                 <span>Pricing</span>
             </a>
 
-            <a href="{{ route('about') }}" class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 transition-all duration-300">
-                <i class="fa-solid fa-envelope"></i>
+            <a href="{{ route('about') }}" class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 transition-all duration-300 {{ request()->routeIs('about') ? 'bg-white/20' : '' }}">
+                <i class="fa-solid fa-info-circle"></i>
                 <span>About Us</span>
+            </a>
+
+            <a href="{{ route('contact') }}" class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 transition-all duration-300 {{ request()->routeIs('contact') ? 'bg-white/20' : '' }}">
+                <i class="fa-solid fa-envelope"></i>
+                <span>Contact</span>
             </a>
         </div>
 
