@@ -90,6 +90,15 @@
                                 <span>Settings</span>
                             </x-dropdown-link>
 
+                            @if(Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('cashier') || Auth::user()->email === 'amazino33@gmail.com')
+                                <div class="border-t border-gray-200 my-2"></div>
+                                
+                                <x-dropdown-link href="/admin" class="flex items-center space-x-2 hover:bg-purple-50 bg-purple-50/50">
+                                    <i class="fa-solid fa-user-shield text-purple-600"></i>
+                                    <span class="font-bold text-purple-700">Admin Panel</span>
+                                </x-dropdown-link>
+                            @endif
+
                             <div class="border-t border-gray-200 my-2"></div>
 
                             <!-- Authentication -->
@@ -128,6 +137,15 @@
                 <i class="fa-solid fa-dashboard"></i>
                 <span>{{ __('Dashboard') }}</span>
             </x-responsive-nav-link>
+            
+            @auth
+            @if(Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('cashier') || Auth::user()->email === 'amazino33@gmail.com')
+                <a href="/admin" class="text-purple-200 hover:bg-purple-500/30 rounded-lg font-bold flex items-center space-x-2 py-3 px-4 bg-purple-600/20 border-2 border-purple-400/50">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span>Admin Panel</span>
+                </a>
+            @endif
+            @endauth
 
             <a href="{{ route('services') }}" class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 transition-all duration-300 {{ request()->routeIs('services') ? 'bg-white/20' : '' }}">
                 <i class="fa-solid fa-server"></i>
