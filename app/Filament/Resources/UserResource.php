@@ -24,12 +24,17 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Fieldset as ComponentsFieldset;
 use Filament\Schemas\Schema;
+use UnitEnum;
 
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user-group';
+
+    protected static string|UnitEnum|null $navigationGroup = 'User Management';
+
+    protected static ?int $navigationSort = 1;
 
     public static function table(Table $table): Table
     {
@@ -95,73 +100,98 @@ class UserResource extends Resource
     {
         return $schema
             ->schema([
-                ComponentsFieldset::make('Basic Information')
+                ComponentsFieldset::make('Account Information')
                     ->schema([
                         TextInput::make('name')
+                            ->label('Full Name')
                             ->required()
-                            ->maxLength(255),
-                        TextInput::make('username')
-                            ->required()
-                            ->unique(ignoreRecord: true)
                             ->maxLength(255)
-                            ->label('RADIUS Username'),
+                            ->columnSpan(1),
                         TextInput::make('email')
+                            ->label('Email Address')
                             ->email()
                             ->required()
                             ->unique(ignoreRecord: true)
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->columnSpan(1),
+                        TextInput::make('username')
+                            ->label('Username (RADIUS)')
+                            ->required()
+                            ->unique(ignoreRecord: true)
+                            ->maxLength(255)
+                            ->helperText('Used for authentication')
+                            ->columnSpan(1),
+                        TextInput::make('phone')
+                            ->label('Phone Number')
+                            ->tel()
+                            ->maxLength(20)
+                            ->columnSpan(1),
+                    ])->columns(2),
+
+                ComponentsFieldset::make('Security')
+                    ->schema([
                         TextInput::make('password')
+                            ->label('Login Password')
                             ->password()
                             ->required(fn ($context) => $context === 'create')
                             ->minLength(8)
                             ->confirmed()
-                            ->dehydrated(fn ($state) => filled($state)),
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->columnSpan(1),
                         TextInput::make('password_confirmation')
+                            ->label('Confirm Password')
                             ->password()
                             ->required(fn ($context) => $context === 'create')
-                            ->minLength(8),
+                            ->minLength(8)
+                            ->columnSpan(1),
                         TextInput::make('radius_password')
                             ->label('RADIUS Password')
                             ->password()
-                            ->helperText('Plain-text password used by RADIUS; leave blank to keep existing')
-                            ->dehydrated(fn ($state) => filled($state)),
+                            ->helperText('Plain-text password for RADIUS; leave blank to keep existing')
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->columnSpan(2),
                     ])->columns(2),
 
-                ComponentsFieldset::make('Plan & Subscription')
+                ComponentsFieldset::make('Subscription Details')
                     ->schema([
                         Select::make('plan_id')
                             ->relationship('plan', 'name')
-                            ->label('Assign Plan')
+                            ->label('Assigned Plan')
                             ->searchable()
                             ->preload()
-                            ->afterStateUpdated(function ($state, $set) {
-                                // Placeholder: logic to reset expiry will go here later
-                            }),
-                        DateTimePicker::make('plan_expiry')
-                            ->label('Plan Expiry')
-                            ->default(now()->addDays(30)),
+                            ->columnSpan(2),
                         DateTimePicker::make('plan_started_at')
-                            ->label('Plan Started At')
-                            ->default(now()),
-                    ])->columns(3),
+                            ->label('Plan Start Date')
+                            ->default(now())
+                            ->columnSpan(1),
+                        DateTimePicker::make('plan_expiry')
+                            ->label('Plan Expiry Date')
+                            ->default(now()->addDays(30))
+                            ->columnSpan(1),
+                    ])->columns(2),
 
-                ComponentsFieldset::make('Family Settings')
+                ComponentsFieldset::make('Family Plan Settings')
                     ->schema([
+                        Toggle::make('is_family_admin')
+                            ->label('Family Plan Administrator')
+                            ->helperText('Can manage family members and shared data')
+                            ->inline(false)
+                            ->columnSpan(2),
                         Select::make('parent_id')
                             ->relationship('parent', 'name')
-                            ->label('Parent User')
+                            ->label('Parent Account')
                             ->searchable()
                             ->preload()
-                            ->helperText('Leave blank if this is a family admin'),
-                        Toggle::make('is_family_admin')
-                            ->label('Is Family Admin')
-                            ->helperText('Can manage family members'),
+                            ->helperText('Leave blank if this is a family admin')
+                            ->columnSpan(1),
                         TextInput::make('family_limit')
+                            ->label('Family Members Limit')
                             ->numeric()
                             ->minValue(0)
                             ->default(0)
-                            ->helperText('Maximum number of family members'),
-                    ])->columns(3),
+                            ->helperText('Maximum family members')
+                            ->columnSpan(1),
+                    ])->columns(2),
             ]);
     }
 

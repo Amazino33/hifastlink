@@ -27,7 +27,9 @@ class RadGroupReplyResource extends Resource
 
     protected static ?string $navigationLabel = 'Plan Definition';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Network Management';
+    protected static string|UnitEnum|null $navigationGroup = 'RADIUS Configuration';
+
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $recordTitleAttribute = 'name';
 

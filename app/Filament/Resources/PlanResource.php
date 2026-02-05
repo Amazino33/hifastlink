@@ -25,6 +25,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Number;
+use UnitEnum;
 
 class PlanResource extends Resource
 {
@@ -32,73 +33,101 @@ class PlanResource extends Resource
 
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-cog';
 
+    protected static string|UnitEnum|null $navigationGroup = 'Plans & Billing';
+
+    protected static ?int $navigationSort = 1;
+
     public static function form(Schema $form): Schema
     {
         return $form
             ->schema([
-                TextInput::make('name')
-                    ->label('Name')
-                    ->required(),
-
-                TextInput::make('price')
-                    ->label('Price')
-                    ->numeric()
-                    ->prefix('₦'),
-
-                Fieldset::make('Limits')
+                Fieldset::make('Plan Details')
                     ->schema([
-                        // TextInput::make('data_limit')
-                        //     ->label('Data Limit (MB)')
-                        //     ->numeric()
-                        //     ->formatStateUsing(fn ($state) => $state ? ($state / 1048576) : null)
-                        //     ->dehydrateStateUsing(fn ($state) => $state ? (int) round($state * 1048576) : null),
-
-                        TextInput::make('data_limit')
-                            ->label('Data Limit')
+                        TextInput::make('name')
+                            ->label('Plan Name')
+                            ->required()
+                            ->maxLength(255)
+                            ->placeholder('e.g., Premium Monthly')
+                            ->columnSpan(1),
+                        TextInput::make('price')
+                            ->label('Price')
                             ->numeric()
-                            ->required(),
-
-                        Select::make('limit_unit')
-                            ->label('Unit')
-                            ->options([
-                                'MB' => 'Megabytes (MB)',
-                                'GB' => 'Gigabytes (GB)',
-                                'Unlimited' => 'Unlimited',
-                            ])
-                            ->required(),
-
-                        TextInput::make('time_limit')
-                            ->label('Time Limit (Minutes)')
-                            ->numeric()
-                            ->formatStateUsing(fn ($state) => $state ? ($state / 60) : null)
-                            ->dehydrateStateUsing(fn ($state) => $state ? (int) round($state * 60) : null),
-
-                        Grid::make()->schema([
-                            TextInput::make('speed_limit_upload')
-                                ->label('Upload (Kbps)')
-                                ->numeric(),
-
-                            TextInput::make('speed_limit_download')
-                                ->label('Download (Kbps)')
-                                ->numeric(),
-                        ])->columns(2),
-
+                            ->prefix('₦')
+                            ->required()
+                            ->placeholder('0.00')
+                            ->columnSpan(1),
                         TextInput::make('validity_days')
-                            ->label('Validity')
+                            ->label('Validity Period')
                             ->numeric()
-                            ->suffix('Days'),
+                            ->suffix('Days')
+                            ->required()
+                            ->default(30)
+                            ->helperText('How long this plan is valid')
+                            ->columnSpan(1),
+                    ])->columns(3),
 
+                Fieldset::make('Data & Time Limits')
+                    ->schema([
+                        Grid::make()->schema([
+                            TextInput::make('data_limit')
+                                ->label('Data Allowance')
+                                ->numeric()
+                                ->required()
+                                ->placeholder('0')
+                                ->columnSpan(1),
+                            Select::make('limit_unit')
+                                ->label('Unit')
+                                ->options([
+                                    'MB' => 'Megabytes (MB)',
+                                    'GB' => 'Gigabytes (GB)',
+                                    'Unlimited' => 'Unlimited',
+                                ])
+                                ->required()
+                                ->default('GB')
+                                ->columnSpan(1),
+                        ])->columns(2),
+                        TextInput::make('time_limit')
+                            ->label('Session Time Limit')
+                            ->numeric()
+                            ->suffix('Minutes')
+                            ->helperText('Maximum session duration per connection')
+                            ->formatStateUsing(fn ($state) => $state ? ($state / 60) : null)
+                            ->dehydrateStateUsing(fn ($state) => $state ? (int) round($state * 60) : null)
+                            ->columnSpan(2),
+                    ])->columns(2),
+
+                Fieldset::make('Speed Controls')
+                    ->schema([
+                        TextInput::make('speed_limit_upload')
+                            ->label('Upload Speed')
+                            ->numeric()
+                            ->suffix('Kbps')
+                            ->placeholder('Unlimited')
+                            ->helperText('Leave blank for unlimited')
+                            ->columnSpan(1),
+                        TextInput::make('speed_limit_download')
+                            ->label('Download Speed')
+                            ->numeric()
+                            ->suffix('Kbps')
+                            ->placeholder('Unlimited')
+                            ->helperText('Leave blank for unlimited')
+                            ->columnSpan(1),
+                    ])->columns(2),
+
+                Fieldset::make('Family & Access Control')
+                    ->schema([
                         Toggle::make('is_family')
-                            ->label('Family Plan')
-                            ->helperText('Enables family admin status for subscribers'),
-
+                            ->label('Enable Family Sharing')
+                            ->helperText('Allows users to share this plan with family members')
+                            ->inline(false)
+                            ->columnSpan(2),
                         TextInput::make('family_limit')
-                            ->label('Family Limit')
+                            ->label('Family Members Limit')
                             ->numeric()
                             ->minValue(0)
                             ->default(0)
-                            ->helperText('Maximum family members allowed'),
-
+                            ->helperText('Maximum family members (0 = disabled)')
+                            ->columnSpan(1),
                         Select::make('allowed_login_time')
                             ->label('Time Restriction')
                             ->options([
@@ -109,10 +138,11 @@ class PlanResource extends Resource
                                 'Wk0800-1700' => 'Work Hours (Mon-Fri, 8 AM - 5 PM)',
                                 'Al0800-1800' => 'Daytime Only (8 AM - 6 PM)',
                             ])
-                            ->placeholder('Select a time rule (Optional)')
-                            ->helperText('Restricts when the user can connect. Leave empty for standard plans.')
-                            ->nullable(),
-                    ])->columns(1),
+                            ->placeholder('24/7 Access')
+                            ->helperText('Limit when users can connect')
+                            ->nullable()
+                            ->columnSpan(1),
+                    ])->columns(2),
             ]);
     }
 

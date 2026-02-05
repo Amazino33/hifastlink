@@ -21,7 +21,8 @@ class RadCheckResource extends Resource
 
     protected static null|BackedEnum|string $navigationIcon = 'heroicon-o-wifi';
     protected static ?string $navigationLabel = 'Radius Users';
-    protected static null|UnitEnum|string $navigationGroup = 'Network Management';
+    protected static null|UnitEnum|string $navigationGroup = 'RADIUS Configuration';
+    protected static ?int $navigationSort = 1;
 
     public static function form(Schema $schema): Schema
     {
