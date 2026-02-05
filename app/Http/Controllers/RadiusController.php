@@ -83,9 +83,9 @@ class RadiusController extends Controller
     {
         Log::info("Session stop for user: {$user->username}", $data);
 
+        // Find the most recent session record for the user (updated_at may not be null in tests or some routers)
         $session = UserSession::where('username', $data['User-Name'])
-                             ->whereNull('updated_at') // Find active session
-                             ->latest()
+                             ->latest('session_timestamp')
                              ->first();
 
         if ($session) {
@@ -162,8 +162,7 @@ class RadiusController extends Controller
     {
         // Update current session data
         $session = UserSession::where('username', $data['User-Name'])
-                             ->whereNull('updated_at')
-                             ->latest()
+                             ->latest('session_timestamp')
                              ->first();
 
         if ($session) {
@@ -180,13 +179,19 @@ class RadiusController extends Controller
 
             // Increment user's total data usage by the delta since last interim
             if ($delta > 0) {
+                // Compute what the new total would be and use that for immediate checks
+                $newTotal = ($user->data_used ?? 0) + $delta;
+
                 $user->increment('data_used', $delta);
+                // Refresh to reflect the increment for any downstream logic
+                $user->refresh();
+
                 Log::info('Interim update increased user usage', ['username' => $user->username, 'delta' => $delta, 'total_used' => $user->data_used]);
 
-                // If data exhausted now, expire plan immediately
-                if ($user->data_limit && $user->data_used >= $user->data_limit) {
+                // If data exhausted now, expire plan immediately (use computed new total)
+                if ($user->data_limit && $newTotal >= $user->data_limit) {
                     Log::warning("User {$user->username} exhausted data during interim update", [
-                        'used' => $user->data_used,
+                        'used' => $newTotal,
                         'limit' => $user->data_limit,
                     ]);
 
