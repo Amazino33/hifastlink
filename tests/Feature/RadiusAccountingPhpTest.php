@@ -6,6 +6,9 @@ use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\User;
 use App\Models\UserSession;
+use App\Models\Plan;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 
 class RadiusAccountingPhpTest extends TestCase
 {
@@ -13,11 +16,26 @@ class RadiusAccountingPhpTest extends TestCase
 
     public function test_interim_update_expires_subscription()
     {
+        // Ensure the radgroupreply table exists because Plan::saved() touches it
+        if (! Schema::hasTable('radgroupreply')) {
+            Schema::create('radgroupreply', function (Blueprint $table) {
+                $table->id();
+                $table->string('groupname');
+                $table->string('attribute');
+                $table->string('op');
+                $table->string('value');
+                $table->timestamps();
+            });
+        }
+
+        // Create a plan first to satisfy foreign key constraint
+        $plan = Plan::factory()->create();
+
         $user = User::factory()->create([
             'username' => 'testuser2',
             'data_limit' => 1000,
             'data_used' => 990,
-            'plan_id' => 1,
+            'plan_id' => $plan->id,
             'connection_status' => 'active',
         ]);
 
@@ -25,6 +43,7 @@ class RadiusAccountingPhpTest extends TestCase
             'user_id' => $user->id,
             'username' => $user->username,
             'session_timestamp' => now(),
+            'router_name' => 'test_router',
             'bytes_in' => 0,
             'bytes_out' => 0,
             'used_bytes' => 0,

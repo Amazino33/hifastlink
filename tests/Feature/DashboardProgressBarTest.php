@@ -7,6 +7,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\RadAcct;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 
 class DashboardProgressBarTest extends TestCase
 {
@@ -14,6 +16,18 @@ class DashboardProgressBarTest extends TestCase
 
     public function test_dashboard_shows_family_usage_percent()
     {
+        // Ensure the radgroupreply table exists because Plan::saved() touches it
+        if (! Schema::hasTable('radgroupreply')) {
+            Schema::create('radgroupreply', function (Blueprint $table) {
+                $table->id();
+                $table->string('groupname');
+                $table->string('attribute');
+                $table->string('op');
+                $table->string('value');
+                $table->timestamps();
+            });
+        }
+
         // Create a plan (100 MB) and a master user
         $plan = Plan::factory()->create([
             'name' => 'Test Plan',
@@ -34,6 +48,7 @@ class DashboardProgressBarTest extends TestCase
         $mb25 = 25 * 1048576;
 
         RadAcct::create([
+            'acctuniqueid' => 'test_progress_' . time() . rand(1000, 9999),
             'username' => $user->username,
             'acctstarttime' => now()->subMinutes(10),
             'acctupdatetime' => now()->subMinutes(5),

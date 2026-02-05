@@ -18,6 +18,7 @@ class RadAcctScopeTest extends TestCase
 
         // Create a radacct record with no acctupdatetime but a recent acctstarttime
         $row = RadAcct::create([
+            'acctuniqueid' => 'test_unique_' . time() . rand(1000, 9999),
             'username' => 'testuser_active',
             'acctstarttime' => now()->subMinutes(10),
             'acctupdatetime' => null,
