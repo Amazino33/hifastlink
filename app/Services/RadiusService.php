@@ -95,12 +95,60 @@ class RadiusService
 
             // Check if user exceeded limit
             if ($user->hasExceededDataLimit()) {
-                $this->disableUser($user);
+                $this->handleDataExhaustion($user);
             }
 
             return true;
         } catch (\Exception $e) {
             \Log::error('Failed to sync user data usage: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Handle data exhaustion - clear plan, disconnect user, clean RADIUS
+     */
+    public function handleDataExhaustion(User $user): void
+    {
+        try {
+            \Log::info("Handling data exhaustion for user: {$user->username}");
+
+            // Clear plan_id and expiry
+            $user->plan_id = null;
+            $user->plan_expiry = null;
+            $user->data_limit = null;
+            $user->connection_status = 'exhausted';
+            $user->save();
+
+            // Disconnect active sessions
+            $this->disconnectUser($user);
+
+            // Remove RADIUS credentials to prevent reconnection
+            $this->disableUser($user);
+
+            \Log::info("Data exhaustion handled for user: {$user->username}");
+        } catch (\Exception $e) {
+            \Log::error("Failed to handle data exhaustion for {$user->username}: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Disconnect user's active RADIUS sessions
+     */
+    public function disconnectUser(User $user): bool
+    {
+        try {
+            // Mark all active sessions as stopped
+            RadAcct::forUser($user->username)
+                ->whereNull('acctstoptime')
+                ->update([
+                    'acctstoptime' => now(),
+                    'acctterminatecause' => 'Admin-Reset',
+                ]);
+
+            return true;
+        } catch (\Exception $e) {
+            \Log::error('Failed to disconnect user: ' . $e->getMessage());
             return false;
         }
     }

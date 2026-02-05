@@ -98,6 +98,33 @@ class SyncRadius extends Command
                     $user->data_used = (int) $total;
                     $user->save();
                     Log::info("sync: updated {$username} data_used={$total}");
+
+                    // Check if user has exhausted their data
+                    if ($user->hasExceededDataLimit() && $user->plan_id) {
+                        $this->warn("Data exhausted for {$username} - clearing plan and disconnecting");
+                        
+                        // Clear plan_id and expiry
+                        $user->plan_id = null;
+                        $user->plan_expiry = null;
+                        $user->data_limit = null;
+                        $user->connection_status = 'exhausted';
+                        $user->save();
+
+                        // Disconnect active sessions
+                        DB::table('radacct')
+                            ->where('username', $username)
+                            ->whereNull('acctstoptime')
+                            ->update([
+                                'acctstoptime' => now(),
+                                'acctterminatecause' => 'Data-Limit-Exceeded',
+                            ]);
+
+                        // Remove RADIUS credentials
+                        DB::table('radcheck')->where('username', $username)->delete();
+                        DB::table('radreply')->where('username', $username)->delete();
+
+                        Log::info("sync: data exhausted for {$username}, plan cleared and user disconnected");
+                    }
                 }
             }
 
