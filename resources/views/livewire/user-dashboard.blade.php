@@ -100,12 +100,14 @@
                                 <a href="{{ route('disconnect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">
                                     <i class="fa-solid fa-power-off mr-1"></i>Disconnect
                                 </a>
-                            @elseif($subscriptionStatus !== 'exhausted' && $connectionStatus !== 'active')
+                            @elseif($subscriptionStatus === 'active' && $connectionStatus !== 'active')
                                 <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none">
                                     Connect to Router
                                 </a>
-                            @elseif($subscriptionStatus === 'exhausted')
-                                <a href="#hot-deals" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors">Buy Data</a>
+                            @else
+                                <a href="#hot-deals" class="px-3 py-1 text-xs font-semibold rounded-lg bg-green-500/90 hover:bg-green-600 text-white transition-colors">
+                                    <i class="fa-solid fa-shopping-cart mr-1"></i>Subscribe Now
+                                </a>
                             @endif
                         </div>
                     </div>
@@ -177,7 +179,7 @@
                                 $pct = min(100, max(0, $usedPercent));
 
                                 // Color logic: 0-70 Safe, 71-90 Warning, 91-100 Danger
-                                $barGradient = $pct <= 70 ? 'from-green-400 to-green-600' : ($pct <= 90 ? 'from-yellow-400 to-orange-500' : 'from-red-500 to-red-700');
+                                $barGradient = $pct <= 70 ? 'from-green-400 to-green-600' : ($pct <= 90 ? 'from-yellow-400 via-orange-400 to-orange-600' : 'from-red-500 to-red-700');
                             @endphp
 
                             <div class="flex items-center justify-between mb-2 text-xs text-blue-100">

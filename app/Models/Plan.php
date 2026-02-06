@@ -26,6 +26,7 @@ class Plan extends Model
         'allowed_login_time',
         'data_limit',
         'limit_unit',
+        'max_devices',
     ];
 
     protected $casts = [

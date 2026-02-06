@@ -128,6 +128,15 @@ class PlanResource extends Resource
                             ->default(0)
                             ->helperText('Maximum family members (0 = disabled)')
                             ->columnSpan(1),
+                        TextInput::make('max_devices')
+                            ->label('Max Simultaneous Devices')
+                            ->numeric()
+                            ->default(1)
+                            ->minValue(1)
+                            ->maxValue(10)
+                            ->helperText('Maximum devices that can connect at once')
+                            ->required()
+                            ->columnSpan(1),
                         Select::make('allowed_login_time')
                             ->label('Time Restriction')
                             ->options([
@@ -193,6 +202,12 @@ class PlanResource extends Resource
 
                 TextColumn::make('family_limit')
                     ->label('Family Limit')
+                    ->sortable(),
+
+                TextColumn::make('max_devices')
+                    ->label('Max Devices')
+                    ->badge()
+                    ->color('info')
                     ->sortable(),
 
                 TextColumn::make('allowed_login_time')

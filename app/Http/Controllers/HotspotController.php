@@ -43,6 +43,17 @@ class HotspotController extends Controller
             return redirect()->route('dashboard')->with('error', 'Please buy a plan.');
         }
 
+        // Check device limit
+        if ($user->plan && $user->plan->max_devices) {
+            $activeDevices = \App\Models\RadAcct::where('username', $user->username)
+                ->whereNull('acctstoptime')
+                ->count();
+            
+            if ($activeDevices >= $user->plan->max_devices) {
+                return redirect()->route('dashboard')->with('error', "Device limit reached. Your plan allows {$user->plan->max_devices} device(s). Please disconnect another device first.");
+            }
+        }
+
         // Self-repair plan_id if missing
         if (isset($validSubscription->plan_id) && empty($user->plan_id) && $validSubscription->plan_id) {
             try {
