@@ -178,12 +178,23 @@ class UserDashboard extends Component
         }
 
         // Determine subscription status from the prioritized current plan
-        $subscriptionStatus = $masterUser->current_plan_status ?? 'inactive';
+        // If plan_id is null, user has NO plan regardless of other factors
+        if (!$masterUser->plan_id) {
+            $subscriptionStatus = 'inactive';
+        } else {
+            $subscriptionStatus = $masterUser->current_plan_status ?? 'inactive';
+        }
+        
         $connectionStatus = ($activeSession) ? 'active' : 'offline';
 
         // If RADIUS is unreachable, show 'unknown' status
         if (!$radiusReachable) {
             $connectionStatus = 'unknown';
+        }
+        
+        // Override: If no plan_id, force offline status even if session exists
+        if (!$masterUser->plan_id) {
+            $connectionStatus = 'offline';
         }
 
         // Determine remaining bytes and check for exhaustion
@@ -201,9 +212,40 @@ class UserDashboard extends Component
             $remainingBytes = max(0, $planBytes - $totalUsed);
             $formattedRemaining = Number::fileSize($remainingBytes);
 
-            // If used >= limit, mark subscription as exhausted
-            if ($planBytes > 0 && $totalUsed >= $planBytes) {
-                $subscriptionStatus = 'exhausted';
+            // If used >= limit, immediately handle exhaustion
+            if ($planBytes > 0 && $totalUsed >= $planBytes && $masterUser->plan_id) {
+                Log::info("Data exhausted detected in dashboard for user {$masterUser->username}");
+                
+                // Clear plan immediately
+                $masterUser->plan_id = null;
+                $masterUser->data_plan_id = null;
+                $masterUser->plan_expiry = null;
+                $masterUser->plan_started_at = null;
+                $masterUser->data_limit = 0;
+                $masterUser->subscription_start_date = null;
+                $masterUser->subscription_end_date = null;
+                $masterUser->connection_status = 'exhausted';
+                $masterUser->save();
+                
+                // Disconnect active sessions
+                DB::table('radacct')
+                    ->where('username', $masterUser->username)
+                    ->whereNull('acctstoptime')
+                    ->update([
+                        'acctstoptime' => now(),
+                        'acctterminatecause' => 'Data-Limit-Exceeded',
+                    ]);
+                
+                // Remove RADIUS credentials
+                DB::table('radcheck')->where('username', $masterUser->username)->delete();
+                DB::table('radreply')->where('username', $masterUser->username)->delete();
+                
+                // Force status update
+                $subscriptionStatus = 'inactive';
+                $connectionStatus = 'offline';
+                $activeSession = null;
+                
+                Log::info("Data exhaustion handled immediately for {$masterUser->username}");
             }
         } else {
             $formattedRemaining = 'Unlimited';
