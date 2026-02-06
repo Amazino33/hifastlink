@@ -62,7 +62,7 @@
 
                                         <!-- Device Limit -->
                                         <li class="flex items-center space-x-3">
-                                            <i class="fa-solid fa-devices text-primary"></i>
+                                            <i class="fa-solid fa-mobile-screen-button text-primary"></i>
                                             <span>{{ $plan->max_devices ?? 1 }} {{ ($plan->max_devices ?? 1) == 1 ? 'Device' : 'Devices' }}</span>
                                         </li>
 

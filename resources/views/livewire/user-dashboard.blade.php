@@ -105,8 +105,8 @@
                                     Connect to Router
                                 </a>
                             @else
-                                <a href="#hot-deals" class="px-3 py-1 text-xs font-semibold rounded-lg bg-green-500/90 hover:bg-green-600 text-white transition-colors">
-                                    <i class="fa-solid fa-shopping-cart mr-1"></i>Subscribe Now
+                                <a href="#hot-deals" class="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-500/90 hover:bg-blue-600 text-white transition-colors">
+                                    Subscribe Now
                                 </a>
                             @endif
                         </div>
