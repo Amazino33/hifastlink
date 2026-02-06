@@ -291,6 +291,12 @@
                                         <div class="text-xl font-black text-gray-800">{{ $plan->data_limit_human }}</div>
                                         <div class="text-gray-400 text-xs">Data</div>
                                     </div>
+                                    <div class="border-t border-gray-100 pt-2 mt-2">
+                                        <div class="text-sm font-bold text-gray-600 flex items-center justify-center">
+                                            <i class="fa-solid fa-devices text-blue-600 mr-1"></i>
+                                            {{ $plan->max_devices ?? 1 }} {{ ($plan->max_devices ?? 1) == 1 ? 'Device' : 'Devices' }}
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="text-white font-bold text-xs px-2 py-1 truncate">
                                     {{ $plan->name }}

@@ -56,9 +56,15 @@
                                         @if($plan->is_family)
                                             <li class="flex items-center space-x-3">
                                                 <i class="fa-solid fa-users text-primary"></i>
-                                                <span>Up to {{ $plan->family_limit }} devices</span>
+                                                <span>Up to {{ $plan->family_limit }} family members</span>
                                             </li>
                                         @endif
+
+                                        <!-- Device Limit -->
+                                        <li class="flex items-center space-x-3">
+                                            <i class="fa-solid fa-devices text-primary"></i>
+                                            <span>{{ $plan->max_devices ?? 1 }} {{ ($plan->max_devices ?? 1) == 1 ? 'Device' : 'Devices' }}</span>
+                                        </li>
 
                                         <!-- Always Available -->
                                         <li class="flex items-center space-x-3">
