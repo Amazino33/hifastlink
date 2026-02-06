@@ -102,11 +102,11 @@
                             </span>
 
                             <!-- Connect/Disconnect Router buttons -->
-                            @if($connectionStatus === 'active')
+                            @if($thisDeviceConnected)
                                 <a href="{{ route('disconnect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">
                                     <i class="fa-solid fa-power-off mr-1"></i>Disconnect
                                 </a>
-                            @elseif($subscriptionStatus === 'active' && $connectionStatus !== 'active')
+                            @elseif($subscriptionStatus === 'active' && !$thisDeviceConnected)
                                 <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none">
                                     Connect to Router
                                 </a>
