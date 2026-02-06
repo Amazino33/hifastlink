@@ -18,6 +18,12 @@
                             <span class="ml-2 {{ $currentIp === 'Offline' ? 'text-gray-500 dark:text-gray-400' : 'text-green-600 dark:text-green-400' }}">IP: {{ $currentIp }}</span>
                         </p>
                     </div>
+                    <div class="flex items-center space-x-2 mt-1">
+                        <i class="fa-solid fa-mobile-screen-button text-xs text-gray-500 dark:text-gray-400"></i>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            Connected Devices: <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $connectedDevices }}/{{ $maxDevices }}</span>
+                        </p>
+                    </div>
                 @elseif($connectionStatus === 'unknown')
                     <div class="flex items-center space-x-3 mt-2">
                         <span class="relative flex h-3 w-3">

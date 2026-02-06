@@ -177,6 +177,12 @@ class UserDashboard extends Component
             $currentSpeed = '0 kbps';
         }
 
+        // Count connected devices (active RADIUS sessions)
+        $connectedDevices = RadAcct::where('username', $user->username)
+            ->whereNull('acctstoptime')
+            ->count();
+        $maxDevices = ($masterUser->plan && $masterUser->plan->max_devices) ? $masterUser->plan->max_devices : 1;
+
         // Determine subscription status from the prioritized current plan
         // If plan_id is null, user has NO plan regardless of other factors
         if (!$masterUser->plan_id) {
@@ -336,6 +342,8 @@ class UserDashboard extends Component
             'daysBadgeClass' => $daysBadgeClass,
             'recentTransactions' => $recentTransactions,
             'radiusReachable' => $radiusReachable,
+            'connectedDevices' => $connectedDevices,
+            'maxDevices' => $maxDevices,
         ]);
     }
 

@@ -373,6 +373,15 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
                     'op'        => ':=',
                     'value'     => $user->radius_password ?? '123456', // Default if empty
                 ]);
+                
+                // Add Simultaneous-Use limit
+                $maxDevices = ($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1;
+                \App\Models\RadCheck::create([
+                    'username'  => $user->username,
+                    'attribute' => 'Simultaneous-Use',
+                    'op'        => ':=',
+                    'value'     => (string) $maxDevices,
+                ]);
             }
         });
 

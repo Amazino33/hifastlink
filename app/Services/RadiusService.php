@@ -33,6 +33,15 @@ class RadiusService
                 'value' => $user->radius_password ?? $user->username, // Use radius_password or fallback
             ]);
 
+            // Add Simultaneous-Use limit
+            $maxDevices = ($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1;
+            RadCheck::create([
+                'username' => $user->username,
+                'attribute' => 'Simultaneous-Use',
+                'op' => ':=',
+                'value' => (string) $maxDevices,
+            ]);
+
             // Add data limit check if applicable
             if ($user->data_limit > 0) {
                 RadCheck::create([

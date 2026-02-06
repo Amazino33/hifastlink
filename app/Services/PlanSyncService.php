@@ -43,6 +43,15 @@ class PlanSyncService
                 'value' => $user->radius_password ?? $user->username,
             ]);
 
+            // Add Simultaneous-Use limit based on plan's max_devices
+            $maxDevices = $plan->max_devices ?? 1;
+            RadCheck::create([
+                'username' => $user->username,
+                'attribute' => 'Simultaneous-Use',
+                'op' => ':=',
+                'value' => (string) $maxDevices,
+            ]);
+
             // Calculate family usage
             $masterId = $user->parent_id ?? $user->id;
             $familyUsernames = User::where('id', $masterId)->orWhere('parent_id', $masterId)->pluck('username');
