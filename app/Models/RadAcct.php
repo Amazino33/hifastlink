@@ -46,7 +46,7 @@ class RadAcct extends Model
     }
 
     /**
-     * Get sessions for a specific username.
+     * Get sessions for a specific username (case-insensitive).
      */
     public function scopeForUser(Builder $query, ?string $username): Builder
     {
@@ -55,7 +55,8 @@ class RadAcct extends Model
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->where('username', $username);
+        // Use case-insensitive comparison for username
+        return $query->whereRaw('LOWER(username) = ?', [strtolower($username)]);
     }
 
     /**
