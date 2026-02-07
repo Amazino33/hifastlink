@@ -182,6 +182,23 @@ class UserDashboard extends Component
             ->whereNull('acctstoptime')
             ->count();
         $maxDevices = ($masterUser->plan && $masterUser->plan->max_devices) ? $masterUser->plan->max_devices : 1;
+        
+        // Get current router location
+        $currentLocation = null;
+        $currentRouter = null;
+        if ($activeSession && $activeSession->nasipaddress) {
+            $router = \App\Models\Router::where('ip_address', $activeSession->nasipaddress)
+                ->where('is_active', true)
+                ->first();
+            
+            if ($router) {
+                $currentLocation = $router->name . ' - ' . $router->location;
+                $currentRouter = $router;
+            } else {
+                // Fallback to IP if router not found in database
+                $currentLocation = 'Router: ' . $activeSession->nasipaddress;
+            }
+        }
 
         // Determine subscription status from the prioritized current plan
         // If plan_id is null, user has NO plan regardless of other factors
@@ -351,6 +368,8 @@ class UserDashboard extends Component
             'radiusReachable' => $radiusReachable,
             'connectedDevices' => $connectedDevices,
             'maxDevices' => $maxDevices,
+            'currentLocation' => $currentLocation,
+            'currentRouter' => $currentRouter,
         ]);
     }
 
@@ -563,3 +582,4 @@ class UserDashboard extends Component
             throw $e;
         }
     }
+}

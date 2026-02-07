@@ -25,6 +25,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Observe user plan changes to trigger plan sync to RADIUS tables.
         \App\Models\User::observe(\App\Observers\UserObserver::class);
+        
+        // Observe router changes to sync with RADIUS NAS table
+        \App\Models\Router::observe(\App\Observers\RouterObserver::class);
 
         // Ensure Livewire components are registered (explicit registration to avoid auto-discovery issues)
         if (class_exists(\Livewire\Livewire::class) && class_exists(\App\Http\Livewire\UserDashboard::class)) {
