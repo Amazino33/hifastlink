@@ -117,6 +117,15 @@ class Plan extends Model
                 ];
             }
 
+            // Device limit -> Simultaneous-Use (max concurrent sessions)
+            $maxDevices = $plan->max_devices ?? 1;
+            $attributes[] = [
+                'groupname' => $plan->name,
+                'attribute' => 'Simultaneous-Use',
+                'op' => ':=',
+                'value' => (string) $maxDevices,
+            ];
+
             // Validity (optional) -> Acct-Interim-Interval (or other attribute as needed)
             if ($plan->validity_days) {
                 $attributes[] = [
@@ -134,6 +143,29 @@ class Plan extends Model
                 } catch (\Exception $e) {
                     Log::error("Failed to sync RadGroupReply for plan {$plan->name}: " . $e->getMessage(), ['attr' => $attr]);
                 }
+            }
+
+            // Also update all users who have this plan assigned
+            // Update their individual radcheck Simultaneous-Use entry
+            if ($plan->isDirty('max_devices') || !$plan->wasRecentlyCreated) {
+                $users = \App\Models\User::where('plan_id', $plan->id)->get();
+                foreach ($users as $user) {
+                    if ($user->username) {
+                        // Update or create Simultaneous-Use in radcheck for this user
+                        $maxDevices = $plan->max_devices ?? 1;
+                        \App\Models\RadCheck::updateOrCreate(
+                            [
+                                'username' => $user->username,
+                                'attribute' => 'Simultaneous-Use',
+                            ],
+                            [
+                                'op' => ':=',
+                                'value' => (string) $maxDevices,
+                            ]
+                        );
+                    }
+                }
+                Log::info("Updated Simultaneous-Use for " . count($users) . " users on plan {$plan->name}");
             }
         });
 

@@ -533,12 +533,8 @@
                 // When connect button is clicked, mark this device as connected
                 if (connectBtn) {
                     connectBtn.addEventListener('click', function(e) {
-                        // Check if device limit is reached
-                        if (connectedDevices >= maxDevices) {
-                            e.preventDefault();
-                            alert('Device limit reached. Please disconnect another device first.');
-                            return false;
-                        }
+                        // Mark this device as attempting connection
+                        // RADIUS will enforce the actual limit via Simultaneous-Use attribute
                         localStorage.setItem(STORAGE_KEY, 'true');
                         updateConnectionStatus(true);
                     });
