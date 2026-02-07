@@ -483,14 +483,9 @@
                     return deviceId;
                 }
                 
-                // Each device has its own connection flag
+                // Get data from backend
                 const deviceId = getDeviceId();
                 const STORAGE_KEY = 'hifastlink_connected_{{ $user->id }}_' + deviceId;
-                const connectedDevices = {{ $connectedDevices ?? 0 }};
-                const maxDevices = {{ $maxDevices ?? 1 }};
-                
-                // Check if THIS device is marked as connected (strict check - only if localStorage is explicitly 'true')
-                const deviceConnected = localStorage.getItem(STORAGE_KEY) === 'true';
                 
                 const connectBtn = document.getElementById('connect-to-router-btn');
                 const disconnectBtn = document.getElementById('disconnect-btn');
@@ -519,23 +514,52 @@
                     }
                 }
                 
-                // Show appropriate button based on device connection state
-                if (deviceConnected) {
-                    if (connectBtn) connectBtn.classList.add('hidden');
-                    if (disconnectBtn) disconnectBtn.classList.remove('hidden');
-                    updateConnectionStatus(true);
-                } else {
-                    if (connectBtn) connectBtn.classList.remove('hidden');
-                    if (disconnectBtn) disconnectBtn.classList.add('hidden');
-                    updateConnectionStatus(false);
+                // Function to update button visibility based on REAL RADIUS data
+                function updateButtons() {
+                    // Get current RADIUS session count from Livewire data
+                    const connectedDevices = {{ $connectedDevices ?? 0 }};
+                    const deviceMarkedConnected = localStorage.getItem(STORAGE_KEY) === 'true';
+                    
+                    // LOGIC:
+                    // - If NO sessions exist (connectedDevices = 0), always show "Connect"
+                    // - If sessions exist AND localStorage says THIS device connected, show "Disconnect"
+                    // - If sessions exist BUT localStorage says NOT connected, show "Connect" (another device)
+                    
+                    if (connectedDevices === 0) {
+                        // No active sessions - clear localStorage and show Connect
+                        localStorage.removeItem(STORAGE_KEY);
+                        if (connectBtn) connectBtn.classList.remove('hidden');
+                        if (disconnectBtn) disconnectBtn.classList.add('hidden');
+                        updateConnectionStatus(false);
+                    } else if (deviceMarkedConnected) {
+                        // Sessions exist and THIS device claims to be connected - show Disconnect
+                        if (connectBtn) connectBtn.classList.add('hidden');
+                        if (disconnectBtn) disconnectBtn.classList.remove('hidden');
+                        updateConnectionStatus(true);
+                    } else {
+                        // Sessions exist but THIS device not marked as connected - show Connect
+                        if (connectBtn) connectBtn.classList.remove('hidden');
+                        if (disconnectBtn) disconnectBtn.classList.add('hidden');
+                        updateConnectionStatus(false);
+                    }
                 }
                 
-                // When connect button is clicked, mark this device as connected
+                // Initial button state
+                updateButtons();
+                
+                // Update buttons every time Livewire refreshes (wire:poll.10s)
+                document.addEventListener('livewire:load', function () {
+                    Livewire.hook('message.processed', function () {
+                        updateButtons();
+                    });
+                });
+                
+                // When connect button is clicked, mark this device as attempting connection
                 if (connectBtn) {
                     connectBtn.addEventListener('click', function(e) {
-                        // Mark this device as attempting connection
-                        // RADIUS will enforce the actual limit via Simultaneous-Use attribute
                         localStorage.setItem(STORAGE_KEY, 'true');
+                        if (disconnectBtn) disconnectBtn.classList.remove('hidden');
+                        if (connectBtn) connectBtn.classList.add('hidden');
                         updateConnectionStatus(true);
                     });
                 }
@@ -546,12 +570,6 @@
                         localStorage.removeItem(STORAGE_KEY);
                         updateConnectionStatus(false);
                     });
-                }
-                
-                // If no devices are connected, clear the marker (user might have disconnected from another device)
-                if (connectedDevices === 0) {
-                    localStorage.removeItem(STORAGE_KEY);
-                    updateConnectionStatus(false);
                 }
                 
                 const openBtn = document.getElementById('connect-to-router-btn');
