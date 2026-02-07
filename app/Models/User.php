@@ -389,7 +389,27 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         static::updated(function ($user) {
             if ($user->isDirty('radius_password') && !empty($user->username)) {
                 \App\Models\RadCheck::where('username', $user->username)
+                    ->where('attribute', 'Cleartext-Password')
                     ->update(['value' => $user->radius_password]);
+            }
+            
+            // If plan_id changed, sync RADIUS attributes
+            if ($user->isDirty('plan_id') && !empty($user->username)) {
+                // Update or create Simultaneous-Use based on new plan
+                $maxDevices = ($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1;
+                \App\Models\RadCheck::updateOrCreate(
+                    [
+                        'username' => $user->username,
+                        'attribute' => 'Simultaneous-Use',
+                    ],
+                    [
+                        'op' => ':=',
+                        'value' => (string) $maxDevices,
+                    ]
+                );
+                
+                // Trigger full plan sync to update all RADIUS attributes
+                \App\Services\PlanSyncService::syncUserPlan($user);
             }
         });
     }

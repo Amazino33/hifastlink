@@ -147,7 +147,7 @@ class Plan extends Model
 
             // Also update all users who have this plan assigned
             // Update their individual radcheck Simultaneous-Use entry
-            if ($plan->isDirty('max_devices') || !$plan->wasRecentlyCreated) {
+            if ($plan->wasChanged('max_devices') || $plan->wasRecentlyCreated) {
                 $users = \App\Models\User::where('plan_id', $plan->id)->get();
                 foreach ($users as $user) {
                     if ($user->username) {
