@@ -1,0 +1,6 @@
+name,location,ip_address,nas_identifier,secret,api_user,api_password,api_port,description,is_active
+Uyo Hub,Leisure Complex Uyo,192.168.88.1,router_uyo_01,SimpleTestKey123,hifastlink,1a2345678B,8728,Primary hub in Uyo,true
+Ikot Ekpene Hub,No. 45 Oron Road Ikot Ekpene,41.203.67.150,router_ikot_01,SimpleTestKey123,hifastlink,1a2345678B,8728,Secondary hub in Ikot Ekpene,true
+Eket Hub,Main Street Eket,41.203.67.151,router_eket_01,SimpleTestKey123,hifastlink,1a2345678B,8728,Hub in Eket,true
+Abak Hub,Market Road Abak,41.203.67.152,router_abak_01,SimpleTestKey123,hifastlink,1a2345678B,8728,Hub in Abak,true
+Oron Hub,Waterfront Oron,41.203.67.153,router_oron_01,SimpleTestKey123,hifastlink,1a2345678B,8728,Hub in Oron,true
