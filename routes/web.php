@@ -82,4 +82,7 @@ Route::get('/clear-config', function () {
 // Paystack callback (public - Paystack redirects the browser back here)
 Route::get('/payment/callback', [PaymentController::class, 'handleGatewayCallback'])->name('payment.callback');
 
+// Diagnostic routes (admin only)
+require __DIR__.'/diagnostic.php';
+
 require __DIR__.'/auth.php';
