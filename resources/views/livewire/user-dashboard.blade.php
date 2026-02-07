@@ -102,19 +102,23 @@
                             </span>
 
                             <!-- Connect/Disconnect Router buttons -->
-                            @if($thisDeviceConnected)
-                                <a href="{{ route('disconnect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">
+                            <div id="connection-buttons">
+                                <!-- Disconnect button (hidden by default, shown if device is marked as connected in localStorage) -->
+                                <a href="{{ route('disconnect.bridge') }}" id="disconnect-btn" class="hidden px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">
                                     <i class="fa-solid fa-power-off mr-1"></i>Disconnect
                                 </a>
-                            @elseif($subscriptionStatus === 'active' && !$thisDeviceConnected)
-                                <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none">
-                                    Connect to Router
-                                </a>
-                            @else
-                                <a href="#hot-deals" class="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-500/90 hover:bg-blue-600 text-white transition-colors">
-                                    Subscribe Now
-                                </a>
-                            @endif
+                                
+                                <!-- Connect button (shown by default if subscription is active) -->
+                                @if($subscriptionStatus === 'active')
+                                    <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none">
+                                        Connect to Router
+                                    </a>
+                                @else
+                                    <a href="#hot-deals" class="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-500/90 hover:bg-blue-600 text-white transition-colors">
+                                        Subscribe Now
+                                    </a>
+                                @endif
+                            </div>
                         </div>
                     </div>
 
@@ -473,6 +477,51 @@
 
         <script>
             (function(){
+                // Device connection state management using localStorage
+                const STORAGE_KEY = 'hifastlink_device_connected_{{ $user->id }}';
+                const connectedDevices = {{ $connectedDevices ?? 0 }};
+                const maxDevices = {{ $maxDevices ?? 1 }};
+                
+                // Check if this device is marked as connected
+                const deviceConnected = localStorage.getItem(STORAGE_KEY) === 'true' && connectedDevices > 0;
+                
+                const connectBtn = document.getElementById('connect-to-router-btn');
+                const disconnectBtn = document.getElementById('disconnect-btn');
+                
+                // Show appropriate button based on device connection state
+                if (deviceConnected) {
+                    if (connectBtn) connectBtn.classList.add('hidden');
+                    if (disconnectBtn) disconnectBtn.classList.remove('hidden');
+                } else {
+                    if (connectBtn) connectBtn.classList.remove('hidden');
+                    if (disconnectBtn) disconnectBtn.classList.add('hidden');
+                }
+                
+                // When connect button is clicked, mark this device as connected
+                if (connectBtn) {
+                    connectBtn.addEventListener('click', function(e) {
+                        // Check if device limit is reached
+                        if (connectedDevices >= maxDevices) {
+                            e.preventDefault();
+                            alert('Device limit reached. Please disconnect another device first.');
+                            return false;
+                        }
+                        localStorage.setItem(STORAGE_KEY, 'true');
+                    });
+                }
+                
+                // When disconnect button is clicked, remove the marker
+                if (disconnectBtn) {
+                    disconnectBtn.addEventListener('click', function() {
+                        localStorage.removeItem(STORAGE_KEY);
+                    });
+                }
+                
+                // If no devices are connected, clear the marker (user might have disconnected from another device)
+                if (connectedDevices === 0) {
+                    localStorage.removeItem(STORAGE_KEY);
+                }
+                
                 const openBtn = document.getElementById('connect-to-router-btn');
                 const modal = document.getElementById('connect-router-modal');
                 const closeBtns = modal ? modal.querySelectorAll('[data-close-modal]') : [];

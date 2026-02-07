@@ -115,25 +115,13 @@ class UserDashboard extends Component
         // Get most popular plans (ordered by price ascending to show best deals first)
         $plans = Plan::orderBy('price', 'asc')->get();
 
-        // Get the current device's IP address
-        $currentDeviceIp = request()->ip();
-
         // Active RADIUS session (acctstoptime NULL - no time restriction)
         $radiusReachable = true;
-        $thisDeviceConnected = false;
         try {
             $activeSession = RadAcct::forUser($user->username)
                 ->active()
                 ->latest('acctstarttime')
                 ->first();
-
-            // Check if THIS specific device (by IP) has an active session
-            $thisDeviceSession = RadAcct::forUser($user->username)
-                ->whereNull('acctstoptime')
-                ->where('framedipaddress', $currentDeviceIp)
-                ->exists();
-            
-            $thisDeviceConnected = $thisDeviceSession;
 
             // If there is no active session but RADIUS has records for this username, log details to help debug
             if (!$activeSession) {
@@ -356,7 +344,6 @@ class UserDashboard extends Component
             'radiusReachable' => $radiusReachable,
             'connectedDevices' => $connectedDevices,
             'maxDevices' => $maxDevices,
-            'thisDeviceConnected' => $thisDeviceConnected,
         ]);
     }
 

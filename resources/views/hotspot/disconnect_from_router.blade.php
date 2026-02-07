@@ -20,6 +20,13 @@
 
     <script>
         (function(){
+            // Clear the device connection marker from localStorage
+            try {
+                localStorage.removeItem('hifastlink_device_connected_{{ Auth::id() }}');
+            } catch(e) {
+                console.error('localStorage not available:', e);
+            }
+            
             const logoutUrl = @json($logout_url);
             const redirectUrl = @json($redirect_url);
 

@@ -20,6 +20,13 @@
 
     <script>
         (function(){
+            // Mark this device as connected in localStorage
+            try {
+                localStorage.setItem('hifastlink_device_connected_{{ Auth::id() }}', 'true');
+            } catch(e) {
+                console.error('localStorage not available:', e);
+            }
+            
             const base = @json($link_login);
             const u = @json($username);
             const p = @json($password);
