@@ -473,12 +473,23 @@
 
         <script>
             (function(){
-                // Device connection state management using localStorage
-                const STORAGE_KEY = 'hifastlink_device_connected_{{ $user->id }}';
+                // Generate unique device ID for this browser (stored permanently in localStorage)
+                function getDeviceId() {
+                    let deviceId = localStorage.getItem('hifastlink_device_id');
+                    if (!deviceId) {
+                        deviceId = 'device_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+                        localStorage.setItem('hifastlink_device_id', deviceId);
+                    }
+                    return deviceId;
+                }
+                
+                // Each device has its own connection flag
+                const deviceId = getDeviceId();
+                const STORAGE_KEY = 'hifastlink_connected_{{ $user->id }}_' + deviceId;
                 const connectedDevices = {{ $connectedDevices ?? 0 }};
                 const maxDevices = {{ $maxDevices ?? 1 }};
                 
-                // Check if this device is marked as connected
+                // Check if THIS device is marked as connected
                 const deviceConnected = localStorage.getItem(STORAGE_KEY) === 'true' && connectedDevices > 0;
                 
                 const connectBtn = document.getElementById('connect-to-router-btn');

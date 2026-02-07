@@ -20,9 +20,21 @@
 
     <script>
         (function(){
-            // Mark this device as connected in localStorage
+            // Get or create unique device ID for this browser
+            function getDeviceId() {
+                let deviceId = localStorage.getItem('hifastlink_device_id');
+                if (!deviceId) {
+                    deviceId = 'device_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+                    localStorage.setItem('hifastlink_device_id', deviceId);
+                }
+                return deviceId;
+            }
+            
+            // Mark THIS specific device as connected
             try {
-                localStorage.setItem('hifastlink_device_connected_{{ Auth::id() }}', 'true');
+                const deviceId = getDeviceId();
+                const storageKey = 'hifastlink_connected_{{ Auth::id() }}_' + deviceId;
+                localStorage.setItem(storageKey, 'true');
             } catch(e) {
                 console.error('localStorage not available:', e);
             }

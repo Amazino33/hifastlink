@@ -20,9 +20,13 @@
 
     <script>
         (function(){
-            // Clear the device connection marker from localStorage
+            // Get unique device ID and clear THIS device's connection marker
             try {
-                localStorage.removeItem('hifastlink_device_connected_{{ Auth::id() }}');
+                const deviceId = localStorage.getItem('hifastlink_device_id');
+                if (deviceId) {
+                    const storageKey = 'hifastlink_connected_{{ Auth::id() }}_' + deviceId;
+                    localStorage.removeItem(storageKey);
+                }
             } catch(e) {
                 console.error('localStorage not available:', e);
             }
