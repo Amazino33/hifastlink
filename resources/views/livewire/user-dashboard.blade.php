@@ -89,16 +89,12 @@
                         <span class="text-blue-100 text-sm font-semibold uppercase tracking-wide">Your Subscription</span>
 
                         <div class="flex items-center space-x-2">
-                            <span class="relative inline-flex items-center px-4 py-1 rounded-full text-xs font-bold {{ $connectionStatus === 'active' ? 'bg-green-500 text-white' : 'bg-gray-600 text-white' }}">
-                                @if($connectionStatus === 'active')
-                                    <span class="relative inline-flex mr-2">
-                                        <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-white opacity-50"></span>
-                                        <span class="relative inline-flex h-2 w-2 rounded-full bg-white"></span>
-                                    </span>
-                                    ONLINE
-                                @else
-                                    OFFLINE
-                                @endif
+                            <span id="connection-badge" class="relative inline-flex items-center px-4 py-1 rounded-full text-xs font-bold {{ $connectionStatus === 'active' ? 'bg-green-500 text-white' : 'bg-gray-600 text-white' }}">
+                                <span id="online-indicator" class="relative inline-flex mr-2 {{ $connectionStatus === 'active' ? '' : 'hidden' }}">
+                                    <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-white opacity-50"></span>
+                                    <span class="relative inline-flex h-2 w-2 rounded-full bg-white"></span>
+                                </span>
+                                <span id="connection-text">{{ $connectionStatus === 'active' ? 'ONLINE' : 'OFFLINE' }}</span>
                             </span>
 
                             <!-- Connect/Disconnect Router buttons -->
@@ -487,14 +483,40 @@
                 
                 const connectBtn = document.getElementById('connect-to-router-btn');
                 const disconnectBtn = document.getElementById('disconnect-btn');
+                const connectionBadge = document.getElementById('connection-badge');
+                const connectionText = document.getElementById('connection-text');
+                const onlineIndicator = document.getElementById('online-indicator');
+                
+                // Function to update connection status display
+                function updateConnectionStatus(isConnected) {
+                    if (isConnected) {
+                        // Show as ONLINE
+                        if (connectionBadge) {
+                            connectionBadge.classList.remove('bg-gray-600');
+                            connectionBadge.classList.add('bg-green-500');
+                        }
+                        if (connectionText) connectionText.textContent = 'ONLINE';
+                        if (onlineIndicator) onlineIndicator.classList.remove('hidden');
+                    } else {
+                        // Show as OFFLINE
+                        if (connectionBadge) {
+                            connectionBadge.classList.remove('bg-green-500');
+                            connectionBadge.classList.add('bg-gray-600');
+                        }
+                        if (connectionText) connectionText.textContent = 'OFFLINE';
+                        if (onlineIndicator) onlineIndicator.classList.add('hidden');
+                    }
+                }
                 
                 // Show appropriate button based on device connection state
                 if (deviceConnected) {
                     if (connectBtn) connectBtn.classList.add('hidden');
                     if (disconnectBtn) disconnectBtn.classList.remove('hidden');
+                    updateConnectionStatus(true);
                 } else {
                     if (connectBtn) connectBtn.classList.remove('hidden');
                     if (disconnectBtn) disconnectBtn.classList.add('hidden');
+                    updateConnectionStatus(false);
                 }
                 
                 // When connect button is clicked, mark this device as connected
@@ -507,6 +529,7 @@
                             return false;
                         }
                         localStorage.setItem(STORAGE_KEY, 'true');
+                        updateConnectionStatus(true);
                     });
                 }
                 
@@ -514,12 +537,14 @@
                 if (disconnectBtn) {
                     disconnectBtn.addEventListener('click', function() {
                         localStorage.removeItem(STORAGE_KEY);
+                        updateConnectionStatus(false);
                     });
                 }
                 
                 // If no devices are connected, clear the marker (user might have disconnected from another device)
                 if (connectedDevices === 0) {
                     localStorage.removeItem(STORAGE_KEY);
+                    updateConnectionStatus(false);
                 }
                 
                 const openBtn = document.getElementById('connect-to-router-btn');
