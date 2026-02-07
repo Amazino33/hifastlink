@@ -489,8 +489,8 @@
                 const connectedDevices = {{ $connectedDevices ?? 0 }};
                 const maxDevices = {{ $maxDevices ?? 1 }};
                 
-                // Check if THIS device is marked as connected
-                const deviceConnected = localStorage.getItem(STORAGE_KEY) === 'true' && connectedDevices > 0;
+                // Check if THIS device is marked as connected (strict check - only if localStorage is explicitly 'true')
+                const deviceConnected = localStorage.getItem(STORAGE_KEY) === 'true';
                 
                 const connectBtn = document.getElementById('connect-to-router-btn');
                 const disconnectBtn = document.getElementById('disconnect-btn');
