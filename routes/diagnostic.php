@@ -8,8 +8,18 @@ use App\Models\RadGroupReply;
 use App\Models\RadAcct;
 
 Route::get('/admin/radius-diagnostic/{username}', function ($username) {
-    if (!auth()->check() || !auth()->user()->is_admin) {
-        abort(403, 'Unauthorized');
+    // Check if user is authenticated
+    if (!auth()->check()) {
+        abort(403, 'Please login first');
+    }
+    
+    // Allow access if user is checking their own username or if they have admin role
+    $currentUser = auth()->user();
+    $isOwnAccount = $currentUser->username === $username;
+    $hasAdminRole = $currentUser->hasRole('super_admin') || $currentUser->hasRole('panel_user');
+    
+    if (!$isOwnAccount && !$hasAdminRole) {
+        abort(403, 'Unauthorized - You can only check your own account');
     }
 
     $user = User::where('username', $username)->first();
@@ -53,8 +63,18 @@ Route::get('/admin/radius-diagnostic/{username}', function ($username) {
 })->name('radius.diagnostic');
 
 Route::get('/admin/radius-fix/{username}', function ($username) {
-    if (!auth()->check() || !auth()->user()->is_admin) {
-        abort(403, 'Unauthorized');
+    // Check if user is authenticated
+    if (!auth()->check()) {
+        abort(403, 'Please login first');
+    }
+    
+    // Allow access if user is checking their own username or if they have admin role
+    $currentUser = auth()->user();
+    $isOwnAccount = $currentUser->username === $username;
+    $hasAdminRole = $currentUser->hasRole('super_admin') || $currentUser->hasRole('panel_user');
+    
+    if (!$isOwnAccount && !$hasAdminRole) {
+        abort(403, 'Unauthorized - You can only fix your own account');
     }
 
     $user = User::where('username', $username)->first();
