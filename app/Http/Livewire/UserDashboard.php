@@ -233,7 +233,7 @@ class UserDashboard extends Component
                 $masterUser->connection_status = 'exhausted';
                 $masterUser->save();
                 
-                // Disconnect active sessions
+                // Disconnect active sessions from RADIUS
                 DB::table('radacct')
                     ->where('username', $masterUser->username)
                     ->whereNull('acctstoptime')
@@ -242,9 +242,16 @@ class UserDashboard extends Component
                         'acctterminatecause' => 'Data-Limit-Exceeded',
                     ]);
                 
-                // Remove RADIUS credentials
+                // Remove RADIUS credentials (prevents re-authentication)
                 DB::table('radcheck')->where('username', $masterUser->username)->delete();
                 DB::table('radreply')->where('username', $masterUser->username)->delete();
+                
+                // Attempt to disconnect from MikroTik router via HTTP request
+                try {
+                    $this->disconnectFromMikroTik($masterUser->username);
+                } catch (\Exception $e) {
+                    Log::warning("Failed to disconnect user from MikroTik: " . $e->getMessage());
+                }
                 
                 // Force status update
                 $subscriptionStatus = 'inactive';
@@ -501,4 +508,58 @@ class UserDashboard extends Component
     // 7. Reset Form
     $this->reset('voucherCode');
     }
-}
+    
+    /**
+     * Disconnect user from MikroTik router via HTTP API
+     * 
+     * This method attempts to remove active hotspot session from MikroTik
+     * Requires MikroTik API credentials to be configured in .env
+     */
+    protected function disconnectFromMikroTik($username)
+    {
+        // Get MikroTik API credentials from config
+        $apiHost = config('services.mikrotik.api_host', env('MIKROTIK_API_HOST'));
+        $apiUser = config('services.mikrotik.api_user', env('MIKROTIK_API_USER'));
+        $apiPassword = config('services.mikrotik.api_password', env('MIKROTIK_API_PASSWORD'));
+        
+        // Skip if API not configured
+        if (!$apiHost || !$apiUser || !$apiPassword) {
+            Log::info("MikroTik API not configured - skipping automatic disconnect for {$username}");
+            return;
+        }
+        
+        // Use RouterOS API to disconnect user
+        // Format: http://router-ip/rest/ip/hotspot/active/remove?numbers=<id>
+        // First, find the active session ID for this user
+        
+        try {
+            $client = new \GuzzleHttp\Client([
+                'timeout' => 5,
+                'verify' => false, // Disable SSL verification for local routers
+            ]);
+            
+            // Get active sessions
+            $response = $client->get("http://{$apiHost}/rest/ip/hotspot/active", [
+                'auth' => [$apiUser, $apiPassword],
+            ]);
+            
+            $sessions = json_decode($response->getBody(), true);
+            
+            // Find session(s) for this username
+            foreach ($sessions as $session) {
+                if (isset($session['user']) && $session['user'] === $username) {
+                    $sessionId = $session['.id'];
+                    
+                    // Remove the session
+                    $client->delete("http://{$apiHost}/rest/ip/hotspot/active/{$sessionId}", [
+                        'auth' => [$apiUser, $apiPassword],
+                    ]);
+                    
+                    Log::info("Successfully disconnected user {$username} from MikroTik (session ID: {$sessionId})");
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("MikroTik API error: " . $e->getMessage());
+            throw $e;
+        }
+    }

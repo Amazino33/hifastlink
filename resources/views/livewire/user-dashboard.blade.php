@@ -98,7 +98,7 @@
                             </span>
 
                             <!-- Connect/Disconnect Router buttons -->
-                            <div id="connection-buttons">
+                            <div id="connection-buttons" data-connected-devices="{{ $connectedDevices }}" data-max-devices="{{ $maxDevices }}">
                                 <!-- Disconnect button (hidden by default, shown if device is marked as connected in localStorage) -->
                                 <a href="{{ route('disconnect.bridge') }}" id="disconnect-btn" class="hidden px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">
                                     <i class="fa-solid fa-power-off mr-1"></i>Disconnect
@@ -492,6 +492,7 @@
                 const connectionBadge = document.getElementById('connection-badge');
                 const connectionText = document.getElementById('connection-text');
                 const onlineIndicator = document.getElementById('online-indicator');
+                const connectionButtonsDiv = document.getElementById('connection-buttons');
                 
                 // Function to update connection status display
                 function updateConnectionStatus(isConnected) {
@@ -516,8 +517,10 @@
                 
                 // Function to update button visibility based on REAL RADIUS data
                 function updateButtons() {
-                    // Get current RADIUS session count from Livewire data
-                    const connectedDevices = {{ $connectedDevices ?? 0 }};
+                    // Read current values from data attributes (updated by Livewire)
+                    if (!connectionButtonsDiv) return;
+                    
+                    const connectedDevices = parseInt(connectionButtonsDiv.getAttribute('data-connected-devices') || '0');
                     const deviceMarkedConnected = localStorage.getItem(STORAGE_KEY) === 'true';
                     
                     // LOGIC:
@@ -548,11 +551,9 @@
                 updateButtons();
                 
                 // Update buttons every time Livewire refreshes (wire:poll.10s)
-                document.addEventListener('livewire:load', function () {
-                    Livewire.hook('message.processed', function () {
-                        updateButtons();
-                    });
-                });
+                setInterval(function() {
+                    updateButtons();
+                }, 1000); // Check every second to catch Livewire updates quickly
                 
                 // When connect button is clicked, mark this device as attempting connection
                 if (connectBtn) {
