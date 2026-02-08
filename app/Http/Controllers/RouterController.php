@@ -160,42 +160,62 @@ class RouterController extends Controller
      */
     public function downloadConfig(Router $router)
     {
+        // Prepare values
         $locationName = $router->nas_identifier ?: $router->name;
         $radiusSecret = $router->secret;
-
         $serverIp = env('RADIUS_PUBLIC_IP', env('RADIUS_DB_HOST', config('database.connections.radius.host', '142.93.47.189')));
 
         $appUrl = rtrim(config('app.url', env('APP_URL', 'https://example.com')), '/');
-        $domain = parse_url($appUrl, PHP_URL_HOST) ?: $appUrl;
-        $token = env('ROUTER_HEARTBEAT_TOKEN');
+        $domain = parse_url($appUrl, PHP_URL_HOST) ?: preg_replace('#https?://#', '', $appUrl);
 
-        $heartbeatUrl = $appUrl . '/api/routers/heartbeat?identity=' . rawurlencode($locationName);
-        if ($token) {
-            $heartbeatUrl .= '&token=' . rawurlencode($token);
-        }
+        // Escape double quotes inside values for safe injection into .rsc
+        $escLocation = str_replace('"', '\\"', $locationName);
+        $escServerIp = str_replace('"', '\\"', $serverIp);
+        $escSecret = str_replace('"', '\\"', $radiusSecret);
+        $escDomain = str_replace('"', '\\"', $domain);
 
-        $script = "# HiFastLink generated router configuration for {$router->name}\n";
-        $script .= ":log info \"Applying HiFastLink configuration for {$router->name}\"\n\n";
+        // Build Robust v4.0 script per specification (no if/else, host-based walled-garden, braces)
+        $script = "{\n";
+        $script .= "    # Robust v4.0 HiFastLink auto-configuration\n";
+        $script .= "    :local LocationName \"{$escLocation}\"\n";
+        $script .= "    :local ServerIP \"{$escServerIp}\"\n";
+        $script .= "    :local RadiusSecret \"{$escSecret}\"\n";
+        $script .= "    :local DomainName \"{$escDomain}\"\n";
+        $script .= "    :local HeartbeatURL (\"https://\" . \$DomainName . \"/api/routers/heartbeat?identity=\" . \$LocationName)\n\n";
 
-        $script .= "# RADIUS server\n";
-        $script .= "/radius remove [find]\n";
-        $script .= "/radius add address={$serverIp} secret={$radiusSecret} service=hotspot timeout=3s comment=\"HiFastLink RADIUS\"\n\n";
+        // Step 1: Set identity
+        $script .= "    # Step 1: Set router identity\n";
+        $script .= "    /system identity set name=\$LocationName\n\n";
 
-        $script .= "# Hotspot profile (idempotent)\n";
-        $script .= ":if ([/ip hotspot profile find name=hsprof1] = \"\") do={\n";
-        $script .= "    /ip hotspot profile add name=hsprof1 hotspot-address=192.168.88.1 dns-name=\"login.wifi\" login-by=http-chap,http-pap use-radius=yes radius-accounting=yes radius-interim-update=1m nas-port-type=wireless-802.11 shared-users=10 comment=\"HiFastLink Hotspot Profile\"\n";
-        $script .= "} else={\n";
-        $script .= "    /ip hotspot profile set [find name=hsprof1] use-radius=yes radius-accounting=yes radius-interim-update=1m shared-users=10\n";
-        $script .= "}\n\n";
+        // Step 2: Configure RADIUS
+        $script .= "    # Step 2: Configure RADIUS\n";
+        $script .= "    /radius remove [find]\n";
+        $script .= "    /radius add address=\$ServerIP secret=\$RadiusSecret service=hotspot timeout=3s comment=\"HiFastLink RADIUS\"\n\n";
 
-        $script .= ":log info \"Allowing heartbeat to pass via walled-garden for {$domain} and {$serverIp}\"\n";
-        $script .= "/ip hotspot walled-garden ip add dst-host={$domain} comment=\"Allow heartbeat to app\"\n";
-        $script .= "/ip hotspot walled-garden ip add dst-host={$serverIp} comment=\"Allow heartbeat to RADIUS\"\n\n";
+        // Step 3: Configure Hotspot Profile for ALL profiles
+        $script .= "    # Step 3: Configure Hotspot Profile (apply to all profiles)\n";
+        $script .= "    /ip hotspot profile set [find] use-radius=yes radius-accounting=yes radius-interim-update=1m dns-name=\"login.wifi\" html-directory=hotspot login-by=http-chap,http-pap\n\n";
 
-        $script .= "# Heartbeat scheduler (fetches over HTTPS) - do NOT verify certificate on router\n";
-        $script .= "/system scheduler add name=\"Heartbeat\" interval=1m on-event=\"/tool fetch url=\\\"{$heartbeatUrl}\\\" keep-result=no check-certificate=no\"\n\n";
+        // Step 4: Configure User Profile (apply to all user profiles)
+        $script .= "    # Step 4: Configure User Profile (shared users)\n";
+        $script .= "    /ip hotspot user profile set [find] shared-users=10\n\n";
 
-        $script .= ":log info \"HiFastLink configuration complete for {$router->name}\"\n";
+        // Step 5: Walled Garden entries (host-based)
+        $script .= "    # Step 5: Walled Garden - allow paystack and app domain\n";
+        $script .= "    /ip hotspot walled-garden add dst-host=\"*.paystack.com\" comment=\"Allow paystack domain\"\n";
+        $script .= "    /ip hotspot walled-garden add dst-host=\"*.paystack.co\" comment=\"Allow paystack domain\"\n";
+        $script .= "    /ip hotspot walled-garden add dst-host=\$DomainName comment=\"Allow application domain\"\n\n";
+
+        // Step 6: Enable NTP client
+        $script .= "    # Step 6: NTP client - enable\n";
+        $script .= "    /system ntp client set enabled=yes\n\n";
+
+        // Step 7: Heartbeat scheduler
+        $script .= "    # Step 7: Heartbeat scheduler - HTTPS fetch with certificate verification disabled\n";
+        $script .= "    /system scheduler add name=\"Heartbeat\" interval=1m on-event=\"/tool fetch url=\"$\"HeartbeatURL\" keep-result=no check-certificate=no\"\n\n";
+
+        $script .= "    :log info \"HiFastLink v4.0 configuration applied for \" . \$LocationName\n";
+        $script .= "}\n";
 
         $filename = 'router-' . ($router->nas_identifier ?: $router->id) . '.rsc';
 
