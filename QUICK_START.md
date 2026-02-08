@@ -132,6 +132,20 @@ $router->name = 'New Name'
 $router->save()  # Auto-syncs to RADIUS
 ```
 
+### Device Limits Not Working? ⚠️
+If users can connect more devices than allowed (e.g., showing 3/2):
+
+```bash
+# Check violations
+php check_simultaneous_use.php
+
+# Clean stale sessions and enforce limits
+php artisan radius:enforce-limits --clean-stale --disconnect
+```
+
+**Root Cause**: FreeRADIUS session checking not configured.  
+**Fix**: Follow [FREERADIUS_SIMULTANEOUS_USE.md](FREERADIUS_SIMULTANEOUS_USE.md) to enable session enforcement.
+
 ---
 
 ## 📖 Full Documentation

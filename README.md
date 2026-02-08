@@ -7,6 +7,45 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## 🚀 FastLink ISP Management System
+
+FastLink is a complete ISP hotspot management system built on Laravel with RADIUS authentication, MikroTik integration, and multi-router support.
+
+### Quick Start
+📖 **[QUICK_START.md](QUICK_START.md)** - Get started in 5 minutes
+
+### Documentation
+- **[MULTI_ROUTER_SETUP.md](MULTI_ROUTER_SETUP.md)** - Multi-site router management
+- **[ROUTER_SETUP_GUIDE.md](ROUTER_SETUP_GUIDE.md)** - Complete deployment guide
+- **[FREERADIUS_SIMULTANEOUS_USE.md](FREERADIUS_SIMULTANEOUS_USE.md)** - ⚠️ **Fix device limit enforcement**
+- **[MIKROTIK_API_SETUP.md](MIKROTIK_API_SETUP.md)** - Auto-disconnect configuration
+- **[scripts/README.md](scripts/README.md)** - Automation tools
+
+### Key Features
+✅ Multi-device simultaneous connections (per user/plan limits)  
+✅ Multi-router management (unlimited sites)  
+✅ Location tracking (users see which site they're connected to)  
+✅ Automated router setup (scripts for MikroTik)  
+✅ Health monitoring (`php artisan router:check`)  
+✅ RADIUS auto-sync (changes sync automatically)  
+✅ Admin panel (Filament)  
+
+### Critical: Device Limit Enforcement ⚠️
+If users can connect more devices than allowed (e.g., 3/2 devices):
+
+```bash
+# Check violations
+php check_simultaneous_use.php
+
+# Enforce limits
+php artisan radius:enforce-limits --clean-stale --disconnect
+
+# Fix permanently
+# Follow: FREERADIUS_SIMULTANEOUS_USE.md
+```
+
+---
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
