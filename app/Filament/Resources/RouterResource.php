@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\RouterResource\Pages;
 use App\Models\Router;
 use BackedEnum;
+use Filament\Actions\Action as ActionsAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -152,7 +153,7 @@ class RouterResource extends Resource
                     ->falseLabel('Inactive only'),
             ])
             ->recordActions([
-                Action::make('download_config')
+                ActionsAction::make('download_config')
                     ->label('Download Config (.rsc)')
                     ->icon('heroicon-o-cloud-download')
                     ->url(fn (Router $record) => route('router.download', $record))
