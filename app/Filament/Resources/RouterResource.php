@@ -155,7 +155,7 @@ class RouterResource extends Resource
             ->recordActions([
                 ActionsAction::make('download_config')
                     ->label('Download Config (.rsc)')
-                    ->icon('heroicon-o-cloud-download')
+                    ->icon('heroicon-m-cloud-arrow-down')
                     ->url(fn (Router $record) => route('router.download', $record))
                     ->openUrlInNewTab(false),
                 EditAction::make(),
