@@ -55,7 +55,6 @@ class RouterResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('ip_address')
                             ->label('IP Address')
-                            ->required()
                             ->ip()
                             ->unique(ignoreRecord: true)
                             ->placeholder('e.g., 192.168.1.1'),
