@@ -51,7 +51,7 @@
                                 <div class="text-lg font-light">Year Founded</div>
                             </div>
                             <div class="border-b border-white/20 pb-8">
-                                <div class="text-6xl font-black mb-2">36</div>
+                                <div class="text-6xl font-black mb-2">15</div>
                                 <div class="text-lg font-light">States Covered</div>
                             </div>
                             <div class="pb-2">
