@@ -132,4 +132,6 @@
             </div>
         </div>
     </section>
+
+    {{-- TODO: for plans other than data subscriptons, contact support. --}}
 </x-app-layout>

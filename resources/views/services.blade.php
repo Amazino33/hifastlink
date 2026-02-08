@@ -109,7 +109,7 @@
                     </div>
                     <h3 class="text-2xl font-bold text-gray-900 mb-4">Family Plans</h3>
                     <p class="text-gray-600 leading-relaxed mb-4">
-                        Shared data pools for families and small teams. One account, multiple users. Perfect for households and barracks accommodation.
+                        Shared data pools for families and small teams. One account, multiple users. Perfect for households.
                     </p>
                     <ul class="space-y-2 text-sm text-gray-700">
                         <li class="flex items-center space-x-2">
@@ -164,7 +164,7 @@
                     <ul class="space-y-2 text-sm text-gray-700">
                         <li class="flex items-center space-x-2">
                             <i class="fa-solid fa-check text-green-500"></i>
-                            <span>Military-grade encryption</span>
+                            <span>Industry-grade encryption</span>
                         </li>
                         <li class="flex items-center space-x-2">
                             <i class="fa-solid fa-check text-green-500"></i>
