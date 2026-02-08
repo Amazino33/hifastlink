@@ -21,12 +21,24 @@ class Router extends Model
         'api_port',
         'is_active',
         'description',
+        'last_seen_at',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'api_port' => 'integer',
+        'last_seen_at' => 'datetime',
     ];
+
+    // Virtual attribute: is_online (true if seen within last 5 minutes)
+    public function getIsOnlineAttribute(): bool
+    {
+        if (! $this->last_seen_at) {
+            return false;
+        }
+
+        return $this->last_seen_at->greaterThan(now()->subMinutes(5));
+    }
 
     /**
      * Get active sessions for this router

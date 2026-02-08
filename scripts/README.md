@@ -151,6 +151,10 @@ Edit these at the top of `setup-mikrotik-router.rsc`:
 
 ## 📋 Complete Setup Workflow
 
+> Note: Generated `.rsc` files include a Heartbeat scheduler that calls `https://{YOUR_APP}/api/routers/heartbeat?identity={NAS_ID}` every minute with `check-certificate=no`, and add Walled Garden rules for your app domain and RADIUS server so the heartbeat works even when the hotspot is locked.
+
+
+
 ### For Each New Router:
 
 **1. Add to Laravel (Choose one):**

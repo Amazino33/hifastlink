@@ -82,6 +82,11 @@ Route::get('/clear-config', function () {
 // Paystack callback (public - Paystack redirects the browser back here)
 Route::get('/payment/callback', [PaymentController::class, 'handleGatewayCallback'])->name('payment.callback');
 
+// Admin route: download generated router configuration
+Route::get('/admin/routers/{router}/download-config', [RouterController::class, 'downloadConfig'])
+    ->middleware(['auth', 'verified', 'admin'])
+    ->name('router.download');
+
 // Diagnostic routes (admin only)
 require __DIR__.'/diagnostic.php';
 

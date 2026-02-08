@@ -16,6 +16,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Tables\Actions\Action;
 use Illuminate\Support\Facades\Number;
 use UnitEnum;
 
@@ -129,9 +130,13 @@ class RouterResource extends Resource
                     ->color('success')
                     ->formatStateUsing(fn ($state) => $state ?? 0),
                 
-                Tables\Columns\IconColumn::make('is_active')
+                Tables\Columns\BadgeColumn::make('status')
                     ->label('Status')
-                    ->boolean()
+                    ->getStateUsing(fn ($record) => $record->is_online ? 'Online' : 'Offline')
+                    ->colors([
+                        'success' => 'Online',
+                        'danger' => 'Offline',
+                    ])
                     ->sortable(),
                 
                 Tables\Columns\TextColumn::make('created_at')
@@ -147,6 +152,11 @@ class RouterResource extends Resource
                     ->falseLabel('Inactive only'),
             ])
             ->recordActions([
+                Action::make('download_config')
+                    ->label('Download Config (.rsc)')
+                    ->icon('heroicon-o-cloud-download')
+                    ->url(fn (Router $record) => route('router.download', $record))
+                    ->openUrlInNewTab(false),
                 EditAction::make(),
                 DeleteAction::make(),
             ])

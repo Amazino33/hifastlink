@@ -13,3 +13,7 @@ Route::post('/import-data', [DataImportController::class, 'import']);
 
 // RADIUS Accounting Endpoint
 Route::post('/radius/accounting', [RadiusController::class, 'handleAccounting']);
+
+// Router Heartbeat (public) - GET /api/routers/heartbeat?identity={nas_identifier}&token={optional}
+use App\Http\Controllers\RouterHeartbeatController;
+Route::get('/routers/heartbeat', [RouterHeartbeatController::class, 'heartbeat']);

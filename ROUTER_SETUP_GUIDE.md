@@ -150,6 +150,9 @@ ssh admin@{ROUTER_IP}
 /import router-{nas-id}.rsc
 ```
 
+> Note: The generated `.rsc` includes built-in Walled Garden entries for your app domain and RADIUS server so the router can reach your application even when the hotspot is locked. It also adds a scheduler that fetches your hostname over HTTPS every minute to report heartbeats (uses `check-certificate=no` to avoid SSL failures on devices without CA bundles).
+
+
 **Option B: Manual Configuration**
 
 Connect to router via Winbox or SSH:

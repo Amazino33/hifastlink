@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use App\Models\Router;
 
 class RouterController extends Controller
 {
@@ -151,6 +152,58 @@ class RouterController extends Controller
             'login_url' => $fallbackLoginUrl,
             'dashboard_url' => route('dashboard'),
             'redirect' => $linkLogin ?? null,
+        ]);
+    }
+
+    /**
+     * Download generated MikroTik configuration (.rsc) for a router.
+     */
+    public function downloadConfig(Router $router)
+    {
+        $locationName = $router->nas_identifier ?: $router->name;
+        $radiusSecret = $router->secret;
+
+        $serverIp = env('RADIUS_PUBLIC_IP', env('RADIUS_DB_HOST', config('database.connections.radius.host', '142.93.47.189')));
+
+        $appUrl = rtrim(config('app.url', env('APP_URL', 'https://example.com')), '/');
+        $domain = parse_url($appUrl, PHP_URL_HOST) ?: $appUrl;
+        $token = env('ROUTER_HEARTBEAT_TOKEN');
+
+        $heartbeatUrl = $appUrl . '/api/routers/heartbeat?identity=' . rawurlencode($locationName);
+        if ($token) {
+            $heartbeatUrl .= '&token=' . rawurlencode($token);
+        }
+
+        $script = "# HiFastLink generated router configuration for {$router->name}\n";
+        $script .= ":log info \"Applying HiFastLink configuration for {$router->name}\"\n\n";
+
+        $script .= "# RADIUS server\n";
+        $script .= "/radius remove [find]\n";
+        $script .= "/radius add address={$serverIp} secret={$radiusSecret} service=hotspot timeout=3s comment=\"HiFastLink RADIUS\"\n\n";
+
+        $script .= "# Hotspot profile (idempotent)\n";
+        $script .= ":if ([/ip hotspot profile find name=hsprof1] = \"\") do={\n";
+        $script .= "    /ip hotspot profile add name=hsprof1 hotspot-address=192.168.88.1 dns-name=\"login.wifi\" login-by=http-chap,http-pap use-radius=yes radius-accounting=yes radius-interim-update=1m nas-port-type=wireless-802.11 shared-users=10 comment=\"HiFastLink Hotspot Profile\"\n";
+        $script .= "} else={\n";
+        $script .= "    /ip hotspot profile set [find name=hsprof1] use-radius=yes radius-accounting=yes radius-interim-update=1m shared-users=10\n";
+        $script .= "}\n\n";
+
+        $script .= ":log info \"Allowing heartbeat to pass via walled-garden for {$domain} and {$serverIp}\"\n";
+        $script .= "/ip hotspot walled-garden ip add dst-host={$domain} comment=\"Allow heartbeat to app\"\n";
+        $script .= "/ip hotspot walled-garden ip add dst-host={$serverIp} comment=\"Allow heartbeat to RADIUS\"\n\n";
+
+        $script .= "# Heartbeat scheduler (fetches over HTTPS) - do NOT verify certificate on router\n";
+        $script .= "/system scheduler add name=\"Heartbeat\" interval=1m on-event=\"/tool fetch url=\\\"{$heartbeatUrl}\\\" keep-result=no check-certificate=no\"\n\n";
+
+        $script .= ":log info \"HiFastLink configuration complete for {$router->name}\"\n";
+
+        $filename = 'router-' . ($router->nas_identifier ?: $router->id) . '.rsc';
+
+        return response()->streamDownload(function() use ($script) {
+            echo $script;
+        }, $filename, [
+            'Content-Type' => 'text/plain',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
 }
