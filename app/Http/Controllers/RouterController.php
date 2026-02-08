@@ -160,62 +160,99 @@ class RouterController extends Controller
      */
     public function downloadConfig(Router $router)
     {
-        // Prepare values
-        $locationName = $router->nas_identifier ?: $router->name;
-        $radiusSecret = $router->secret;
+        // Injected values
+        $location = $router->nas_identifier ?: $router->name;
         $serverIp = env('RADIUS_PUBLIC_IP', env('RADIUS_DB_HOST', config('database.connections.radius.host', '142.93.47.189')));
+        $secret = $router->secret;
 
         $appUrl = rtrim(config('app.url', env('APP_URL', 'https://example.com')), '/');
         $domain = parse_url($appUrl, PHP_URL_HOST) ?: preg_replace('#https?://#', '', $appUrl);
+        $dnsName = 'login.wifi';
 
-        // Escape double quotes inside values for safe injection into .rsc
-        $escLocation = str_replace('"', '\\"', $locationName);
+        // Escape double quotes
+        $escLocation = str_replace('"', '\\"', $location);
         $escServerIp = str_replace('"', '\\"', $serverIp);
-        $escSecret = str_replace('"', '\\"', $radiusSecret);
+        $escSecret = str_replace('"', '\\"', $secret);
         $escDomain = str_replace('"', '\\"', $domain);
+        $escDns = str_replace('"', '\\"', $dnsName);
 
-        // Build Robust v4.0 script per specification (no if/else, host-based walled-garden, braces)
-        $script = "{\n";
-        $script .= "    # Robust v4.0 HiFastLink auto-configuration\n";
-        $script .= "    :local LocationName \"{$escLocation}\"\n";
-        $script .= "    :local ServerIP \"{$escServerIp}\"\n";
-        $script .= "    :local RadiusSecret \"{$escSecret}\"\n";
-        $script .= "    :local DomainName \"{$escDomain}\"\n";
-        $script .= "    :local HeartbeatURL (\"https://\" . \$DomainName . \"/api/routers/heartbeat?identity=\" . \$LocationName)\n\n";
+        $template = <<<'RSC'
+# ==================================================
+#  HIFASTLINK ROUTER SETUP SCRIPT (NO-FAIL v4.0)
+#  Author: Gem (The Developer)
+# ==================================================
 
-        // Step 1: Set identity
-        $script .= "    # Step 1: Set router identity\n";
-        $script .= "    /system identity set name=\$LocationName\n\n";
+{
+    # --- 1. CONFIGURATION VARIABLES (EDIT HERE) ---
+    :local LocationName "{LOCATION}"
+    :local ServerIP     "{SERVERIP}"       ; # Your Cloud RADIUS IP
+    :local RadiusSecret "{SECRET}"    ; # Must match DB
+    :local DomainName   "{DOMAIN}"      ; # Your Dashboard Domain
+    :local DNSName      "{DNSNAME}"          ; # The Magic Link
 
-        // Step 2: Configure RADIUS
-        $script .= "    # Step 2: Configure RADIUS\n";
-        $script .= "    /radius remove [find]\n";
-        $script .= "    /radius add address=\$ServerIP secret=\$RadiusSecret service=hotspot timeout=3s comment=\"HiFastLink RADIUS\"\n\n";
+    # --------------------------------------------------
+    #       DO NOT EDIT BELOW THIS LINE
+    # --------------------------------------------------
 
-        // Step 3: Configure Hotspot Profile for ALL profiles
-        $script .= "    # Step 3: Configure Hotspot Profile (apply to all profiles)\n";
-        $script .= "    /ip hotspot profile set [find] use-radius=yes radius-accounting=yes radius-interim-update=1m dns-name=\"login.wifi\" html-directory=hotspot login-by=http-chap,http-pap\n\n";
+    :put ">> Starting Setup for $LocationName..."
 
-        // Step 4: Configure User Profile (apply to all user profiles)
-        $script .= "    # Step 4: Configure User Profile (shared users)\n";
-        $script .= "    /ip hotspot user profile set [find] shared-users=10\n\n";
+    # 1. Set Identity
+    /system identity set name=$LocationName
 
-        // Step 5: Walled Garden entries (host-based)
-        $script .= "    # Step 5: Walled Garden - allow paystack and app domain\n";
-        $script .= "    /ip hotspot walled-garden add dst-host=\"*.paystack.com\" comment=\"Allow paystack domain\"\n";
-        $script .= "    /ip hotspot walled-garden add dst-host=\"*.paystack.co\" comment=\"Allow paystack domain\"\n";
-        $script .= "    /ip hotspot walled-garden add dst-host=\$DomainName comment=\"Allow application domain\"\n\n";
+    # 2. Configure RADIUS Client
+    /radius remove [find]
+    /radius add address=$ServerIP secret=$RadiusSecret service=hotspot timeout=3000ms comment="HiFastLink RADIUS"
+    :put ">> RADIUS Configured"
 
-        // Step 6: Enable NTP client
-        $script .= "    # Step 6: NTP client - enable\n";
-        $script .= "    /system ntp client set enabled=yes\n\n";
+    # 3. Configure Hotspot Server Profile (The Fix)
+    # We now target [find] which selects ALL profiles, ensuring we catch 'hsprof1'
+    /ip hotspot profile set [find] \
+        dns-name=$DNSName \
+        html-directory=hotspot \
+        use-radius=yes \
+        login-by=http-chap,http-pap \
+        nas-port-type=wireless-802.11 \
+        radius-accounting=yes \
+        radius-interim-update=1m
 
-        // Step 7: Heartbeat scheduler
-        $script .= "    # Step 7: Heartbeat scheduler - HTTPS fetch with certificate verification disabled\n";
-        $script .= "    /system scheduler add name=\"Heartbeat\" interval=1m on-event=\"/tool fetch url=\"$\"HeartbeatURL\" keep-result=no check-certificate=no\"\n\n";
+    :put ">> Hotspot DNS Name set to: $DNSName (Applied to ALL profiles)"
 
-        $script .= "    :log info \"HiFastLink v4.0 configuration applied for \" . \$LocationName\n";
-        $script .= "}\n";
+    # 4. Configure User Profile (Limits)
+    # Allow 10 devices per user account
+    /ip hotspot user profile set [find] shared-users=10
+    :put ">> User Profile Updated (10 Devices Allowed)"
+
+    # 5. Walled Garden (Allow Dashboard & Payments)
+    /ip hotspot walled-garden remove [find]
+    /ip hotspot walled-garden
+    add dst-host=("*" . $DomainName) comment="Allow Dashboard"
+    add dst-host=$DomainName comment="Allow Dashboard Root"
+    add dst-host=*paystack.com comment="Allow Paystack"
+    add dst-host=*paystack.co comment="Allow Paystack"
+    add dst-host=*sentry.io comment="Allow Error Logs"
+    :put ">> Walled Garden Configured"
+
+    # 6. NTP Client (Time Sync)
+    /system ntp client set enabled=yes primary-ntp=162.159.200.1 secondary-ntp=162.159.200.123
+    :put ">> Time Sync Enabled"
+
+    # 7. Enable API
+    /ip service set api disabled=no port=8728
+    :put ">> API Service Enabled"
+
+    :put "========================================"
+    :put "   SETUP COMPLETE FOR: $LocationName"
+    :put "   Login Link: http://$DNSName"
+    :put "   READY TO DEPLOY 🚀"
+    :put "========================================"
+}
+RSC;
+
+        $script = str_replace([
+            '{LOCATION}', '{SERVERIP}', '{SECRET}', '{DOMAIN}', '{DNSNAME}'
+        ], [
+            $escLocation, $escServerIp, $escSecret, $escDomain, $escDns
+        ], $template);
 
         $filename = 'router-' . ($router->nas_identifier ?: $router->id) . '.rsc';
 
