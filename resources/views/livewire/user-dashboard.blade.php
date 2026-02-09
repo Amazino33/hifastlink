@@ -105,8 +105,11 @@
                                 <span id="connection-text">{{ $connectionStatus === 'active' ? 'ONLINE' : 'OFFLINE' }}</span>
                             </span>
 
-                            <!-- Connect/Disconnect Router buttons -->
-                            <div id="connection-buttons" data-connected-devices="{{ $connectedDevices }}" data-max-devices="{{ $maxDevices }}">
+                            <!-- Hidden data holder that Livewire updates -->
+                            <span id="livewire-connected-count" data-count="{{ $connectedDevices }}" class="hidden"></span>
+
+                            <!-- Connect/Disconnect Router buttons (wire:ignore prevents flashing) -->
+                            <div wire:ignore id="connection-buttons" data-connected-devices="{{ $connectedDevices }}" data-max-devices="{{ $maxDevices }}">
                                 <!-- Disconnect button (hidden by default, shown if device is marked as connected in localStorage) -->
                                 <a href="{{ route('disconnect.bridge') }}" id="disconnect-btn" class="hidden px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">
                                     <i class="fa-solid fa-power-off mr-1"></i>Disconnect
@@ -146,6 +149,12 @@
                         
                         @if($connectionStatus === 'active')
                             <div class="mt-4 space-y-2">
+                                @if($currentLocation)
+                                    <div class="flex items-center text-sm mb-2">
+                                        <i class="fa-solid fa-broadcast-tower mr-2 text-yellow-300"></i>
+                                        <span class="text-yellow-100 font-semibold">{{ $currentLocation }}</span>
+                                    </div>
+                                @endif
                                 <div class="flex items-center text-sm">
                                     <i class="fa-solid fa-network-wired mr-2 text-blue-200"></i>
                                     <span class="{{ $currentIp === 'Offline' ? 'text-gray-400' : 'text-blue-100' }}">IP: {{ $currentIp }}</span>
@@ -525,11 +534,15 @@
                 
                 // Function to update button visibility based on REAL RADIUS data
                 function updateButtons() {
-                    // Read current values from data attributes (updated by Livewire)
-                    if (!connectionButtonsDiv) return;
-                    
-                    const connectedDevices = parseInt(connectionButtonsDiv.getAttribute('data-connected-devices') || '0');
+                    // Read count from the hidden span that Livewire updates
+                    const countHolder = document.getElementById('livewire-connected-count');
+                    const connectedDevices = countHolder ? parseInt(countHolder.getAttribute('data-count') || '0') : 0;
                     const deviceMarkedConnected = localStorage.getItem(STORAGE_KEY) === 'true';
+                    
+                    // Also update the connection-buttons div data attribute (for consistency)
+                    if (connectionButtonsDiv) {
+                        connectionButtonsDiv.setAttribute('data-connected-devices', connectedDevices);
+                    }
                     
                     // LOGIC:
                     // - If NO sessions exist (connectedDevices = 0), always show "Connect"
@@ -558,10 +571,22 @@
                 // Initial button state
                 updateButtons();
                 
-                // Update buttons every time Livewire refreshes (wire:poll.10s)
-                setInterval(function() {
-                    updateButtons();
-                }, 1000); // Check every second to catch Livewire updates quickly
+                // Set up a MutationObserver to watch for changes to the hidden count span
+                const countHolder = document.getElementById('livewire-connected-count');
+                if (countHolder) {
+                    const observer = new MutationObserver(function(mutations) {
+                        mutations.forEach(function(mutation) {
+                            if (mutation.type === 'attributes' && mutation.attributeName === 'data-count') {
+                                updateButtons();
+                            }
+                        });
+                    });
+                    
+                    observer.observe(countHolder, {
+                        attributes: true,
+                        attributeFilter: ['data-count']
+                    });
+                }
                 
                 // When connect button is clicked, mark this device as attempting connection
                 if (connectBtn) {
