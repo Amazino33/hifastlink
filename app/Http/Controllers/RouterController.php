@@ -168,6 +168,7 @@ class RouterController extends Controller
         $appUrl = rtrim(config('app.url', env('APP_URL', 'https://example.com')), '/');
         $domain = parse_url($appUrl, PHP_URL_HOST) ?: preg_replace('#https?://#', '', $appUrl);
         $dnsName = 'login.wifi';
+        $bridgeName = 'bridge';
 
         // Escape double quotes in values
         $escLocation = str_replace('"', '\\"', $location);
@@ -175,6 +176,7 @@ class RouterController extends Controller
         $escSecret = str_replace('"', '\\"', $secret);
         $escDomain = str_replace('"', '\\"', $domain);
         $escDns = str_replace('"', '\\"', $dnsName);
+        $escBridge = str_replace('"', '\\"', $bridgeName);
 
         $template = <<<'RSC'
 # ==================================================
@@ -289,9 +291,9 @@ class RouterController extends Controller
 RSC;
 
         $script = str_replace([
-            '{LOCATION}', '{SERVERIP}', '{SECRET}', '{DOMAIN}', '{DNSNAME}'
+            '{LOCATION}', '{SERVERIP}', '{SECRET}', '{DOMAIN}', '{DNSNAME}', '{BRIDGE}'
         ], [
-            $escLocation, $escServerIp, $escSecret, $escDomain, $escDns
+            $escLocation, $escServerIp, $escSecret, $escDomain, $escDns, $escBridge
         ], $template);
 
         $filename = 'router-' . ($router->nas_identifier ?: $router->id) . '.rsc';
