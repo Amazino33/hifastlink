@@ -647,38 +647,16 @@
                         const data = await resp.json();
 
                         // Redirect the browser to the router login URL (GET)
+                        // Server already builds the complete URL with username, password, and dst parameters
                         if (data.redirect_url) {
                             window.location.href = data.redirect_url;
                             return;
-                        } else {
-                            if(errorBox){ errorBox.textContent = 'Router login URL not returned by server.'; errorBox.classList.remove('hidden'); }
-                            confirmBtn.disabled = false;
-                            confirmBtn.textContent = 'Confirm & Connect';
-                            return;
                         }
 
-                        const username = data.username;
-                        const password = data.password;
-                        const routerUrl = data.login_url || data.loginUrl || "{{ config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL', 'http://192.168.88.1/login') }}";
-                        const dashboardUrl = data.dashboard_url || "{{ route('dashboard') }}";
-
-                        if(!username || !password){
-                            if(errorBox){ errorBox.textContent = 'Missing credentials received from server.'; errorBox.classList.remove('hidden'); }
-                            confirmBtn.disabled = false;
-                            confirmBtn.textContent = 'Confirm & Connect';
-                            return;
-                        }
-
-                        // Build GET-based login URL and navigate (bypasses mixed-content POST block)
-                        const loginUrl = routerUrl
-                            + '?username=' + encodeURIComponent(username)
-                            + '&password=' + encodeURIComponent(password)
-                            + '&dst=' + encodeURIComponent(dashboardUrl);
-
-                        // Redirect the whole page to the router login URL (GET)
-                        window.location.href = loginUrl;
-
-                        // Navigation will occur; no further UI updates are necessary.
+                        // If no redirect_url provided, show error
+                        if(errorBox){ errorBox.textContent = 'Router login URL not returned by server.'; errorBox.classList.remove('hidden'); }
+                        confirmBtn.disabled = false;
+                        confirmBtn.textContent = 'Confirm & Connect';
 
                     }catch(e){
                         console.error('Error during connect to router flow', e);
