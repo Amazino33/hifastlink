@@ -282,6 +282,17 @@ class RouterController extends Controller
 }
 :put ">> API Service Enabled"
 
+# 9. Configure Heartbeat (Router Status Monitor)
+:local HeartbeatURL ("https://" . $DomainName . "/api/routers/heartbeat\?identity=" . $LocationName)
+:if ($isV7) do={
+    /system/scheduler remove [find name="heartbeat"]
+    /system/scheduler add name="heartbeat" interval=5m on-event=("/tool/fetch url=\"" . $HeartbeatURL . "\" mode=https keep-result=no") comment="Ping server every 5 minutes"
+} else={
+    /system scheduler remove [find name="heartbeat"]
+    /system scheduler add name="heartbeat" interval=5m on-event=("/tool fetch url=\"" . $HeartbeatURL . "\" mode=https keep-result=no") comment="Ping server every 5 minutes"
+}
+:put ">> Heartbeat Scheduler Configured"
+
 :put "========================================"
 :put ("   SETUP COMPLETE FOR: " . $LocationName)
 :put ("   Login Link: http://" . $DNSName)
