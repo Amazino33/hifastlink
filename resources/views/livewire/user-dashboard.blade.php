@@ -7,7 +7,42 @@
                     Hi, {{ $user->name }} 👋
                 </h1>
                 <p class="text-gray-600 dark:text-gray-400">Welcome back to your dashboard</p>
-                @if($connectionStatus === 'active')
+                @if($thisDeviceConnected)
+                    <div class="flex items-center space-x-3 mt-2">
+                        <span class="relative flex h-3 w-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500 ring-2 ring-green-300"></span>
+                        </span>
+                        <p class="text-sm font-semibold">
+                            <span class="text-green-600 dark:text-green-400">Online now (This Device)</span>
+                            <span class="ml-2 {{ $currentIp === 'Offline' ? 'text-gray-500 dark:text-gray-400' : 'text-green-600 dark:text-green-400' }}">IP: {{ $currentIp }}</span>
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-2 mt-1">
+                        <i class="fa-solid fa-mobile-screen-button text-xs text-gray-500 dark:text-gray-400"></i>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            Connected Devices: <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $connectedDevices }}/{{ $maxDevices }}</span>
+                            <span class="text-green-600 dark:text-green-400 font-semibold">(This device is connected)</span>
+                        </p>
+                    </div>
+                @elseif($connectedDevices > 0)
+                    <div class="flex items-center space-x-3 mt-2">
+                        <span class="relative flex h-3 w-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-60"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-yellow-500 ring-2 ring-yellow-300"></span>
+                        </span>
+                        <p class="text-sm font-semibold">
+                            <span class="text-yellow-600 dark:text-yellow-400">Other Devices Online</span>
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-2 mt-1">
+                        <i class="fa-solid fa-mobile-screen-button text-xs text-gray-500 dark:text-gray-400"></i>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            Connected Devices: <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $connectedDevices }}/{{ $maxDevices }}</span>
+                            <span class="text-gray-500 dark:text-gray-400">(Not this device)</span>
+                        </p>
+                    </div>
+                @elseif($connectionStatus === 'active')
                     <div class="flex items-center space-x-3 mt-2">
                         <span class="relative flex h-3 w-3">
                             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60"></span>
@@ -97,13 +132,27 @@
                         <span class="text-blue-100 text-sm font-semibold uppercase tracking-wide">Your Subscription</span>
 
                         <div class="flex items-center space-x-2">
-                            <span id="connection-badge" class="relative inline-flex items-center px-4 py-1 rounded-full text-xs font-bold {{ $connectionStatus === 'active' ? 'bg-green-500 text-white' : 'bg-gray-600 text-white' }}">
-                                <span id="online-indicator" class="relative inline-flex mr-2 {{ $connectionStatus === 'active' ? '' : 'hidden' }}">
-                                    <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-white opacity-50"></span>
-                                    <span class="relative inline-flex h-2 w-2 rounded-full bg-white"></span>
+                            @if($thisDeviceConnected)
+                                <span id="connection-badge" class="relative inline-flex items-center px-4 py-1 rounded-full text-xs font-bold bg-green-500 text-white">
+                                    <span id="online-indicator" class="relative inline-flex mr-2">
+                                        <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-white opacity-50"></span>
+                                        <span class="relative inline-flex h-2 w-2 rounded-full bg-white"></span>
+                                    </span>
+                                    <span id="connection-text">ONLINE</span>
                                 </span>
-                                <span id="connection-text">{{ $connectionStatus === 'active' ? 'ONLINE' : 'OFFLINE' }}</span>
-                            </span>
+                            @elseif($connectedDevices > 0)
+                                <span id="connection-badge" class="relative inline-flex items-center px-4 py-1 rounded-full text-xs font-bold bg-yellow-500 text-white">
+                                    <span id="online-indicator" class="relative inline-flex mr-2">
+                                        <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-white opacity-50"></span>
+                                        <span class="relative inline-flex h-2 w-2 rounded-full bg-white"></span>
+                                    </span>
+                                    <span id="connection-text">OTHER DEVICES</span>
+                                </span>
+                            @else
+                                <span id="connection-badge" class="relative inline-flex items-center px-4 py-1 rounded-full text-xs font-bold bg-gray-600 text-white">
+                                    <span id="connection-text">OFFLINE</span>
+                                </span>
+                            @endif
 
                             <!-- Hidden data holder that Livewire updates -->
                             <span id="livewire-connected-count" data-count="{{ $connectedDevices }}" class="hidden"></span>

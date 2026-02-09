@@ -177,11 +177,19 @@ class UserDashboard extends Component
             $currentSpeed = '0 kbps';
         }
 
-        // Count connected devices (active RADIUS sessions)
-        $connectedDevices = RadAcct::where('username', $user->username)
+        // Get all active sessions for connected devices count and device-specific tracking
+        $activeSessions = RadAcct::where('username', $user->username)
             ->whereNull('acctstoptime')
-            ->count();
+            ->get();
+        
+        $connectedDevices = $activeSessions->count();
         $maxDevices = ($masterUser->plan && $masterUser->plan->max_devices) ? $masterUser->plan->max_devices : 1;
+        
+        // Check if THIS specific device is connected (by IP address)
+        $currentDeviceIp = request()->ip();
+        $thisDeviceConnected = $activeSessions->contains(function($session) use ($currentDeviceIp) {
+            return $session->framedipaddress === $currentDeviceIp;
+        });
         
         // Get current router location
         $currentLocation = null;
@@ -397,7 +405,8 @@ class UserDashboard extends Component
             'maxDevices' => $maxDevices,
             'currentLocation' => $currentLocation,
             'currentRouter' => $currentRouter,
-            'showDisconnectButton' => $connectionStatus === 'active',
+            'thisDeviceConnected' => $thisDeviceConnected,
+            'showDisconnectButton' => $thisDeviceConnected && $connectionStatus === 'active',
         ]);
     }
 
