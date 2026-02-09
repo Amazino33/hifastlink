@@ -154,11 +154,8 @@
                                 </span>
                             @endif
 
-                            <!-- Hidden data holder that Livewire updates -->
-                            <span id="livewire-connected-count" data-count="{{ $connectedDevices }}" class="hidden"></span>
-
-                            <!-- Connect/Disconnect Router buttons (wire:ignore prevents flashing) -->
-                            <div wire:ignore id="connection-buttons" data-connected-devices="{{ $connectedDevices }}" data-max-devices="{{ $maxDevices }}">
+                            <!-- Connect/Disconnect Router buttons (authentic server-side rendering) -->
+                            <div id="connection-buttons" data-connected-devices="{{ $connectedDevices }}" data-max-devices="{{ $maxDevices }}">
                                 @if($showDisconnectButton)
                                     <!-- Disconnect button -->
                                     <a href="{{ route('disconnect.bridge') }}" id="disconnect-btn" class="px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">

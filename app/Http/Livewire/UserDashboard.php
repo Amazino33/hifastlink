@@ -185,11 +185,53 @@ class UserDashboard extends Component
         $connectedDevices = $activeSessions->count();
         $maxDevices = ($masterUser->plan && $masterUser->plan->max_devices) ? $masterUser->plan->max_devices : 1;
         
-        // Check if THIS specific device is connected (by IP address)
-        $currentDeviceIp = request()->ip();
-        $thisDeviceConnected = $activeSessions->contains(function($session) use ($currentDeviceIp) {
-            return $session->framedipaddress === $currentDeviceIp;
-        });
+        // Check if THIS specific device is connected using multiple strategies
+        $thisDeviceConnected = false;
+        
+        if ($connectedDevices > 0) {
+            // Strategy 1: Check if this browser session initiated a recent connection
+            $initiatedAt = session('initiated_connection_at');
+            $lastConnectUsername = session('last_connect_username');
+            
+            if ($initiatedAt && $lastConnectUsername === $user->username) {
+                // Check if there's a session that started after we initiated connection
+                $recentSession = $activeSessions->first(function($session) use ($initiatedAt) {
+                    return $session->acctstarttime && 
+                           Carbon::parse($session->acctstarttime)->timestamp >= ($initiatedAt - 10); // 10 second buffer
+                });
+                
+                if ($recentSession) {
+                    $thisDeviceConnected = true;
+                }
+            }
+            
+            // Strategy 2: If only one device connected, it must be this one
+            if (!$thisDeviceConnected && $connectedDevices === 1) {
+                $thisDeviceConnected = true;
+            }
+            
+            // Strategy 3: Check if there's a very recent session (started within last 2 minutes)
+            // This handles the case where user just connected but session marker expired
+            if (!$thisDeviceConnected) {
+                $veryRecentSession = $activeSessions->first(function($session) {
+                    return $session->acctstarttime && 
+                           Carbon::parse($session->acctstarttime)->isAfter(now()->subMinutes(2));
+                });
+                
+                if ($veryRecentSession && $connectedDevices === 1) {
+                    $thisDeviceConnected = true;
+                }
+            }
+            
+            // Strategy 4: Try matching by IP address (framedipaddress)
+            // This works if user's public IP matches or in certain network setups
+            if (!$thisDeviceConnected) {
+                $currentDeviceIp = request()->ip();
+                $thisDeviceConnected = $activeSessions->contains(function($session) use ($currentDeviceIp) {
+                    return $session->framedipaddress === $currentDeviceIp;
+                });
+            }
+        }
         
         // Get current router location
         $currentLocation = null;

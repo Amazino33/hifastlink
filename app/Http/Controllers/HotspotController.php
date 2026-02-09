@@ -76,6 +76,11 @@ class HotspotController extends Controller
         $link_login = $loginUrl;
         $link_orig = route('dashboard');
 
+        // Mark this browser session as having initiated a connection
+        // This helps identify THIS device after router redirect
+        session(['initiated_connection_at' => now()->timestamp]);
+        session(['last_connect_username' => $user->username]);
+        
         return view('hotspot.redirect_to_router', [
             'username' => $user->username,
             'password' => $password,
@@ -93,6 +98,9 @@ class HotspotController extends Controller
         if (! $user) {
             return redirect()->route('dashboard')->with('error', 'Please sign in.');
         }
+
+        // Clear the connection session markers
+        session()->forget(['initiated_connection_at', 'last_connect_username']);
 
         // Use login.wifi (DNS name) instead of IP address - same as connect logic
         $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
