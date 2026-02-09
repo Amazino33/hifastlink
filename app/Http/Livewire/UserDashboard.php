@@ -186,17 +186,44 @@ class UserDashboard extends Component
         // Get current router location
         $currentLocation = null;
         $currentRouter = null;
-        if ($activeSession && $activeSession->nasipaddress) {
-            $router = \App\Models\Router::where('ip_address', $activeSession->nasipaddress)
-                ->where('is_active', true)
-                ->first();
+        if ($activeSession) {
+            // Try to find router by multiple criteria
+            $router = null;
+            
+            // 1. Try by IP address (most direct)
+            if ($activeSession->nasipaddress) {
+                $router = \App\Models\Router::where('ip_address', $activeSession->nasipaddress)
+                    ->where('is_active', true)
+                    ->first();
+            }
+            
+            // 2. If not found by IP, try by called_station_id (router identifier)
+            if (!$router && $activeSession->calledstationid) {
+                $router = \App\Models\Router::where('nas_identifier', $activeSession->calledstationid)
+                    ->where('is_active', true)
+                    ->first();
+            }
+            
+            // 3. If still not found, look up NAS table shortname and match it
+            if (!$router && $activeSession->nasipaddress) {
+                $nas = \App\Models\Nas::where('nasname', $activeSession->nasipaddress)->first();
+                if ($nas && $nas->shortname) {
+                    $router = \App\Models\Router::where('nas_identifier', $nas->shortname)
+                        ->where('is_active', true)
+                        ->first();
+                }
+            }
             
             if ($router) {
-                $currentLocation = $router->name . ' - ' . $router->location;
+                // Display router name and location
+                $currentLocation = $router->name;
+                if ($router->location) {
+                    $currentLocation .= ' - ' . $router->location;
+                }
                 $currentRouter = $router;
             } else {
                 // Fallback to IP if router not found in database
-                $currentLocation = 'Router: ' . $activeSession->nasipaddress;
+                $currentLocation = 'Router: ' . ($activeSession->nasipaddress ?? 'Unknown');
             }
         }
 

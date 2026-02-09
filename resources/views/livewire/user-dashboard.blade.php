@@ -598,10 +598,13 @@
                     });
                 }
                 
-                // When disconnect button is clicked, remove the marker
+                // When disconnect button is clicked, remove the marker and update UI immediately
                 if (disconnectBtn) {
                     disconnectBtn.addEventListener('click', function() {
                         localStorage.removeItem(STORAGE_KEY);
+                        // Immediately update UI to show Connect button
+                        if (connectBtn) connectBtn.classList.remove('hidden');
+                        if (disconnectBtn) disconnectBtn.classList.add('hidden');
                         updateConnectionStatus(false);
                     });
                 }

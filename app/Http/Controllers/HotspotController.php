@@ -94,8 +94,8 @@ class HotspotController extends Controller
             return redirect()->route('dashboard')->with('error', 'Please sign in.');
         }
 
-        // Router logout URL - typically accessed via GET
-        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL') ?? 'http://192.168.88.1/login';
+        // Use login.wifi (DNS name) instead of IP address - same as connect logic
+        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
         $logoutUrl = (strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway);
         $logoutUrl = rtrim(str_replace('/login', '', $logoutUrl), '/') . '/logout';
 
