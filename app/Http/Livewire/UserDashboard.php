@@ -185,68 +185,56 @@ class UserDashboard extends Component
         $connectedDevices = $activeSessions->count();
         $maxDevices = ($masterUser->plan && $masterUser->plan->max_devices) ? $masterUser->plan->max_devices : 1;
         
-        // Debug helpers to understand why device detection might fail in the wild
-        Log::info('device-detection:start', [
-            'username' => $user->username,
-            'connected_devices' => $connectedDevices,
-            'request_ip' => request()->ip(),
-            'marker_initiated_at' => session('initiated_connection_at'),
-            'marker_username' => session('last_connect_username'),
-        ]);
+        // Fresh, minimal device detection:
+        // - We only trust the browser's own session marker set when it initiated a connect
+        // - We match that marker to the latest active RADIUS session timestamp
+        // - No cross-device assumptions or single-device shortcuts
+        $claimTimestamp = session('last_connect_claimed_at');
+        $claimUsername = session('last_connect_username');
 
-        foreach ($activeSessions as $idx => $session) {
-            Log::info('device-detection:session', [
-                'idx' => $idx,
-                'acctstarttime' => $session->acctstarttime?->toDateTimeString(),
-                'framedipaddress' => $session->framedipaddress,
-                'nasipaddress' => $session->nasipaddress,
-                'callingstationid' => $session->callingstationid,
-            ]);
-        }
+        // Helper to extract a reliable timestamp from a session row
+        $timestampForSession = function ($session) {
+            $fields = [
+                $session->acctstarttime,
+                $session->acctupdatetime ?? null,
+                $session->updated_at ?? null,
+                $session->created_at ?? null,
+            ];
+            foreach ($fields as $field) {
+                if ($field) {
+                    return Carbon::parse($field)->timestamp;
+                }
+            }
+            return null;
+        };
 
-        // Check if THIS specific device is connected using multiple strategies
+        $latestSession = $activeSessions->sortByDesc(function ($s) use ($timestampForSession) {
+            return $timestampForSession($s) ?? 0;
+        })->first();
+
+        $latestTimestamp = $latestSession ? $timestampForSession($latestSession) : null;
+        $claimThreshold = $claimTimestamp ? $claimTimestamp - 600 : null; // 10 min window backward to tolerate clock drift
+
         $thisDeviceConnected = false;
         $detectionStrategy = null;
-        
-        if ($connectedDevices > 0) {
-            // Strategy 1: Check if this browser session initiated a recent connection
-            $initiatedAt = session('initiated_connection_at');
-            $lastConnectUsername = session('last_connect_username');
-            
-            if ($initiatedAt && $lastConnectUsername === $user->username) {
-                $recentSession = $activeSessions->sortByDesc('acctstarttime')->first();
-                $recentTimestamp = $recentSession && $recentSession->acctstarttime ? Carbon::parse($recentSession->acctstarttime)->timestamp : null;
-                $threshold = $initiatedAt ? $initiatedAt - 120 : null; // allow 2 minutes before marker just in case clocks drift
-                
-                if ($recentTimestamp && $threshold && $recentTimestamp >= $threshold) {
-                    $thisDeviceConnected = true;
-                    $detectionStrategy = 'marker+latest-session';
-                } elseif ($recentSession && is_null($recentTimestamp)) {
-                    // If RADIUS did not store acctstarttime, assume match
-                    $thisDeviceConnected = true;
-                    $detectionStrategy = 'marker+no-starttime';
-                }
-            }
-            
-            // Strategy 4: Try matching by IP address (framedipaddress)
-            // This works if user's public IP matches or in certain network setups
-            if (!$thisDeviceConnected) {
-                $currentDeviceIp = request()->ip();
-                $thisDeviceConnected = $activeSessions->contains(function($session) use ($currentDeviceIp) {
-                    return $session->framedipaddress === $currentDeviceIp;
-                });
 
-                if ($thisDeviceConnected) {
-                    $detectionStrategy = 'ip-match';
-                }
+        if ($connectedDevices > 0 && $claimTimestamp && $claimUsername === $user->username && $latestTimestamp && $claimThreshold) {
+            if ($latestTimestamp >= $claimThreshold) {
+                $thisDeviceConnected = true;
+                $detectionStrategy = 'marker-latest-match';
             }
         }
+
+        // Final fallback: if marker missing or no match, trust nothing about this device
+        // The dashboard will still show that some device is online via $connectedDevices
 
         Log::info('device-detection:result', [
             'username' => $user->username,
             'this_device_connected' => $thisDeviceConnected,
             'strategy' => $detectionStrategy,
             'connected_devices' => $connectedDevices,
+            'latest_timestamp' => $latestTimestamp,
+            'claim_timestamp' => $claimTimestamp,
         ]);
         
         // Get current router location

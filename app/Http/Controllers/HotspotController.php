@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Carbon;
 use App\Models\RadCheck;
 
 class HotspotController extends Controller
@@ -76,10 +77,18 @@ class HotspotController extends Controller
         $link_login = $loginUrl;
         $link_orig = route('dashboard');
 
-        // Mark this browser session as having initiated a connection
-        // This helps identify THIS device after router redirect
-        session(['initiated_connection_at' => now()->timestamp]);
+        // Mark this browser session as having initiated a connection (used for device detection)
+        $claimAt = now()->timestamp;
+        session(['last_connect_claimed_at' => $claimAt]);
         session(['last_connect_username' => $user->username]);
+        Log::info('connect-claim:set', [
+            'username' => $user->username,
+            'claim_at' => $claimAt,
+            'claim_at_human' => Carbon::createFromTimestamp($claimAt)->toDateTimeString(),
+            'session_id' => session()->getId(),
+            'request_ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
         
         return view('hotspot.redirect_to_router', [
             'username' => $user->username,
@@ -100,7 +109,7 @@ class HotspotController extends Controller
         }
 
         // Clear the connection session markers
-        session()->forget(['initiated_connection_at', 'last_connect_username']);
+        session()->forget(['last_connect_claimed_at', 'last_connect_username']);
 
         // Use login.wifi (DNS name) instead of IP address - same as connect logic
         $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
