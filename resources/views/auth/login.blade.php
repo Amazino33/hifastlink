@@ -180,18 +180,20 @@
                         return;
                     }
 
-                    // If bridge not available but we received credentials, post them directly
-                    if (data.username && data.password && data.redirect) {
-                        // Create a form and submit to router directly
-                        const form = document.createElement('form');
-                        form.method = 'POST';
-                        form.action = data.redirect;
-
-                        const u = document.createElement('input'); u.type='hidden'; u.name='username'; u.value = data.username; form.appendChild(u);
-                        const p = document.createElement('input'); p.type='hidden'; p.name='password'; p.value = data.password; form.appendChild(p);
-
-                        document.body.appendChild(form);
-                        form.submit();
+                    // If bridge not available but we received credentials, build GET-based login URL
+                    if (data.username && data.password && data.login_url) {
+                        // Build proper GET URL with username, password, and dst as top-level parameters
+                        const loginUrl = data.login_url || linkLogin;
+                        const dashboardUrl = data.dashboard_url || '{{ route('dashboard') }}';
+                        
+                        // Construct URL with all parameters at top level (MikroTik expects this format)
+                        const redirectUrl = loginUrl + 
+                            '?username=' + encodeURIComponent(data.username) + 
+                            '&password=' + encodeURIComponent(data.password) + 
+                            '&dst=' + encodeURIComponent(dashboardUrl);
+                        
+                        // Redirect browser to router login with credentials
+                        window.location.href = redirectUrl;
                         return;
                     }
 

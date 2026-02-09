@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\RadCheck;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -37,8 +38,13 @@ class AuthenticatedSessionController extends Controller
             // Force returning users to their dashboard after router completes login
             $linkOrig = route('dashboard');
 
-            // Use clear_text_password if present on the user, otherwise use supplied password from request
-            $password = $user->clear_text_password ?? $request->input('password');
+            // Fetch the RADIUS password from radcheck table (same approach as HotspotController)
+            $rad = RadCheck::where('username', $user->username)->where('attribute', 'Cleartext-Password')->first();
+            $password = $rad ? $rad->value : ($user->radius_password ?? null);
+
+            if (!$password) {
+                return redirect()->route('dashboard')->withErrors(['error' => 'Missing router password. Please contact support.']);
+            }
 
             $mac = $request->input('mac');
             $ip = $request->input('ip');
