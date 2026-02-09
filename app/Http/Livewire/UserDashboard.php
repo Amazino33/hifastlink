@@ -228,26 +228,6 @@ class UserDashboard extends Component
                 }
             }
             
-            // Strategy 2: If only one device connected, it must be this one
-            if (!$thisDeviceConnected && $connectedDevices === 1) {
-                $thisDeviceConnected = true;
-                $detectionStrategy = 'single-device';
-            }
-            
-            // Strategy 3: Check if there's a very recent session (started within last 2 minutes)
-            // This handles the case where user just connected but session marker expired
-            if (!$thisDeviceConnected) {
-                $veryRecentSession = $activeSessions->first(function($session) {
-                    return $session->acctstarttime && 
-                           Carbon::parse($session->acctstarttime)->isAfter(now()->subMinutes(2));
-                });
-                
-                if ($veryRecentSession && $connectedDevices === 1) {
-                    $thisDeviceConnected = true;
-                    $detectionStrategy = 'recent-session';
-                }
-            }
-            
             // Strategy 4: Try matching by IP address (framedipaddress)
             // This works if user's public IP matches or in certain network setups
             if (!$thisDeviceConnected) {
