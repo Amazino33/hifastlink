@@ -96,8 +96,19 @@ class HotspotController extends Controller
 
         // Use login.wifi (DNS name) instead of IP address - same as connect logic
         $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
-        $logoutUrl = (strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway);
-        $logoutUrl = rtrim(str_replace('/login', '', $logoutUrl), '/') . '/logout';
+        
+        // Ensure gateway has a protocol
+        if (strpos($gateway, '://') === false) {
+            $gateway = 'http://' . $gateway;
+        }
+        
+        // Parse the gateway URL to extract scheme and host
+        $parsedUrl = parse_url($gateway);
+        $scheme = $parsedUrl['scheme'] ?? 'http';
+        $host = $parsedUrl['host'] ?? 'login.wifi';
+        
+        // Build logout URL: protocol://host/logout
+        $logoutUrl = $scheme . '://' . $host . '/logout';
 
         return view('hotspot.disconnect_from_router', [
             'logout_url' => $logoutUrl,
