@@ -65,8 +65,8 @@ class HotspotController extends Controller
             return redirect()->route('dashboard')->with('error', 'Missing router password. Please contact support.');
         }
 
-        // Router URL
-        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL') ?? 'http://192.168.88.1/login';
+        // Use login.wifi (DNS name) instead of IP address to avoid MikroTik redirect loops
+        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
         $loginUrl = (strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway);
         if (! preg_match('#/login#', $loginUrl)) {
             $loginUrl = rtrim($loginUrl, '/') . '/login';

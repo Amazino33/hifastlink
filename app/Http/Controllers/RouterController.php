@@ -68,8 +68,8 @@ class RouterController extends Controller
             return response()->json(['message' => 'User credentials missing. Please contact support.'], 500);
         }
 
-        // Determine login URL (use services.mikrotik.gateway or env MIKROTIK_LOGIN_URL, fallback to sensible default)
-        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL') ?? 'http://192.168.88.1/login';
+        // Determine login URL (use services.mikrotik.gateway or env MIKROTIK_GATEWAY, fallback to login.wifi)
+        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
 
         $loginUrl = (strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway);
         if (!preg_match('#/login#', $loginUrl)) {
@@ -138,7 +138,7 @@ class RouterController extends Controller
         }
 
         // Fallback: return login info for client to submit directly (includes dashboard URL so router can return the user)
-        $fallbackGateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL') ?? 'http://192.168.88.1/login';
+        $fallbackGateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
         $fallbackLoginUrl = (strpos($fallbackGateway, '://') === false ? 'http://' . $fallbackGateway : $fallbackGateway);
         if (!preg_match('#/login#', $fallbackLoginUrl)) {
             $fallbackLoginUrl = rtrim($fallbackLoginUrl, '/') . '/login';

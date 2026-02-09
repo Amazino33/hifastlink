@@ -41,7 +41,7 @@ return [
     ],
 
     'mikrotik' => [
-        'gateway' => env('MIKROTIK_GATEWAY', 'http://192.168.88.1/login'),
+        'gateway' => env('MIKROTIK_GATEWAY', 'http://login.wifi/login'),
         'api_host' => env('MIKROTIK_API_HOST'), // e.g., '192.168.88.1'
         'api_user' => env('MIKROTIK_API_USER'), // e.g., 'admin'
         'api_password' => env('MIKROTIK_API_PASSWORD'), // MikroTik admin password

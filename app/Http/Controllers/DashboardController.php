@@ -181,19 +181,18 @@ class DashboardController extends Controller
             return response()->json(['message' => 'Missing credentials. Please contact support.'], 500);
         }
 
-        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_LOGIN_URL') ?? 'http://192.168.88.1/login';
+        // Use login.wifi (DNS name) instead of IP address to avoid MikroTik redirect loops
+        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
         $loginUrl = (strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway);
         if (! preg_match('#/login#', $loginUrl)) {
             $loginUrl = rtrim($loginUrl, '/') . '/login';
         }
 
-        $params = http_build_query([
-            'username' => $user->username,
-            'password' => $password,
-            'dst' => route('dashboard'),
-        ]);
-
-        $redirectUrl = $loginUrl . '?' . $params;
+        // Build URL with top-level parameters (MikroTik format)
+        $redirectUrl = $loginUrl 
+            . '?username=' . urlencode($user->username)
+            . '&password=' . urlencode($password)
+            . '&dst=' . urlencode(route('dashboard'));
 
         return response()->json(['redirect_url' => $redirectUrl]);
     }
