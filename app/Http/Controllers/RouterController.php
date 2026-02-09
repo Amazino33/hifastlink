@@ -188,6 +188,7 @@ class RouterController extends Controller
 :global RadiusSecret "{SECRET}"
 :global DomainName   "{DOMAIN}"
 :global DNSName      "{DNSNAME}"
+:global BridgeName   "{BRIDGE}"
 
 # --- 2. DETECT ROUTEROS VERSION ---
 :global rosVersion [/system resource get version]
@@ -217,7 +218,15 @@ class RouterController extends Controller
 /radius add address=$ServerIP secret=$RadiusSecret service=hotspot timeout=3000ms comment="HiFastLink RADIUS"
 :put ">> RADIUS Configured"
 
-# 3. Configure Hotspot Server Profile
+# 3. Update Hotspot Server Interface to Bridge
+:if ($isV7) do={
+    /ip/hotspot set [find] interface=$BridgeName
+} else={
+    /ip hotspot set [find] interface=$BridgeName
+}
+:put (">> Hotspot Server Interface set to: " . $BridgeName)
+
+# 4. Configure Hotspot Server Profile
 :if ($isV7) do={
     /ip/hotspot/profile set [find] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
 } else={
@@ -225,7 +234,7 @@ class RouterController extends Controller
 }
 :put (">> Hotspot DNS Name set to: " . $DNSName . " (Applied to ALL profiles)")
 
-# 4. Configure User Profile (Limits)
+# 5. Configure User Profile (Limits)
 :if ($isV7) do={
     /ip/hotspot/user/profile set [find] shared-users=10
 } else={
@@ -233,7 +242,7 @@ class RouterController extends Controller
 }
 :put ">> User Profile Updated (10 Devices Allowed)"
 
-# 5. Walled Garden (Allow Dashboard & Payments)
+# 6. Walled Garden (Allow Dashboard & Payments)
 :if ($isV7) do={
     /ip/hotspot/walled-garden remove [find]
     /ip/hotspot/walled-garden add dst-host=("*." . $DomainName) comment="Allow Dashboard"
@@ -251,7 +260,7 @@ class RouterController extends Controller
 }
 :put ">> Walled Garden Configured"
 
-# 6. NTP Client (Time Sync)
+# 7. NTP Client (Time Sync)
 :if ($isV7) do={
     /system/ntp/client set enabled=yes
     :do {/system/ntp/client/servers remove [find address=162.159.200.1]} on-error={}
@@ -263,7 +272,7 @@ class RouterController extends Controller
 }
 :put ">> Time Sync Enabled"
 
-# 7. Enable API
+# 8. Enable API
 :if ($isV7) do={
     /ip/service set api disabled=no port=8728
 } else={
@@ -274,6 +283,7 @@ class RouterController extends Controller
 :put "========================================"
 :put ("   SETUP COMPLETE FOR: " . $LocationName)
 :put ("   Login Link: http://" . $DNSName)
+:put ("   Hotspot Interface: " . $BridgeName)
 :put "   READY TO DEPLOY"
 :put "========================================"
 RSC;
