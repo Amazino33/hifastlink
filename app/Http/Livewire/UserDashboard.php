@@ -397,6 +397,7 @@ class UserDashboard extends Component
             'maxDevices' => $maxDevices,
             'currentLocation' => $currentLocation,
             'currentRouter' => $currentRouter,
+            'showDisconnectButton' => $connectionStatus === 'active',
         ]);
     }
 

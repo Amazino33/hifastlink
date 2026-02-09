@@ -110,20 +110,22 @@
 
                             <!-- Connect/Disconnect Router buttons (wire:ignore prevents flashing) -->
                             <div wire:ignore id="connection-buttons" data-connected-devices="{{ $connectedDevices }}" data-max-devices="{{ $maxDevices }}">
-                                <!-- Disconnect button (hidden by default, shown if device is marked as connected in localStorage) -->
-                                <a href="{{ route('disconnect.bridge') }}" id="disconnect-btn" class="hidden px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">
-                                    <i class="fa-solid fa-power-off mr-1"></i>Disconnect
-                                </a>
-                                
-                                <!-- Connect button (shown by default if subscription is active) -->
-                                @if($subscriptionStatus === 'active')
-                                    <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none">
-                                        Connect to Router
+                                @if($showDisconnectButton)
+                                    <!-- Disconnect button -->
+                                    <a href="{{ route('disconnect.bridge') }}" id="disconnect-btn" class="px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">
+                                        <i class="fa-solid fa-power-off mr-1"></i>Disconnect
                                     </a>
                                 @else
-                                    <a href="#hot-deals" class="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-500/90 hover:bg-blue-600 text-white transition-colors">
-                                        Subscribe Now
-                                    </a>
+                                    <!-- Connect button (shown if subscription is active) -->
+                                    @if($subscriptionStatus === 'active')
+                                        <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none">
+                                            Connect to Router
+                                        </a>
+                                    @else
+                                        <a href="#hot-deals" class="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-500/90 hover:bg-blue-600 text-white transition-colors">
+                                            Subscribe Now
+                                        </a>
+                                    @endif
                                 @endif
                             </div>
                         </div>
@@ -490,125 +492,6 @@
 
         <script>
             (function(){
-                // Generate unique device ID for this browser (stored permanently in localStorage)
-                function getDeviceId() {
-                    let deviceId = localStorage.getItem('hifastlink_device_id');
-                    if (!deviceId) {
-                        deviceId = 'device_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-                        localStorage.setItem('hifastlink_device_id', deviceId);
-                    }
-                    return deviceId;
-                }
-                
-                // Get data from backend
-                const deviceId = getDeviceId();
-                const STORAGE_KEY = 'hifastlink_connected_{{ $user->id }}_' + deviceId;
-                
-                const connectBtn = document.getElementById('connect-to-router-btn');
-                const disconnectBtn = document.getElementById('disconnect-btn');
-                const connectionBadge = document.getElementById('connection-badge');
-                const connectionText = document.getElementById('connection-text');
-                const onlineIndicator = document.getElementById('online-indicator');
-                const connectionButtonsDiv = document.getElementById('connection-buttons');
-                
-                // Function to update connection status display
-                function updateConnectionStatus(isConnected) {
-                    if (isConnected) {
-                        // Show as ONLINE
-                        if (connectionBadge) {
-                            connectionBadge.classList.remove('bg-gray-600');
-                            connectionBadge.classList.add('bg-green-500');
-                        }
-                        if (connectionText) connectionText.textContent = 'ONLINE';
-                        if (onlineIndicator) onlineIndicator.classList.remove('hidden');
-                    } else {
-                        // Show as OFFLINE
-                        if (connectionBadge) {
-                            connectionBadge.classList.remove('bg-green-500');
-                            connectionBadge.classList.add('bg-gray-600');
-                        }
-                        if (connectionText) connectionText.textContent = 'OFFLINE';
-                        if (onlineIndicator) onlineIndicator.classList.add('hidden');
-                    }
-                }
-                
-                // Function to update button visibility based on REAL RADIUS data
-                function updateButtons() {
-                    // Read count from the hidden span that Livewire updates
-                    const countHolder = document.getElementById('livewire-connected-count');
-                    const connectedDevices = countHolder ? parseInt(countHolder.getAttribute('data-count') || '0') : 0;
-                    const deviceMarkedConnected = localStorage.getItem(STORAGE_KEY) === 'true';
-                    
-                    // Also update the connection-buttons div data attribute (for consistency)
-                    if (connectionButtonsDiv) {
-                        connectionButtonsDiv.setAttribute('data-connected-devices', connectedDevices);
-                    }
-                    
-                    // LOGIC:
-                    // - If NO sessions exist (connectedDevices = 0), always show "Connect"
-                    // - If sessions exist AND localStorage says THIS device connected, show "Disconnect"
-                    // - If sessions exist BUT localStorage says NOT connected, show "Connect" (another device)
-                    
-                    if (connectedDevices === 0) {
-                        // No active sessions - clear localStorage and show Connect
-                        localStorage.removeItem(STORAGE_KEY);
-                        if (connectBtn) connectBtn.classList.remove('hidden');
-                        if (disconnectBtn) disconnectBtn.classList.add('hidden');
-                        updateConnectionStatus(false);
-                    } else if (deviceMarkedConnected) {
-                        // Sessions exist and THIS device claims to be connected - show Disconnect
-                        if (connectBtn) connectBtn.classList.add('hidden');
-                        if (disconnectBtn) disconnectBtn.classList.remove('hidden');
-                        updateConnectionStatus(true);
-                    } else {
-                        // Sessions exist but THIS device not marked as connected - show Connect
-                        if (connectBtn) connectBtn.classList.remove('hidden');
-                        if (disconnectBtn) disconnectBtn.classList.add('hidden');
-                        updateConnectionStatus(false);
-                    }
-                }
-                
-                // Initial button state
-                updateButtons();
-                
-                // Set up a MutationObserver to watch for changes to the hidden count span
-                const countHolder = document.getElementById('livewire-connected-count');
-                if (countHolder) {
-                    const observer = new MutationObserver(function(mutations) {
-                        mutations.forEach(function(mutation) {
-                            if (mutation.type === 'attributes' && mutation.attributeName === 'data-count') {
-                                updateButtons();
-                            }
-                        });
-                    });
-                    
-                    observer.observe(countHolder, {
-                        attributes: true,
-                        attributeFilter: ['data-count']
-                    });
-                }
-                
-                // When connect button is clicked, mark this device as attempting connection
-                if (connectBtn) {
-                    connectBtn.addEventListener('click', function(e) {
-                        localStorage.setItem(STORAGE_KEY, 'true');
-                        if (disconnectBtn) disconnectBtn.classList.remove('hidden');
-                        if (connectBtn) connectBtn.classList.add('hidden');
-                        updateConnectionStatus(true);
-                    });
-                }
-                
-                // When disconnect button is clicked, remove the marker and update UI immediately
-                if (disconnectBtn) {
-                    disconnectBtn.addEventListener('click', function() {
-                        localStorage.removeItem(STORAGE_KEY);
-                        // Immediately update UI to show Connect button
-                        if (connectBtn) connectBtn.classList.remove('hidden');
-                        if (disconnectBtn) disconnectBtn.classList.add('hidden');
-                        updateConnectionStatus(false);
-                    });
-                }
-                
                 const openBtn = document.getElementById('connect-to-router-btn');
                 const modal = document.getElementById('connect-router-modal');
                 const closeBtns = modal ? modal.querySelectorAll('[data-close-modal]') : [];
