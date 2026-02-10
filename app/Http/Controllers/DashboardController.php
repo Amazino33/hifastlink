@@ -5,14 +5,34 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use App\Models\RadCheck;
 use Illuminate\Support\Facades\Log;
+use App\Models\RadCheck;
+use App\Models\RadAcct;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
+
+        // 1) MAC capture: read ?mac=... and store in session; else reuse existing; else null
+        if ($request->filled('mac')) {
+            session(['current_device_mac' => $request->input('mac')]);
+        }
+        $currentMac = session('current_device_mac');
+
+        // 2) Device status: check active RADIUS session for this MAC
+        $activeSessionsQuery = RadAcct::where('username', $user->username)
+            ->whereNull('acctstoptime');
+
+        $activeSessionCount = (clone $activeSessionsQuery)->count();
+
+        $isCurrentDeviceConnected = false;
+        if ($currentMac) {
+            $isCurrentDeviceConnected = (clone $activeSessionsQuery)
+                ->where('callingstationid', $currentMac)
+                ->exists();
+        }
         
         // Get real-time session data from cache
         $sessionData = Cache::get("user_session:{$user->phone}");
@@ -69,7 +89,24 @@ class DashboardController extends Controller
             
             // Additional Info
             'lastUpdated' => $sessionData['last_updated'] ?? null,
+
+            // Device awareness
+            'currentDeviceMac' => $currentMac,
+            'isCurrentDeviceConnected' => $isCurrentDeviceConnected,
+            'activeSessionCount' => $activeSessionCount,
+            'connectUrl' => $this->routerLoginUrl(),
         ]);
+    }
+
+    private function routerLoginUrl(): string
+    {
+        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
+        $loginUrl = (strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway);
+        if (! preg_match('#/login#', $loginUrl)) {
+            $loginUrl = rtrim($loginUrl, '/') . '/login';
+        }
+
+        return $loginUrl;
     }
     
     private function getSubscriptionDaysRemaining($user)

@@ -30,6 +30,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Capture MAC from router callback/query if present so dashboard can track this device
+        if ($request->filled('mac')) {
+            $request->session()->put('current_device_mac', $request->input('mac'));
+        }
+
         // Immediately handle captive portal bridge flow if requested by router parameters
         if ($request->filled('link_login')) {
             $user = \Illuminate\Support\Facades\Auth::user();
