@@ -323,11 +323,12 @@ class UserDashboard extends Component
             $formattedRemaining = 'Unlimited';
         }
 
-        // Prefer the framed IP from the active RADIUS session; fall back to user current_ip or 'Offline'
+        // Prefer the framed IP from the active RADIUS session; otherwise show a connected indicator when the device is online
         if ($activeSession && !empty($activeSession->framedipaddress)) {
             $currentIp = $activeSession->framedipaddress;
-        } elseif ($connectionStatus === 'active') {
-            $currentIp = $user->current_ip ?? '-';
+        } elseif ($isDeviceOnline) {
+            // Device is online but framed IP is unavailable; avoid using request()->ip()
+            $currentIp = 'Connected';
         } elseif ($connectionStatus === 'unknown') {
             $currentIp = 'Server Unreachable';
         } else {

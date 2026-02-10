@@ -4,66 +4,61 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\RadAcct;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class NetworkController extends Controller
 {
-    public function disconnectUser(Request $request, User $user)
+    public function disconnectUser(Request $request, User $user = null)
     {
-        // Identify the active session (optionally scoped to a specific MAC)
-        $activeSessionQuery = RadAcct::forUser($user->username)
-            ->whereNull('acctstoptime');
-
-        if ($request->filled('mac')) {
-            $activeSessionQuery->where('callingstationid', $request->input('mac'));
+        $user = $user ?? Auth::user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $activeSession = $activeSessionQuery
-            ->orderByDesc('acctstarttime')
-            ->first();
+        $username = $user->username;
+        $mac = session('current_device_mac') ?? $request->input('mac');
 
-        if (! $activeSession) {
-            // Nothing to disconnect; still return success so UI can flip back
-            $user->update(['connection_status' => 'disconnected']);
-            return back()->with('success', 'Disconnected successfully');
-        }
+        // Local force-close helper to prevent zombie sessions when router is unreachable
+        $forceCloseSession = function () use ($username, $mac) {
+            $query = DB::table('radacct')
+                ->where('username', $username)
+                ->whereNull('acctstoptime');
+
+            if ($mac) {
+                $query->where('callingstationid', $mac);
+            }
+
+            $query->update([
+                'acctstoptime' => now(),
+                'acctterminatecause' => 'Admin-Reset',
+                'acctstopdelay' => 0,
+            ]);
+        };
 
         $timeoutSeconds = (int) (config('services.radius.disconnect_timeout', 3));
 
-        $coaSucceeded = false;
-        $previousTimeout = ini_get('default_socket_timeout');
-
         try {
-            // Short socket timeout to avoid UI hanging on dead routers
-            if ($timeoutSeconds > 0) {
-                ini_set('default_socket_timeout', (string) $timeoutSeconds);
-            }
+            // Attempt CoA/Disconnect to the router with a short timeout
+            $this->sendRadiusDisconnect($username, $timeoutSeconds);
 
-            $coaSucceeded = $this->sendRadiusDisconnect($user->username, $timeoutSeconds);
+            // Ensure local cleanup even if router does not write back
+            $forceCloseSession();
         } catch (\Throwable $e) {
-            Log::warning('Router unreachable during disconnect; forcing session close', [
-                'user' => $user->username,
-                'mac' => $request->input('mac'),
+            Log::error('Router unreachable, forcing DB close', [
+                'user' => $username,
+                'mac' => $mac,
                 'error' => $e->getMessage(),
             ]);
-            $coaSucceeded = false;
-        } finally {
-            // Restore previous timeout
-            if ($previousTimeout !== false && $previousTimeout !== null) {
-                ini_set('default_socket_timeout', (string) $previousTimeout);
-            }
-        }
 
-        // Always mark the session as closed to avoid zombie sessions
-        $activeSessionQuery->update([
-            'acctstoptime' => now(),
-            'acctterminatecause' => $coaSucceeded ? 'User-Request' : 'Admin-Reset',
-        ]);
+            $forceCloseSession();
+        }
 
         $user->update(['connection_status' => 'disconnected']);
 
-        return back()->with('success', 'Disconnected successfully');
+        return response()->json(['message' => 'Disconnected successfully', 'status' => 'offline']);
     }
 
     public function suspendUser(Request $request, User $user)

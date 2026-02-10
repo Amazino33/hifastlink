@@ -15,7 +15,7 @@
                         </span>
                         <p class="text-sm font-semibold">
                             <span class="text-green-600 dark:text-green-400">Online now (This Device)</span>
-                            <span class="ml-2 {{ $currentIp === 'Offline' ? 'text-gray-500 dark:text-gray-400' : 'text-green-600 dark:text-green-400' }}">IP: {{ $currentIp }}</span>
+                            <span class="ml-2 text-green-600 dark:text-green-400">IP: {{ $currentIp === 'Connected' ? 'Connected' : $currentIp }}</span>
                         </p>
                     </div>
                     <div class="flex items-center space-x-2 mt-1">
@@ -50,7 +50,7 @@
                         </span>
                         <p class="text-sm font-semibold">
                             <span class="text-green-600 dark:text-green-400">Online now</span>
-                            <span class="ml-2 {{ $currentIp === 'Offline' ? 'text-gray-500 dark:text-gray-400' : 'text-green-600 dark:text-green-400' }}">IP: {{ $currentIp }}</span>
+                            <span class="ml-2 text-green-600 dark:text-green-400">IP: {{ $currentIp === 'Connected' ? 'Connected' : $currentIp }}</span>
                         </p>
                     </div>
                     <div class="flex items-center space-x-2 mt-1">
@@ -195,7 +195,7 @@
                             <div class="text-blue-100 text-lg">You have no active data plan. Please subscribe to use data services.</div>
                         @endif
                         
-                        @if($connectionStatus === 'active')
+                        @if($isDeviceOnline)
                             <div class="mt-4 space-y-2">
                                 @if($currentLocation)
                                     <div class="flex items-center text-sm mb-2">
@@ -205,7 +205,7 @@
                                 @endif
                                 <div class="flex items-center text-sm">
                                     <i class="fa-solid fa-network-wired mr-2 text-blue-200"></i>
-                                    <span class="{{ $currentIp === 'Offline' ? 'text-gray-400' : 'text-blue-100' }}">IP: {{ $currentIp }}</span>
+                                    <span class="text-blue-100">IP: {{ $currentIp === 'Connected' ? 'Connected' : $currentIp }}</span>
                                 </div>
                                 <div class="flex items-center text-blue-100 text-sm">
                                     <i class="fa-solid fa-clock mr-2 text-blue-200"></i>
@@ -462,14 +462,14 @@
                                 <div class="text-xs text-gray-500 dark:text-gray-400">Status</div>
                             </div>
                         </div>
-                        <span class="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-bold {{ $connectionStatus === 'active' ? 'bg-green-500 text-white' : 'bg-gray-500 text-white' }}">
-                            @if($connectionStatus === 'active')
+                        <span class="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-bold {{ $isDeviceOnline ? 'bg-green-500 text-white' : 'bg-gray-500 text-white' }}">
+                            @if($isDeviceOnline)
                                 <span class="relative inline-flex h-2 w-2">
                                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-50"></span>
                                     <span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
                                 </span>
                             @endif
-                            <span>{{ ucfirst($connectionStatus) }}</span>
+                            <span>{{ $isDeviceOnline ? 'Online' : 'Offline' }}</span>
                         </span>
                     </div>
 
@@ -483,7 +483,7 @@
                                 <div class="text-xs text-gray-500 dark:text-gray-400">Current</div>
                             </div>
                         </div>
-                        <span class="text-blue-600 dark:text-blue-400 font-bold">{{ $currentSpeed }}</span>
+                        <span class="text-blue-600 dark:text-blue-400 font-bold">{{ $isDeviceOnline ? $currentSpeed : 'Offline' }}</span>
                     </div>
 
                     <div class="flex items-center justify-between p-4 bg-blue-50 dark:bg-gray-700 rounded-xl">
