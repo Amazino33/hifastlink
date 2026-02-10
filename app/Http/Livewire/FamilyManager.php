@@ -137,7 +137,7 @@ class FamilyManager extends Component
         $member = User::find($memberId);
 
         if ($member && $member->parent_id === Auth::id()) {
-            User::destroy($memberId);
+            $member->delete(); // Soft delete instead of hard delete
 
             Notification::make()
                 ->title('Family Member Removed')
