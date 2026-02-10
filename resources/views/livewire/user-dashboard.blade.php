@@ -10,7 +10,7 @@
                     DEBUG MAC: {{ session('current_device_mac') ?? 'NO MAC FOUND' }}
                 </div>
                 <p class="text-gray-600 dark:text-gray-400">Welcome back to your dashboard</p>
-                @if($thisDeviceConnected)
+                @if($isDeviceOnline)
                     <div class="flex items-center space-x-3 mt-2">
                         <span class="relative flex h-3 w-3">
                             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60"></span>

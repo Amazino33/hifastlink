@@ -177,65 +177,26 @@ class UserDashboard extends Component
             $currentSpeed = '0 kbps';
         }
 
-        // Get all active sessions for connected devices count and device-specific tracking
+        // MAC capture (from redirect) and device online detection via callingstationid
+        if (request()->filled('mac')) {
+            session(['current_device_mac' => request()->input('mac')]);
+        }
+        $currentMac = session('current_device_mac');
+
         $activeSessions = RadAcct::where('username', $user->username)
             ->whereNull('acctstoptime')
             ->get();
-        
+
         $connectedDevices = $activeSessions->count();
         $maxDevices = ($masterUser->plan && $masterUser->plan->max_devices) ? $masterUser->plan->max_devices : 1;
-        
-        // Fresh, minimal device detection:
-        // - We only trust the browser's own session marker set when it initiated a connect
-        // - We match that marker to the latest active RADIUS session timestamp
-        // - No cross-device assumptions or single-device shortcuts
-        $claimTimestamp = session('last_connect_claimed_at');
-        $claimUsername = session('last_connect_username');
 
-        // Helper to extract a reliable timestamp from a session row
-        $timestampForSession = function ($session) {
-            $fields = [
-                $session->acctstarttime,
-                $session->acctupdatetime ?? null,
-                $session->updated_at ?? null,
-                $session->created_at ?? null,
-            ];
-            foreach ($fields as $field) {
-                if ($field) {
-                    return Carbon::parse($field)->timestamp;
-                }
-            }
-            return null;
-        };
-
-        $latestSession = $activeSessions->sortByDesc(function ($s) use ($timestampForSession) {
-            return $timestampForSession($s) ?? 0;
-        })->first();
-
-        $latestTimestamp = $latestSession ? $timestampForSession($latestSession) : null;
-        $claimThreshold = $claimTimestamp ? $claimTimestamp - 600 : null; // 10 min window backward to tolerate clock drift
-
-        $thisDeviceConnected = false;
-        $detectionStrategy = null;
-
-        if ($connectedDevices > 0 && $claimTimestamp && $claimUsername === $user->username && $latestTimestamp && $claimThreshold) {
-            if ($latestTimestamp >= $claimThreshold) {
-                $thisDeviceConnected = true;
-                $detectionStrategy = 'marker-latest-match';
-            }
+        $isDeviceOnline = false;
+        if ($currentMac) {
+            $isDeviceOnline = RadAcct::where('username', $user->username)
+                ->where('callingstationid', $currentMac)
+                ->whereNull('acctstoptime')
+                ->exists();
         }
-
-        // Final fallback: if marker missing or no match, trust nothing about this device
-        // The dashboard will still show that some device is online via $connectedDevices
-
-        Log::info('device-detection:result', [
-            'username' => $user->username,
-            'this_device_connected' => $thisDeviceConnected,
-            'strategy' => $detectionStrategy,
-            'connected_devices' => $connectedDevices,
-            'latest_timestamp' => $latestTimestamp,
-            'claim_timestamp' => $claimTimestamp,
-        ]);
         
         // Get current router location
         $currentLocation = null;
@@ -451,8 +412,8 @@ class UserDashboard extends Component
             'maxDevices' => $maxDevices,
             'currentLocation' => $currentLocation,
             'currentRouter' => $currentRouter,
-            'thisDeviceConnected' => $thisDeviceConnected,
-            'showDisconnectButton' => $thisDeviceConnected && $connectionStatus === 'active',
+            'isDeviceOnline' => $isDeviceOnline,
+            'showDisconnectButton' => $isDeviceOnline,
         ]);
     }
 
