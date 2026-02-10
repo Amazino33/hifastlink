@@ -67,6 +67,11 @@ class NetworkController extends Controller
 
         $user->update(['connection_status' => 'disconnected']);
 
+        // For browser form posts, redirect back with a flash message so the UI updates naturally
+        if (! $request->wantsJson()) {
+            return redirect()->back()->with('success', 'Disconnected successfully');
+        }
+
         return response()->json(['message' => 'Disconnected successfully', 'status' => 'offline']);
     }
 
