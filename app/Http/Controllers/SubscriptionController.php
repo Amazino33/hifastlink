@@ -6,6 +6,7 @@ use App\Models\DataPlan;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class SubscriptionController extends Controller
 {
@@ -27,20 +28,29 @@ class SubscriptionController extends Controller
         // Deduct from wallet
         $user->decrement('wallet_balance', $plan->price);
 
-        // Update user subscription
+        // Rollover data (stack existing balance with new plan amount)
+        $currentBalance = $user->data_balance ?? 0;
+        $newDataBalance = $currentBalance + ($plan->data_limit ?? 0);
+
+        // Rollover time (extend if active, start from now if expired)
+        $now = Carbon::now();
+        if ($user->plan_expiry && $user->plan_expiry->gt($now)) {
+            $newExpiry = Carbon::parse($user->plan_expiry)->addDays($plan->duration_days);
+        } else {
+            $newExpiry = $now->copy()->addDays($plan->duration_days);
+        }
+
+        // Update user subscription with stacked values
         $user->update([
-            'data_limit' => $plan->data_limit,
-            'subscription_end_date' => now()->addDays($plan->duration_days),
+            'data_balance' => $newDataBalance,
+            'plan_expiry' => $newExpiry,
             'connection_status' => 'active',
         ]);
-
-        // Reset data usage
-        $user->update(['data_used' => 0]);
 
         // Sync to RADIUS with new limits
         \Artisan::call('radius:sync-users');
 
-        return redirect()->route('dashboard')->with('success', "Successfully subscribed to {$plan->name}!");
+        return redirect()->route('dashboard')->with('success', "Successfully subscribed to {$plan->name}! Data and time have been stacked.");
     }
 
     public function wallet()
