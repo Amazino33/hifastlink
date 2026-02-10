@@ -33,11 +33,16 @@ class KickExpiredUsers extends Command
         $checkedUsers = 0;
         $disconnectedUsers = 0;
 
-        // Users whose plan has expired and who still have active sessions
+        $collation = config('database.connections.mysql.collation', 'utf8mb4_unicode_ci');
+
+        // Users whose plan has expired and who still have active sessions (collation-safe)
         $expiredUsers = User::whereNotNull('plan_expiry')
             ->where('plan_expiry', '<=', now())
-            ->whereHas('radaccts', function ($q) {
-                $q->whereNull('acctstoptime');
+            ->whereExists(function ($q) use ($collation) {
+                $q->select(DB::raw(1))
+                    ->from('radacct')
+                    ->whereNull('radacct.acctstoptime')
+                    ->whereRaw("radacct.username COLLATE {$collation} = users.username COLLATE {$collation}");
             })
             ->get();
 
