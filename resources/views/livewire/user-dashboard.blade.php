@@ -160,7 +160,7 @@
                                     <!-- Disconnect form posts to backend to avoid router dependency -->
                                     <form action="{{ route('user.disconnect') }}" method="POST" class="w-full sm:w-auto">
                                         @csrf
-                                        <button type="submit" id="disconnect-btn" class="w-full sm:w-auto px-4 py-2 text-xs font-semibold rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:ring-offset-blue-600">
+                                        <button type="submit" id="disconnect-btn" class="w-full sm:w-auto px-4 py-2 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-blue-600">
                                             <i class="fa-solid fa-power-off mr-1"></i>Disconnect
                                         </button>
                                     </form>
