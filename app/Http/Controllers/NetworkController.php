@@ -21,6 +21,12 @@ class NetworkController extends Controller
         $username = $user->username;
         $mac = session('current_device_mac') ?? $request->input('mac');
 
+        $updateData = [
+            'acctstoptime' => now(),
+            'acctterminatecause' => 'Admin-Reset',
+            'acctstopdelay' => 0,
+        ];
+
         // Local force-close helper to prevent zombie sessions when router is unreachable
         $forceCloseSession = function () use ($username, $mac) {
             $query = DB::table('radacct')
@@ -45,7 +51,11 @@ class NetworkController extends Controller
             $this->sendRadiusDisconnect($username, $timeoutSeconds);
 
             // Ensure local cleanup even if router does not write back
-            $forceCloseSession();
+            DB::table('radacct')
+                ->where('username', $username)
+                ->when($mac, fn ($q) => $q->where('callingstationid', $mac))
+                ->whereNull('acctstoptime')
+                ->update($updateData);
         } catch (\Throwable $e) {
             Log::error('Router unreachable, forcing DB close', [
                 'user' => $username,
@@ -53,7 +63,11 @@ class NetworkController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            $forceCloseSession();
+            DB::table('radacct')
+                ->where('username', $username)
+                ->when($mac, fn ($q) => $q->where('callingstationid', $mac))
+                ->whereNull('acctstoptime')
+                ->update($updateData);
         }
 
         $user->update(['connection_status' => 'disconnected']);
