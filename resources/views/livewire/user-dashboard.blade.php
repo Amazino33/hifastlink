@@ -135,7 +135,7 @@
                         <span class="text-blue-100 text-sm font-semibold uppercase tracking-wide">Your Subscription</span>
 
                         <div class="flex items-center space-x-2">
-                            @if($thisDeviceConnected)
+                            @if($isDeviceOnline)
                                 <span id="connection-badge" class="relative inline-flex items-center px-4 py-1 rounded-full text-xs font-bold bg-green-500 text-white">
                                     <span id="online-indicator" class="relative inline-flex mr-2">
                                         <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-white opacity-50"></span>
