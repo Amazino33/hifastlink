@@ -29,10 +29,46 @@ class DashboardController extends Controller
         $activeSessionCount = (clone $activeSessionsQuery)->count();
 
         $isCurrentDeviceConnected = false;
+        $activeSession = null;
+        $routerLocation = null;
+        
         if ($currentMac) {
-            $isCurrentDeviceConnected = (clone $activeSessionsQuery)
+            $activeSession = (clone $activeSessionsQuery)
                 ->where('callingstationid', $currentMac)
-                ->exists();
+                ->orderByDesc('acctstarttime')
+                ->first();
+            
+            $isCurrentDeviceConnected = (bool) $activeSession;
+            
+            // Fetch router location if session exists
+            if ($activeSession) {
+                $router = null;
+                
+                // Try to match by NAS identifier first (most reliable)
+                if (!empty($activeSession->nasidentifier)) {
+                    $router = \App\Models\Router::where('identity', $activeSession->nasidentifier)
+                        ->where('is_active', true)
+                        ->first();
+                }
+                
+                // Fall back to IP address matching
+                if (!$router && !empty($activeSession->nasipaddress)) {
+                    $router = \App\Models\Router::where('ip_address', $activeSession->nasipaddress)
+                        ->where('is_active', true)
+                        ->first();
+                }
+                
+                // Build location string
+                if ($router) {
+                    $routerLocation = $router->name;
+                    if (!empty($router->location)) {
+                        $routerLocation .= ' - ' . $router->location;
+                    }
+                } else {
+                    // Fallback to IP if router not found in DB
+                    $routerLocation = 'Router: ' . ($activeSession->nasipaddress ?? 'Unknown');
+                }
+            }
         }
         
         // Get real-time session data from cache
@@ -96,6 +132,7 @@ class DashboardController extends Controller
             'isCurrentDeviceConnected' => $isCurrentDeviceConnected,
             'activeSessionCount' => $activeSessionCount,
             'connectUrl' => $this->routerLoginUrl(),
+            'routerLocation' => $routerLocation,
         ]);
     }
 

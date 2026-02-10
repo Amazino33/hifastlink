@@ -25,6 +25,14 @@
                             <span class="text-green-600 dark:text-green-400 font-semibold">(This device is connected)</span>
                         </p>
                     </div>
+                    @if($currentLocation)
+                        <div class="flex items-center space-x-2 mt-1">
+                            <i class="fa-solid fa-location-dot text-xs text-blue-500 dark:text-blue-400"></i>
+                            <p class="text-xs text-blue-600 dark:text-blue-400">
+                                Connected via: <span class="font-semibold">{{ $currentLocation }}</span>
+                            </p>
+                        </div>
+                    @endif
                 @elseif($connectedDevices > 0)
                     <div class="flex items-center space-x-3 mt-2">
                         <span class="relative flex h-3 w-3">
