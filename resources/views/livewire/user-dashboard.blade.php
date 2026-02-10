@@ -128,51 +128,51 @@
                 </div>
                 
                 <div class="relative z-10">
-                    <div class="flex items-center justify-between mb-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
                         <span class="text-blue-100 text-sm font-semibold uppercase tracking-wide">Your Subscription</span>
 
-                        <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-3 sm:space-y-0">
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                             @if($isDeviceOnline)
-                                <span id="connection-badge" class="relative inline-flex items-center px-4 py-1 rounded-full text-xs font-bold bg-green-500 text-white">
+                                <span id="connection-badge" class="relative inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-bold bg-green-500 text-white shadow-lg">
                                     <span id="online-indicator" class="relative inline-flex mr-2">
-                                        <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-white opacity-50"></span>
+                                        <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-white opacity-75"></span>
                                         <span class="relative inline-flex h-2 w-2 rounded-full bg-white"></span>
                                     </span>
                                     <span id="connection-text">ONLINE</span>
                                 </span>
                             @elseif($connectedDevices > 0)
-                                <span id="connection-badge" class="relative inline-flex items-center px-4 py-1 rounded-full text-xs font-bold bg-yellow-500 text-white">
+                                <span id="connection-badge" class="relative inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-bold bg-yellow-500 text-white shadow-lg">
                                     <span id="online-indicator" class="relative inline-flex mr-2">
-                                        <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-white opacity-50"></span>
+                                        <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-white opacity-75"></span>
                                         <span class="relative inline-flex h-2 w-2 rounded-full bg-white"></span>
                                     </span>
                                     <span id="connection-text">OTHER DEVICES</span>
                                 </span>
                             @else
-                                <span id="connection-badge" class="relative inline-flex items-center px-4 py-1 rounded-full text-xs font-bold bg-gray-600 text-white">
+                                <span id="connection-badge" class="relative inline-flex items-center justify-center px-4 py-2 rounded-full text-xs font-bold bg-gray-600 text-white shadow-lg">
                                     <span id="connection-text">OFFLINE</span>
                                 </span>
                             @endif
 
                             <!-- Connect/Disconnect Router buttons (authentic server-side rendering) -->
-                            <div id="connection-buttons" class="flex flex-wrap items-center gap-2" data-connected-devices="{{ $connectedDevices }}" data-max-devices="{{ $maxDevices }}">
+                            <div id="connection-buttons" class="flex items-center" data-connected-devices="{{ $connectedDevices }}" data-max-devices="{{ $maxDevices }}">
                                 @if($showDisconnectButton)
                                     <!-- Disconnect form posts to backend to avoid router dependency -->
-                                    <form action="{{ route('user.disconnect') }}" method="POST" class="inline-block">
+                                    <form action="{{ route('user.disconnect') }}" method="POST" class="w-full sm:w-auto">
                                         @csrf
-                                        <button type="submit" id="disconnect-btn" class="px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">
+                                        <button type="submit" id="disconnect-btn" class="w-full sm:w-auto px-4 py-2 text-xs font-semibold rounded-lg bg-red-500 hover:bg-red-600 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:ring-offset-blue-600">
                                             <i class="fa-solid fa-power-off mr-1"></i>Disconnect
                                         </button>
                                     </form>
                                 @else
                                     <!-- Connect button (shown if subscription is active) -->
                                     @if($subscriptionStatus === 'active')
-                                        <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="px-3 py-1 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors focus:outline-none">
-                                            Connect to Router
+                                        <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="w-full sm:w-auto inline-block text-center px-4 py-2 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-blue-600">
+                                            <i class="fa-solid fa-wifi mr-1"></i>Connect to Router
                                         </a>
                                     @else
-                                        <a href="#hot-deals" class="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-500/90 hover:bg-blue-600 text-white transition-colors">
-                                            Subscribe Now
+                                        <a href="#hot-deals" class="w-full sm:w-auto inline-block text-center px-4 py-2 text-xs font-semibold rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">
+                                            <i class="fa-solid fa-shopping-cart mr-1"></i>Subscribe Now
                                         </a>
                                     @endif
                                 @endif
