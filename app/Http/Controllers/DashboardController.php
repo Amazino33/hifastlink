@@ -13,12 +13,6 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-
-    dd([
-        'URL Parameters' => $request->all(),
-        'Session MAC' => session('current_device_mac'),
-        'Client IP' => $request->ip(),
-    ]);
         $user = Auth::user();
 
         // 1) MAC capture: read ?mac=... and store in session; else reuse existing; else null
@@ -235,7 +229,7 @@ class DashboardController extends Controller
         $redirectUrl = $loginUrl 
             . '?username=' . urlencode($user->username)
             . '&password=' . urlencode($password)
-            . '&dst=' . urlencode(route('dashboard'));
+            . '&dst=' . urlencode("http://login.wifi/redirect.html");
 
         return response()->json(['redirect_url' => $redirectUrl]);
     }
