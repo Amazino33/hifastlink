@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use App\Models\RadCheck;
 use App\Models\RadAcct;
 
@@ -175,23 +176,13 @@ class DashboardController extends Controller
         }
 
         // Determine if user has an active subscription using Subscription model when available
+        // Validate active plan (used instead of Subscription model)
         $validSubscription = null;
-        if (class_exists(\App\Models\Subscription::class)) {
-            $validSubscription = \App\Models\Subscription::where('user_id', $user->id)
-                ->where('status', 'ACTIVE')
-                ->where('expires_at', '>', now())
-                ->where(function ($q) {
-                    $q->where('data_remaining', '>', 0)->orWhereNull('data_limit');
-                })
-                ->orderBy('expires_at', 'desc')
-                ->first();
-        } else {
-            $hasExpiry = $user->plan_expiry && $user->plan_expiry->isFuture();
-            $dataRemaining = is_null($user->data_limit) ? null : max(0, ($user->data_limit ?? 0) - ($user->data_used ?? 0));
+        $hasExpiry = $user->plan_expiry && $user->plan_expiry->isFuture();
+        $dataRemaining = is_null($user->data_limit) ? null : max(0, ($user->data_limit ?? 0) - ($user->data_used ?? 0));
 
-            if ($hasExpiry && (is_null($user->data_limit) || $dataRemaining > 0)) {
-                $validSubscription = (object) ['plan_id' => $user->plan_id, 'expires_at' => $user->plan_expiry];
-            }
+        if ($hasExpiry && (is_null($user->data_limit) || $dataRemaining > 0)) {
+            $validSubscription = (object) ['plan_id' => $user->plan_id, 'expires_at' => $user->plan_expiry];
         }
 
         if (! $validSubscription) {
