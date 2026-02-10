@@ -56,8 +56,21 @@ class RadiusService
             if ($user->dataPlan) {
                 $plan = $user->dataPlan;
 
-                // Session timeout (duration in seconds)
-                if ($plan->duration_seconds > 0) {
+                // Session timeout: use remaining seconds until plan_expiry, not full plan duration
+                $remainingSeconds = null;
+                if (!empty($user->plan_expiry)) {
+                    $remainingSeconds = now()->diffInSeconds($user->plan_expiry, false);
+                }
+
+                if (!is_null($remainingSeconds) && $remainingSeconds > 0) {
+                    RadReply::create([
+                        'username' => $user->username,
+                        'attribute' => 'Session-Timeout',
+                        'op' => ':=',
+                        'value' => (string)$remainingSeconds,
+                    ]);
+                } elseif ($plan->duration_seconds > 0) {
+                    // Fallback to plan duration if expiry missing
                     RadReply::create([
                         'username' => $user->username,
                         'attribute' => 'Session-Timeout',

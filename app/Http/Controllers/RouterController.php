@@ -51,6 +51,12 @@ class RouterController extends Controller
             return response()->json(['message' => 'No active subscription. Please renew to connect.'], 422);
         }
 
+        // Enforce remaining time for session timeout; reject if expired
+        $remainingSeconds = $user->plan_expiry ? now()->diffInSeconds($user->plan_expiry, false) : null;
+        if (!is_null($remainingSeconds) && $remainingSeconds <= 0) {
+            return response()->json(['message' => 'Your plan has expired.'], 422);
+        }
+
         // Self-repair: if a valid subscription exists but user.plan_id is missing, repair it immediately
         if (isset($validSubscription->plan_id) && empty($user->plan_id) && $validSubscription->plan_id) {
             try {
