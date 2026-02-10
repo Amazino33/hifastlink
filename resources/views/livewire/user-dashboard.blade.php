@@ -131,7 +131,7 @@
                     <div class="flex items-center justify-between mb-4">
                         <span class="text-blue-100 text-sm font-semibold uppercase tracking-wide">Your Subscription</span>
 
-                        <div class="flex items-center space-x-2">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-3 sm:space-y-0">
                             @if($isDeviceOnline)
                                 <span id="connection-badge" class="relative inline-flex items-center px-4 py-1 rounded-full text-xs font-bold bg-green-500 text-white">
                                     <span id="online-indicator" class="relative inline-flex mr-2">
@@ -155,7 +155,7 @@
                             @endif
 
                             <!-- Connect/Disconnect Router buttons (authentic server-side rendering) -->
-                            <div id="connection-buttons" data-connected-devices="{{ $connectedDevices }}" data-max-devices="{{ $maxDevices }}">
+                            <div id="connection-buttons" class="flex flex-wrap items-center gap-2" data-connected-devices="{{ $connectedDevices }}" data-max-devices="{{ $maxDevices }}">
                                 @if($showDisconnectButton)
                                     <!-- Disconnect form posts to backend to avoid router dependency -->
                                     <form action="{{ route('user.disconnect') }}" method="POST" class="inline-block">
