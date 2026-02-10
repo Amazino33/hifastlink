@@ -43,7 +43,7 @@
                         </div>
 
                         <div class="md:col-span-3">
-                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors duration-300">
+                            <button type="submit" onclick="return confirm('Are you sure you want to add {{ $name ?: 'this member' }} to your family? This will share your plan data and time with them.')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors duration-300">
                                 Add Member
                             </button>
                         </div>
@@ -74,7 +74,7 @@
                         </div>
 
                         <div class="flex items-end">
-                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition-colors duration-300">
+                            <button type="submit" onclick="return confirm('Are you sure you want to link {{ $existingUsername ?: 'this user' }} to your family? This will share your plan data and time with them.')" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition-colors duration-300">
                                 Link User
                             </button>
                         </div>
