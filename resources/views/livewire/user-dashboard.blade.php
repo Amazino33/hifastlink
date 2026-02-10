@@ -157,10 +157,13 @@
                             <!-- Connect/Disconnect Router buttons (authentic server-side rendering) -->
                             <div id="connection-buttons" data-connected-devices="{{ $connectedDevices }}" data-max-devices="{{ $maxDevices }}">
                                 @if($showDisconnectButton)
-                                    <!-- Disconnect button -->
-                                    <a href="{{ route('disconnect.bridge') }}" id="disconnect-btn" class="px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">
-                                        <i class="fa-solid fa-power-off mr-1"></i>Disconnect
-                                    </a>
+                                    <!-- Disconnect form posts to backend to avoid router dependency -->
+                                    <form action="{{ route('user.disconnect') }}" method="POST" class="inline-block">
+                                        @csrf
+                                        <button type="submit" id="disconnect-btn" class="px-3 py-1 text-xs font-semibold rounded-lg bg-red-500/80 hover:bg-red-600 text-white transition-colors focus:outline-none">
+                                            <i class="fa-solid fa-power-off mr-1"></i>Disconnect
+                                        </button>
+                                    </form>
                                 @else
                                     <!-- Connect button (shown if subscription is active) -->
                                     @if($subscriptionStatus === 'active')
