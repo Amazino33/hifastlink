@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\RadAcct;
 use App\Models\RadReply;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class KickExpiredUsers extends Command
 {
@@ -29,45 +30,88 @@ class KickExpiredUsers extends Command
      */
     public function handle()
     {
-        // Get usernames with active sessions
-        $activeUsernames = RadAcct::whereNull('acctstoptime')->pluck('username')->toArray();
+        $checkedUsers = 0;
+        $disconnectedUsers = 0;
 
-        // Find users with expired plans and active sessions
-        $expiredUsers = User::where('plan_expiry', '<=', now())
-            ->whereIn('username', $activeUsernames)
+        // Users whose plan has expired and who still have active sessions
+        $expiredUsers = User::whereNotNull('plan_expiry')
+            ->where('plan_expiry', '<=', now())
+            ->whereHas('radaccts', function ($q) {
+                $q->whereNull('acctstoptime');
+            })
             ->get();
 
         foreach ($expiredUsers as $user) {
-            $nextSubscription = $user->pendingSubscriptions()->first();
+            $checkedUsers++;
 
-            if ($nextSubscription) {
-                // Auto-renew from pending subscription queue
-                $leftover = $user->calculateRolloverFor($nextSubscription->plan);
+            $sessions = RadAcct::where('username', $user->username)
+                ->whereNull('acctstoptime')
+                ->get();
 
-                $user->plan_id = $nextSubscription->plan_id;
-                $user->data_limit = $nextSubscription->plan->data_limit + $leftover;
-                $user->data_used = 0;
-                $user->plan_expiry = now()->addDays($nextSubscription->plan->validity_days ?? 0);
-                $user->plan_started_at = now();
-                $user->is_family_admin = $nextSubscription->plan->is_family;
-                $user->family_limit = $nextSubscription->plan->family_limit;
-                $user->save(); // Triggers observer to sync RADIUS
-
-                // Delete the processed subscription
-                $nextSubscription->delete();
-
-                Log::info("User {$user->username} auto-renewed from pending queue with {$leftover} bytes rollover.");
-            } else {
-                // No pending subscription — expire and snapshot rollover
-                try {
-                    $subscriptionService = new \App\Services\SubscriptionService();
-                    $subscriptionService->expireForExpiry($user);
-                } catch (\Exception $e) {
-                    Log::error("Failed to expire user {$user->username}: " . $e->getMessage());
-                }
+            if ($sessions->isEmpty()) {
+                continue;
             }
+
+            $updateData = [
+                'acctstoptime' => now(),
+                'acctterminatecause' => 'Session-Timeout',
+            ];
+
+            foreach ($sessions as $session) {
+                try {
+                    $this->sendRadiusDisconnect($user->username, (int) config('services.radius.disconnect_timeout', 3));
+                } catch (\Throwable $e) {
+                    Log::warning('Router unreachable during expiry disconnect', [
+                        'user' => $user->username,
+                        'session_id' => $session->acctsessionid ?? null,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                // Force-close session in DB regardless of router response
+                $query = DB::table('radacct')
+                    ->where('username', $user->username)
+                    ->whereNull('acctstoptime');
+
+                if (!empty($session->radacctid)) {
+                    $query->where('radacctid', $session->radacctid);
+                }
+
+                if (!empty($session->callingstationid)) {
+                    $query->where('callingstationid', $session->callingstationid);
+                }
+
+                $query->update($updateData);
+            }
+
+            $disconnectedUsers++;
         }
 
-        $this->info('Expired users kicked: ' . $expiredUsers->count());
+        $this->info("Checked {$checkedUsers} users. Disconnected {$disconnectedUsers} users.");
+    }
+
+    /**
+     * Attempt a RADIUS CoA/Disconnect with a short timeout.
+     */
+    protected function sendRadiusDisconnect(string $username, int $timeoutSeconds = 3): bool
+    {
+        try {
+            $radius = new \Net_RADIUS(config('services.radius.server'), config('services.radius.secret'), 1812);
+            $radius->addAttribute('User-Name', $username);
+            $radius->addAttribute('Acct-Session-Id', 'expire_disconnect');
+
+            if (method_exists($radius, 'setOption')) {
+                $radius->setOption('timeout', max(1, $timeoutSeconds));
+            }
+
+            $result = $radius->sendRequest(\Net_RADIUS::DISCONNECT_REQUEST);
+            return $result === \Net_RADIUS::DISCONNECT_ACK;
+        } catch (\Throwable $e) {
+            Log::error('RADIUS disconnect failed (expire)', [
+                'user' => $username,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 }
