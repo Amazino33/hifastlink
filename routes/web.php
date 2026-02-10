@@ -27,6 +27,58 @@ Route::get('/faq', [PageController::class, 'faq'])->name('faq');
 Route::get('/installation-guide', [PageController::class, 'installation'])->name('installation');
 Route::get('/network-status', [PageController::class, 'status'])->name('status');
 
+// TEMPORARY DEBUG ROUTE
+Route::get('/debug-janitor', function () {
+    // 1. Hardcode the user we are testing
+    $targetUser = 'princewill'; // Make sure this matches exactly
+
+    echo "<h1>Janitor Debug Report</h1>";
+
+    // 2. Check Timezone & Expiry
+    $user = \App\Models\User::where('username', $targetUser)->first();
+    
+    if (!$user) {
+        return "User '$targetUser' not found in users table.";
+    }
+
+    $serverTime = now();
+    $expiryTime = \Carbon\Carbon::parse($user->plan_expiry);
+    
+    echo "<b>Server Time (What Laravel sees):</b> " . $serverTime->format('Y-m-d H:i:s') . "<br>";
+    echo "<b>User Expiry (Database):</b> " . $expiryTime->format('Y-m-d H:i:s') . "<br>";
+    echo "<b>Time Difference:</b> " . $serverTime->diffInHours($expiryTime, false) . " Hours <br>";
+    
+    $isExpired = $serverTime->greaterThan($expiryTime);
+    echo "<b>Is Expired?</b> " . ($isExpired ? "<span style='color:green; font-weight:bold;'>YES (Correct)</span>" : "<span style='color:red; font-weight:bold;'>NO (Server thinks they have time left)</span>") . "<br><br>";
+
+    // 3. Check Session Availability (The "0 Users" Mystery)
+    echo "<h3>Checking Active Session...</h3>";
+    
+    // Standard Query
+    $session = \DB::table('radacct')
+        ->where('username', $targetUser)
+        ->whereNull('acctstoptime')
+        ->first();
+
+    if ($session) {
+        echo "✅ Found active session for '$targetUser'.<br>";
+        echo "MAC Address: " . $session->callingstationid . "<br>";
+    } else {
+        echo "❌ <b>NO active session found using standard query.</b><br>";
+        echo "Possible Cause: Username case mismatch or Collation issue.<br>";
+        
+        // Try the "Raw" query to see if it finds it loosely
+        $looseSession = \DB::table('radacct')
+            ->whereRaw('username = ?', [$targetUser])
+            ->whereNull('acctstoptime')
+            ->first();
+            
+        if ($looseSession) {
+            echo "⚠️ BUT found one using Raw SQL! This confirms a Collation/Case sensitivity bug.<br>";
+        }
+    }
+});
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', \App\Http\Livewire\UserDashboard::class)->name('dashboard');
     Route::get('/dashboard/realtime-data', [DashboardController::class, 'getRealtimeData'])->name('dashboard.realtime');
