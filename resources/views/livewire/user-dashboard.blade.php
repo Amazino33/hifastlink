@@ -165,11 +165,17 @@
                                         </button>
                                     </form>
                                 @else
-                                    <!-- Connect button (shown if subscription is active) -->
+                                    <!-- Connect button (shown if subscription is active and device limit not reached) -->
                                     @if($subscriptionStatus === 'active')
-                                        <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="w-full sm:w-auto inline-block text-center px-4 py-2 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-blue-600">
-                                            <i class="fa-solid fa-wifi mr-1"></i>Connect to Router
-                                        </a>
+                                        @if($connectedDevices < $maxDevices)
+                                            <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self" class="w-full sm:w-auto inline-block text-center px-4 py-2 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-blue-600">
+                                                <i class="fa-solid fa-wifi mr-1"></i>Connect to Router
+                                            </a>
+                                        @else
+                                            <span class="w-full sm:w-auto inline-block text-center px-4 py-2 text-xs font-semibold rounded-lg bg-gray-500/50 text-white/70 cursor-not-allowed shadow-lg">
+                                                <i class="fa-solid fa-ban mr-1"></i>Device Limit Reached
+                                            </span>
+                                        @endif
                                     @else
                                         <a href="#hot-deals" class="w-full sm:w-auto inline-block text-center px-4 py-2 text-xs font-semibold rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105">
                                             <i class="fa-solid fa-shopping-cart mr-1"></i>Subscribe Now
