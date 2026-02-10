@@ -24,11 +24,10 @@ class NetworkController extends Controller
         $updateData = [
             'acctstoptime' => now(),
             'acctterminatecause' => 'Admin-Reset',
-            'acctstopdelay' => 0,
         ];
 
         // Local force-close helper to prevent zombie sessions when router is unreachable
-        $forceCloseSession = function () use ($username, $mac) {
+        $forceCloseSession = function () use ($username, $mac, $updateData) {
             $query = DB::table('radacct')
                 ->where('username', $username)
                 ->whereNull('acctstoptime');
@@ -37,11 +36,7 @@ class NetworkController extends Controller
                 $query->where('callingstationid', $mac);
             }
 
-            $query->update([
-                'acctstoptime' => now(),
-                'acctterminatecause' => 'Admin-Reset',
-                'acctstopdelay' => 0,
-            ]);
+            $query->update($updateData);
         };
 
         $timeoutSeconds = (int) (config('services.radius.disconnect_timeout', 3));
