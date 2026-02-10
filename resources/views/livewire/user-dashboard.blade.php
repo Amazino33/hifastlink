@@ -6,6 +6,9 @@
                 <h1 class="text-3xl font-black text-gray-900 dark:text-white mb-2">
                     Hi, {{ $user->name }} 👋
                 </h1>
+                <div style="background: yellow; color: black; padding: 10px; text-align: center; font-weight: bold;">
+                    DEBUG MAC: {{ session('current_device_mac') ?? 'NO MAC FOUND' }}
+                </div>
                 <p class="text-gray-600 dark:text-gray-400">Welcome back to your dashboard</p>
                 @if($thisDeviceConnected)
                     <div class="flex items-center space-x-3 mt-2">
