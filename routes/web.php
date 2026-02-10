@@ -37,6 +37,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Disconnect from router
     Route::get('/disconnect-bridge', [\App\Http\Controllers\HotspotController::class, 'disconnectBridge'])->name('disconnect.bridge')->middleware(['auth','web']);
 
+    // Server-side disconnect to avoid router dependency
+    Route::post('/user/disconnect', [\App\Http\Controllers\NetworkController::class, 'disconnectUser'])->name('user.disconnect')->middleware(['auth','web']);
+
     // Build GET-based router login link and return it to client
     Route::post('/dashboard/connect', [DashboardController::class, 'connectToRouter'])->name('dashboard.connect')->middleware(['auth','web']);
     Route::get('/family', \App\Http\Livewire\FamilyManager::class)->name('family');
