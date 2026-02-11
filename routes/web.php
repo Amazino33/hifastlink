@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\RouterController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\AdminController;
 use App\Models\RadCheck;
 use App\Http\Controllers\StatsController;
 
@@ -142,6 +143,11 @@ Route::get('/payment/callback', [PaymentController::class, 'handleGatewayCallbac
 Route::get('/api/admin/stats', [StatsController::class, 'getStats'])
     ->middleware(['auth', 'verified', 'admin'])
     ->name('api.admin.stats');
+
+// Admin dashboard route
+Route::get('/admin/dashboard', [AdminController::class, 'dashboard'])
+    ->middleware(['auth', 'verified', 'admin'])
+    ->name('admin.dashboard');
 
 // Admin route: download generated router configuration
 Route::get('/admin/routers/{router}/download-config', [RouterController::class, 'downloadConfig'])
