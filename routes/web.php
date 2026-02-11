@@ -7,6 +7,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\RouterController;
 use App\Http\Controllers\PageController;
 use App\Models\RadCheck;
+use App\Http\Controllers\StatsController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -136,6 +137,11 @@ Route::get('/clear-config', function () {
 
 // Paystack callback (public - Paystack redirects the browser back here)
 Route::get('/payment/callback', [PaymentController::class, 'handleGatewayCallback'])->name('payment.callback');
+
+// Admin stats JSON endpoint for PWA
+Route::get('/api/admin/stats', [StatsController::class, 'getStats'])
+    ->middleware(['auth', 'verified', 'admin'])
+    ->name('api.admin.stats');
 
 // Admin route: download generated router configuration
 Route::get('/admin/routers/{router}/download-config', [RouterController::class, 'downloadConfig'])

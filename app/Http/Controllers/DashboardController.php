@@ -121,6 +121,11 @@ class DashboardController extends Controller
             $dataUsagePercentage = ($sessionData['data_used'] / $sessionData['limit_bytes']) * 100;
             $dataUsagePercentage = min($dataUsagePercentage, 100); // Cap at 100%
         }
+
+        $allRouters = Router::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
         
         return view('dashboard', [
             // Subscription Info
@@ -151,6 +156,7 @@ class DashboardController extends Controller
             'connectUrl' => $this->routerLoginUrl(),
             'routerLocation' => $routerLocation,
             'currentLocation' => $currentLocation,
+            'allRouters' => $allRouters,
         ]);
     }
 
