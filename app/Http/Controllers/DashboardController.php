@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use App\Models\RadCheck;
 use App\Models\RadAcct;
+use App\Models\Router;
 
 class DashboardController extends Controller
 {
@@ -21,6 +22,22 @@ class DashboardController extends Controller
             session(['current_device_mac' => $request->input('mac')]);
         }
         $currentMac = session('current_device_mac');
+
+        // 1b) Router identity capture: read ?router=... and store in session
+        if ($request->has('router')) {
+            session(['current_router_id' => $request->input('router')]);
+        }
+
+        // Use stored router identity (from session) to find router location
+        $routerLookupColumn = Schema::hasColumn('routers', 'identity') ? 'identity' : 'nas_identifier';
+
+        $currentRouterIdentity = session('current_router_id');
+        $currentRouter = $currentRouterIdentity
+            ? Router::where($routerLookupColumn, $currentRouterIdentity)->first()
+            : null;
+        $currentLocation = $currentRouter
+            ? ($currentRouter->location ?: ($currentRouter->name ?: 'Unknown Location'))
+            : 'Unknown Location';
 
         // 2) Device status: check active RADIUS session for this MAC
         $activeSessionsQuery = RadAcct::where('username', $user->username)
@@ -46,14 +63,14 @@ class DashboardController extends Controller
                 
                 // Try to match by NAS identifier first (most reliable)
                 if (!empty($activeSession->nasidentifier)) {
-                    $router = \App\Models\Router::where('identity', $activeSession->nasidentifier)
+                    $router = Router::where($routerLookupColumn, $activeSession->nasidentifier)
                         ->where('is_active', true)
                         ->first();
                 }
                 
                 // Fall back to IP address matching
                 if (!$router && !empty($activeSession->nasipaddress)) {
-                    $router = \App\Models\Router::where('ip_address', $activeSession->nasipaddress)
+                    $router = Router::where('ip_address', $activeSession->nasipaddress)
                         ->where('is_active', true)
                         ->first();
                 }
@@ -133,6 +150,7 @@ class DashboardController extends Controller
             'activeSessionCount' => $activeSessionCount,
             'connectUrl' => $this->routerLoginUrl(),
             'routerLocation' => $routerLocation,
+            'currentLocation' => $currentLocation,
         ]);
     }
 

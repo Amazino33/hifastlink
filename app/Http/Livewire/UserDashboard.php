@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Models\Plan;
 use App\Models\RadAcct;
 use App\Models\Payment;
@@ -183,6 +184,11 @@ class UserDashboard extends Component
         }
         $currentMac = session('current_device_mac');
 
+        // Router identity capture (from redirect): store ?router=... in session
+        if (request()->has('router')) {
+            session(['current_router_id' => request('router')]);
+        }
+
         $activeSessions = RadAcct::where('username', $user->username)
             ->whereNull('acctstoptime')
             ->get();
@@ -198,10 +204,21 @@ class UserDashboard extends Component
                 ->exists();
         }
         
-        // Get current router location
+        // Get current router location (prefer router identity from session when present)
         $currentLocation = null;
         $currentRouter = null;
-        if ($activeSession) {
+
+        $currentRouterIdentity = session('current_router_id');
+        if ($currentRouterIdentity) {
+            $routerLookupColumn = Schema::hasColumn('routers', 'identity') ? 'identity' : 'nas_identifier';
+            $routerFromParam = \App\Models\Router::where($routerLookupColumn, $currentRouterIdentity)->first();
+            if ($routerFromParam) {
+                $currentRouter = $routerFromParam;
+                $currentLocation = $routerFromParam->location ?: ($routerFromParam->name ?: 'Unknown Location');
+            }
+        }
+
+        if (! $currentLocation && $activeSession) {
             // Try to find router by multiple criteria
             $router = null;
             
@@ -240,6 +257,10 @@ class UserDashboard extends Component
                 // Fallback to IP if router not found in database
                 $currentLocation = 'Router: ' . ($activeSession->nasipaddress ?? 'Unknown');
             }
+        }
+
+        if (! $currentLocation) {
+            $currentLocation = 'Unknown Location';
         }
 
         // Determine subscription status from the prioritized current plan

@@ -137,11 +137,11 @@ class FamilyManager extends Component
         $member = User::find($memberId);
 
         if ($member && $member->parent_id === Auth::id()) {
-            $member->delete(); // Soft delete instead of hard delete
+            $member->update(['parent_id' => null]); // Unlink from family instead of deleting
 
             Notification::make()
-                ->title('Family Member Removed')
-                ->body("{$member->name} has been removed from your family.")
+                ->title('Member Removed')
+                ->body("{$member->name} has been removed from your family successfully.")
                 ->success()
                 ->send();
         }
