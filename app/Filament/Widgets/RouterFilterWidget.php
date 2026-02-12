@@ -7,7 +7,7 @@ use App\Models\Router;
 
 class RouterFilterWidget extends Widget
 {
-    protected static string $view = 'filament.widgets.router-filter-widget';
+    protected string $view = 'filament.widgets.router-filter-widget';
 
     public function getViewData(): array
     {
