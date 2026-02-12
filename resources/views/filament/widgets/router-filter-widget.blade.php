@@ -1,22 +1,24 @@
 <div class="mb-4">
     <div class="d-flex overflow-auto pb-2 mb-2 no-scrollbar">
         <button class="btn btn-sm me-2 filter-chip {{ $currentRouter === 'all' ? 'btn-primary shadow-sm text-white' : 'btn-light text-dark border-0' }}"
-                data-router-id="all"
-                onclick="onRouterChipClick(this)">
+                data-router-id="all">
             All Locations
         </button>
 
         @foreach($allRouters as $router)
             @php $id = $router->ip_address ?? ($router->nas_identifier ?? $router->identity); @endphp
             <button class="btn btn-sm me-2 filter-chip {{ $currentRouter == $id ? 'btn-primary shadow-sm text-white' : 'btn-light text-dark border-0' }}"
-                    data-router-id="{{ $id }}"
-                    onclick="onRouterChipClick(this)">
+                    data-router-id="{{ $id }}">
                 {{ $router->name ?? $id }}
             </button>
         @endforeach
 
 <script>
-    function onRouterChipClick(el) {
+    // Delegated click handler for filter chips (robust when widgets load dynamically)
+    document.addEventListener('click', function (e) {
+        const el = e.target.closest && e.target.closest('.filter-chip');
+        if (!el) return;
+
         // Visual toggle
         document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('btn-primary','shadow-sm','text-white'));
         el.classList.add('btn-primary','shadow-sm','text-white');
@@ -37,7 +39,7 @@
                 }
             })
             .catch(e => console.error('Failed to fetch stats', e));
-    }
+    });
 </script>
     </div>
 </div>
