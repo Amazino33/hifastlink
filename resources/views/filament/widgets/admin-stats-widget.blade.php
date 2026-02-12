@@ -20,16 +20,3 @@
     </div>
 </div>
 
-<script>
-    // Provide a global function so RouterFilterWidget can call it to update stats
-    function updateFilamentStats(data) {
-        if (document.getElementById('filament-stat-online-users'))
-            document.getElementById('filament-stat-online-users').innerText = data.online_users;
-        if (document.getElementById('filament-stat-revenue'))
-            document.getElementById('filament-stat-revenue').innerText = '₦' + new Intl.NumberFormat().format(data.today_revenue);
-        if (document.getElementById('filament-stat-subscribers'))
-            document.getElementById('filament-stat-subscribers').innerText = data.active_subscribers;
-        if (document.getElementById('filament-stat-data-usage'))
-            document.getElementById('filament-stat-data-usage').innerText = data.data_consumed;
-    }
-</script>
