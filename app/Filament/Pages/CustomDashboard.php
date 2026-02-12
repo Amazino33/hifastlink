@@ -3,10 +3,11 @@
 namespace App\Filament\Pages;
 
 use Filament\Pages\Dashboard as BaseDashboard;
+use BackedEnum;
 
 class CustomDashboard extends BaseDashboard
 {
-    protected static ?string $navigationIcon = 'heroicon-o-home';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-home';
 
     protected static string $view = 'filament.pages.custom-dashboard';
 
@@ -18,7 +19,7 @@ class CustomDashboard extends BaseDashboard
         ];
     }
 
-    public function getColumns(): int|string|array
+    public function getColumns(): int|array
     {
         return 1;
     }
