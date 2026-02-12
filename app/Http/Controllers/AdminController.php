@@ -8,10 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 class AdminController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('admin'); // You'll need to create admin middleware
-    }
+    // Middleware is applied in routes/web.php
 
     public function dashboard()
     {
