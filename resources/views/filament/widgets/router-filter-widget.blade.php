@@ -14,10 +14,12 @@
         @endforeach
 
 <script>
+    console.log("Router filter widget script loaded");
     // Delegated click handler for filter chips (robust when widgets load dynamically)
     document.addEventListener('click', function (e) {
         const el = e.target.closest && e.target.closest('.filter-chip');
         if (!el) return;
+        console.log("Click detected on filter chip", el);
 
         // Visual toggle
         document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('btn-primary','shadow-sm','text-white'));
