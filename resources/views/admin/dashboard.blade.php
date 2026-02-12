@@ -4,6 +4,28 @@
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
         </div>
 
+        <div class="d-flex overflow-auto pb-2 mb-4 no-scrollbar align-items-center">
+            <span class="text-muted fw-bold me-2 small">FILTER:</span>
+            
+            <button class="btn btn-primary rounded-pill me-2 px-3 filter-chip shadow-sm" 
+                    onclick="fetchStats('all', this)">
+                All Locations
+            </button>
+
+            @foreach($allRouters as $router)
+                <button class="btn btn-light btn-outline-secondary border-0 rounded-pill me-2 px-3 filter-chip" 
+                        onclick="fetchStats('{{ $router->ip_address }}', this)">
+                    {{ $router->name ?? $router->identity }}
+                </button>
+            @endforeach
+        </div>
+
+        <style>
+            /* Hide scrollbar for PWA feel */
+            .no-scrollbar::-webkit-scrollbar { display: none; }
+            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        </style>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5">
                 <div class="text-sm text-gray-500 dark:text-gray-400">Online Users</div>
@@ -65,44 +87,46 @@
 
     <script>
         function fetchStats(routerId, btnElement) {
-            // 1. Visual Feedback (Toggle Active State)
+            // 1. Visual Switch (PWA Feel)
+            // Reset all buttons to 'inactive' style
             document.querySelectorAll('.filter-chip').forEach(el => {
-                el.classList.remove('active', 'btn-primary');
-                el.classList.add('btn-outline-secondary');
+                el.classList.remove('btn-primary', 'shadow-sm', 'text-white');
+                el.classList.add('btn-light', 'text-dark', 'border-0');
             });
-
-            // Highlight the clicked button
+            
+            // Set clicked button to 'active' style
             if (btnElement) {
-                btnElement.classList.add('active', 'btn-primary');
-                btnElement.classList.remove('btn-outline-secondary');
+                btnElement.classList.remove('btn-light', 'text-dark', 'border-0');
+                btnElement.classList.add('btn-primary', 'shadow-sm', 'text-white');
             }
 
-            // 2. Show Loading State
-            const container = document.getElementById('stats-container');
-            if (container) container.style.opacity = '0.5';
+            // 2. Visual Feedback (Opacity)
+            const statsContainer = document.getElementById('stats-container');
+            if (statsContainer) statsContainer.style.opacity = '0.5';
 
-            // 3. Fetch Data via API
+            // 3. Fetch Data (AJAX)
             fetch(`{{ route('api.admin.stats') }}?router_id=${routerId}`)
-                .then(response => response.json())
+                .then(res => res.json())
                 .then(data => {
-                    // 4. Update Numbers (with formatting)
-                    if (document.getElementById('stat-online-users'))
+                    // Update the DOM elements
+                    if (document.getElementById('stat-online-users')) 
                         document.getElementById('stat-online-users').innerText = data.online_users;
-
-                    if (document.getElementById('stat-revenue'))
+                    
+                    if (document.getElementById('stat-revenue')) 
                         document.getElementById('stat-revenue').innerText = '₦' + new Intl.NumberFormat().format(data.today_revenue);
-
-                    if (document.getElementById('stat-subscribers'))
+                    
+                    if (document.getElementById('stat-subscribers')) 
                         document.getElementById('stat-subscribers').innerText = data.active_subscribers;
-
-                    if (document.getElementById('stat-data-usage'))
+                    
+                    if (document.getElementById('stat-data-usage')) 
                         document.getElementById('stat-data-usage').innerText = data.data_consumed;
 
-                    if (container) container.style.opacity = '1';
+                    // Restore Opacity
+                    if (statsContainer) statsContainer.style.opacity = '1';
                 })
-                .catch(error => {
-                    console.error('Error fetching stats:', error);
-                    if (container) container.style.opacity = '1';
+                .catch(err => {
+                    console.error(err);
+                    if (statsContainer) statsContainer.style.opacity = '1';
                 });
         }
     </script>

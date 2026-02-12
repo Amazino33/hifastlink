@@ -29,7 +29,12 @@ class AdminController extends Controller
                              ->limit(10)
                              ->get();
 
-        return view('admin.dashboard', compact('stats', 'recent_sessions'));
+        // Provide available routers for the PWA-style filter bar
+        $allRouters = \App\Models\Router::where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.dashboard', compact('stats', 'recent_sessions', 'allRouters'));
     }
 
     public function users()
