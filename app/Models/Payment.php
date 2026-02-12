@@ -15,7 +15,13 @@ class Payment extends Model
         'amount',
         'plan_name',
         'status',
+        'router_id',
     ];
+
+    public function router()
+    {
+        return $this->belongsTo(\App\Models\Router::class, 'router_id');
+    }
 
     public function user()
     {

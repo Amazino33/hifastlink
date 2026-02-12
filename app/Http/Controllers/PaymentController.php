@@ -13,6 +13,7 @@ use Illuminate\Support\Number;
 use App\Models\RadCheck;
 use App\Models\RadUserGroup;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class PaymentController extends Controller
 {
@@ -143,11 +144,21 @@ class PaymentController extends Controller
             ]);
 
             // Record the payment even for queued plans
+            // Resolve router from session (if present)
+            $routerId = null;
+            $routerIdentity = session('current_router_id');
+            if ($routerIdentity) {
+                $routerLookup = Schema::hasColumn('routers', 'identity') ? 'identity' : 'nas_identifier';
+                $r = \App\Models\Router::where($routerLookup, $routerIdentity)->orWhere('ip_address', $routerIdentity)->first();
+                $routerId = $r?->id;
+            }
+
             Payment::create([
                 'user_id' => $user->id,
                 'reference' => $data['reference'],
                 'amount' => $data['amount'] / 100, // Convert Kobo to Naira
                 'plan_name' => $plan->name,
+                'router_id' => $routerId,
             ]);
  
             // Also create transaction record
@@ -159,6 +170,7 @@ class PaymentController extends Controller
                 'status' => 'success',
                 'gateway' => 'paystack',
                 'paid_at' => now(),
+                'router_id' => $routerId,
             ]);
 
             // RADIUS sync logic

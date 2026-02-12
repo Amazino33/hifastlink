@@ -18,7 +18,16 @@ class Transaction extends Model
         'status',
         'gateway',
         'paid_at',
+        'router_id',
     ];
+
+    /**
+     * Router relationship
+     */
+    public function router()
+    {
+        return $this->belongsTo(\App\Models\Router::class, 'router_id');
+    }
 
     protected $casts = [
         'amount' => 'decimal:2',

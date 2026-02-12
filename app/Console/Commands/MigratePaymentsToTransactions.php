@@ -46,6 +46,7 @@ class MigratePaymentsToTransactions extends Command
                     'status' => 'success',
                     'gateway' => 'paystack', // Assuming payments are from paystack
                     'paid_at' => $payment->created_at,
+                    'router_id' => $payment->router_id ?? null,
                 ]);
 
                 $migrated++;
