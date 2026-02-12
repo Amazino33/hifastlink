@@ -30,15 +30,45 @@
         url.searchParams.set('router_id', routerId);
         window.history.replaceState({}, '', url.toString());
 
-        // Fetch stats and update Filament widgets
-        fetch(`{{ route('api.admin.stats') }}?router_id=${encodeURIComponent(routerId)}`)
-            .then(r => r.json())
+        // Fetch stats and update Filament widgets (with logging & fallback)
+        const apiUrl = `{{ route('api.admin.stats') }}?router_id=${encodeURIComponent(routerId)}`;
+        console.debug('[router-filter] fetching stats for', routerId, apiUrl);
+
+        fetch(apiUrl)
+            .then(r => {
+                console.debug('[router-filter] response status', r.status);
+                if (!r.ok) throw new Error('Non-OK response: ' + r.status);
+                return r.json();
+            })
             .then(data => {
+                console.debug('[router-filter] stats payload', data);
+
+                // Prefer widget updater when available
                 if (typeof updateFilamentStats === 'function') {
                     updateFilamentStats(data);
+                    return;
+                }
+
+                // Fallback: update DOM elements directly
+                if (document.getElementById('filament-stat-online-users')) {
+                    document.getElementById('filament-stat-online-users').innerText = data.online_users ?? '0';
+                }
+                if (document.getElementById('filament-stat-revenue')) {
+                    document.getElementById('filament-stat-revenue').innerText = '₦' + (data.today_revenue ? new Intl.NumberFormat().format(data.today_revenue) : '0');
+                }
+                if (document.getElementById('filament-stat-subscribers')) {
+                    document.getElementById('filament-stat-subscribers').innerText = data.active_subscribers ?? '0';
+                }
+                if (document.getElementById('filament-stat-data-usage')) {
+                    document.getElementById('filament-stat-data-usage').innerText = data.data_consumed ?? '0 B';
                 }
             })
-            .catch(e => console.error('Failed to fetch stats', e));
+            .catch(err => {
+                console.error('[router-filter] Failed to fetch/update stats:', err);
+                // show a subtle visual feedback on failure
+                el.classList.add('ring-2','ring-red-400');
+                setTimeout(() => el.classList.remove('ring-2','ring-red-400'), 1500);
+            });
     });
 </script>
     </div>
