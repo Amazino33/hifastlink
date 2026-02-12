@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Schema;
 
 class AdminStatsWidget extends Widget
 {
-    protected static string $view = 'filament.widgets.admin-stats-widget';
+    protected string $view = 'filament.widgets.admin-stats-widget';
 
     protected static string|int|array $columnSpan = 'full';
 
