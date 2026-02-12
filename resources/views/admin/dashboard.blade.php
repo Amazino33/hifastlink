@@ -4,17 +4,17 @@
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
         </div>
 
-        <div class="d-flex overflow-auto pb-2 mb-4 no-scrollbar align-items-center">
-            <span class="text-muted fw-bold me-2 small">FILTER:</span>
-            
-            <button class="btn btn-primary rounded-pill me-2 px-3 filter-chip shadow-sm" 
-                    onclick="fetchStats('all', this)">
+        <div class="overflow-auto pb-2 mb-4 no-scrollbar flex items-center">
+            <span class="text-sm text-gray-500 font-semibold mr-3">FILTER:</span>
+
+            <button class="filter-chip inline-flex items-center px-4 py-2 rounded-full text-sm bg-blue-600 text-white shadow ring-2 ring-blue-200 mr-2"
+                    data-router-id="all">
                 All Locations
             </button>
 
             @foreach($allRouters as $router)
-                <button class="btn btn-light btn-outline-secondary border-0 rounded-pill me-2 px-3 filter-chip" 
-                        onclick="fetchStats('{{ $router->ip_address }}', this)">
+                <button class="filter-chip inline-flex items-center px-4 py-2 rounded-full text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 mr-2"
+                        data-router-id="{{ $router->ip_address }}">
                     {{ $router->name ?? $router->identity }}
                 </button>
             @endforeach

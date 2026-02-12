@@ -300,9 +300,9 @@
                 const el = e.target.closest && e.target.closest('.filter-chip');
                 if (!el) return;
 
-                // Visual toggle
-                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('btn-primary','shadow-sm','text-white'));
-                el.classList.add('btn-primary','shadow-sm','text-white');
+                // Visual toggle (tailwind classes)
+                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('bg-blue-600','text-white','ring-2','shadow'));
+                el.classList.add('bg-blue-600','text-white','ring-2','shadow');
 
                 const routerId = el.dataset.routerId || 'all';
 
