@@ -15,7 +15,7 @@ class RadAcct extends Model
         'acctsessiontime', 'acctauthentic', 'connectinfo_start', 'connectinfo_stop',
         'acctinputoctets', 'acctoutputoctets', 'calledstationid', 'callingstationid',
         'acctterminatecause', 'servicetype', 'framedprotocol', 'framedipaddress',
-        'acctupdatetime'
+        'acctupdatetime', 'nas_identifier'
     ];
     public $timestamps = false;
 

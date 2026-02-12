@@ -44,8 +44,8 @@ class AdminStats extends Component
         if ($router) {
             $activeSessionsQuery->where(function ($q) use ($router) {
                 $q->where('nasipaddress', $router->ip_address)
-                  ->orWhere('nasidentifier', $router->nas_identifier)
-                  ->orWhere('nasidentifier', $router->identity ?? '');
+                  ->orWhere('nas_identifier', $router->nas_identifier)
+                  ->orWhere('nas_identifier', $router->identity ?? '');
             });
         }
         $this->onlineUsers = $activeSessionsQuery->distinct('username')->count('username');
@@ -62,8 +62,8 @@ class AdminStats extends Component
             } else {
                 $usernames = RadAcct::where(function($q) use ($router){
                     $q->where('nasipaddress', $router->ip_address)
-                      ->orWhere('nasidentifier', $router->nas_identifier)
-                      ->orWhere('nasidentifier', $router->identity ?? '');
+                      ->orWhere('nas_identifier', $router->nas_identifier)
+                      ->orWhere('nas_identifier', $router->identity ?? '');
                 })->distinct('username')->pluck('username');
 
                 if ($usernames->isNotEmpty()) {
@@ -79,8 +79,8 @@ class AdminStats extends Component
         if ($router) {
             $dataConsumedQuery->where(function ($q) use ($router) {
                 $q->where('nasipaddress', $router->ip_address)
-                  ->orWhere('nasidentifier', $router->nas_identifier)
-                  ->orWhere('nasidentifier', $router->identity ?? '');
+                  ->orWhere('nas_identifier', $router->nas_identifier)
+                  ->orWhere('nas_identifier', $router->identity ?? '');
             });
         }
         $dataConsumedBytes = (int) $dataConsumedQuery->sum(DB::raw('COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)'));
