@@ -49,12 +49,12 @@
         </div>
     </div>
 
-    <div class="relative block h-full rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+    {{-- <div class="relative block h-full rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
         <div class="grid gap-y-2">
             <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Current Router</div>
             <div class="text-3xl font-semibold tracking-tight text-gray-950 dark:text-white">{{ $currentRouter === 'all' ? 'All Locations' : $currentRouter }}</div>
         </div>
-    </div>
+    </div> --}}
 </div>
 
 @if(!empty($recentSessions))

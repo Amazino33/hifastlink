@@ -39,9 +39,14 @@
     @if($currentRouterModel)
         <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div class="flex items-center justify-between mb-2">
-                <h3 class="text-lg font-semibold text-blue-900">
-                    Current Router: {{ $currentRouterModel->name ?? $currentRouterModel->nas_identifier }}
-                </h3>
+                <div>
+                    <h3 class="text-lg font-semibold text-blue-900">
+                        {{ $currentRouterModel->name ?? 'Unnamed Router' }}
+                    </h3>
+                    <p class="text-sm text-blue-700 font-medium">
+                        NAS ID: {{ $currentRouterModel->nas_identifier }}
+                    </p>
+                </div>
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                     {{ $currentRouterModel->is_online ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
                     {{ $currentRouterModel->is_online ? 'Online' : 'Offline' }}
