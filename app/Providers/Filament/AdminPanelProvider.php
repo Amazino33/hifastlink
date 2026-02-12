@@ -36,16 +36,13 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
-                Dashboard::class,
+                \App\Filament\Pages\CustomDashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
-                \App\Filament\Widgets\RouterFilterWidget::class,
-                \App\Filament\Widgets\AdminStatsWidget::class,
                 AccountWidget::class,
                 FilamentInfoWidget::class,
             ])
-            ->renderHook('panels::body.end', fn () => '<script src="/js/filament-router-filter.js"></script>')
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
