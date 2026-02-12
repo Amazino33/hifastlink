@@ -14,7 +14,7 @@ class AdminStatsWidget extends Widget
 {
     protected string $view = 'filament.widgets.admin-stats-widget';
 
-    protected static string|int|array $columnSpan = 'full';
+    protected string|int|array $columnSpan = 'full';
 
     public function getViewData(): array
     {
