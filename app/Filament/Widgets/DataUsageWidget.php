@@ -14,21 +14,46 @@ class DataUsageWidget extends BaseWidget
 
     protected function getStats(): array
     {
+        $routerId = request()->input('router_id');
+
+        // Build base query for optional router filtering
+        $monthThisQuery = RadAcct::whereMonth('acctstarttime', now()->month)
+            ->whereYear('acctstarttime', now()->year);
+        $monthLastQuery = RadAcct::whereMonth('acctstarttime', now()->subMonth()->month)
+            ->whereYear('acctstarttime', now()->subMonth()->year);
+        $totalDataQuery = RadAcct::query();
+        $activeSessionsQuery = RadAcct::whereNull('acctstoptime');
+
+        if ($routerId && strtolower($routerId) !== 'all') {
+            $monthThisQuery->where(function($q) use ($routerId) {
+                $q->where('nasipaddress', $routerId)
+                  ->orWhere('nasidentifier', $routerId);
+            });
+            $monthLastQuery->where(function($q) use ($routerId) {
+                $q->where('nasipaddress', $routerId)
+                  ->orWhere('nasidentifier', $routerId);
+            });
+            $totalDataQuery->where(function($q) use ($routerId) {
+                $q->where('nasipaddress', $routerId)
+                  ->orWhere('nasidentifier', $routerId);
+            });
+            $activeSessionsQuery->where(function($q) use ($routerId) {
+                $q->where('nasipaddress', $routerId)
+                  ->orWhere('nasidentifier', $routerId);
+            });
+        }
+
         // Total data usage this month
-        $dataThisMonth = RadAcct::whereMonth('acctstarttime', now()->month)
-            ->whereYear('acctstarttime', now()->year)
-            ->sum(DB::raw('acctinputoctets + acctoutputoctets'));
+        $dataThisMonth = $monthThisQuery->sum(DB::raw('acctinputoctets + acctoutputoctets'));
 
         // Total data usage last month
-        $dataLastMonth = RadAcct::whereMonth('acctstarttime', now()->subMonth()->month)
-            ->whereYear('acctstarttime', now()->subMonth()->year)
-            ->sum(DB::raw('acctinputoctets + acctoutputoctets'));
+        $dataLastMonth = $monthLastQuery->sum(DB::raw('acctinputoctets + acctoutputoctets'));
 
         // Total data usage all time
-        $totalData = RadAcct::sum(DB::raw('acctinputoctets + acctoutputoctets'));
+        $totalData = $totalDataQuery->sum(DB::raw('acctinputoctets + acctoutputoctets'));
 
         // Active sessions count
-        $activeSessions = RadAcct::whereNull('acctstoptime')->count();
+        $activeSessions = $activeSessionsQuery->count();
 
         // Calculate growth
         $growthPercentage = $dataLastMonth > 0 

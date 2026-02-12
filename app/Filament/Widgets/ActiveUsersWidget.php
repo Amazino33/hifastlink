@@ -17,8 +17,18 @@ class ActiveUsersWidget extends BaseWidget
         // Total users count
         $totalUsers = User::count();
 
+        $routerId = request()->input('router_id');
+
         // Currently online users (active sessions)
-        $onlineUsers = RadAcct::whereNull('acctstoptime')
+        $onlineUsersQuery = RadAcct::whereNull('acctstoptime');
+        if ($routerId && strtolower($routerId) !== 'all') {
+            $onlineUsersQuery->where(function($q) use ($routerId) {
+                $q->where('nasipaddress', $routerId)
+                  ->orWhere('nasidentifier', $routerId);
+            });
+        }
+
+        $onlineUsers = $onlineUsersQuery
             ->distinct('username')
             ->count('username');
 
