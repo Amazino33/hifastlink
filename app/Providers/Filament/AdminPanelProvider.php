@@ -45,9 +45,7 @@ class AdminPanelProvider extends PanelProvider
                 AccountWidget::class,
                 FilamentInfoWidget::class,
             ])
-            ->scripts([
-                'js/filament-router-filter.js',
-            ])
+            ->renderHook('panels::body.end', fn () => '<script src="/js/filament-router-filter.js"></script>')
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
