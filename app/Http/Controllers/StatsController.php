@@ -14,23 +14,24 @@ class StatsController extends Controller
 {
     public function getStats(Request $request)
     {
-        $routerParam = $request->input('router_id');
-        $router = null;
+        try {
+            $routerParam = $request->input('router_id');
+            $router = null;
 
-        if ($routerParam && strtolower($routerParam) !== 'all') {
-            // If numeric, assume router ID (FK)
-            if (is_numeric($routerParam)) {
-                $router = \App\Models\Router::find((int) $routerParam);
-            }
+            if ($routerParam && strtolower($routerParam) !== 'all') {
+                // If numeric, assume router ID (FK)
+                if (is_numeric($routerParam)) {
+                    $router = \App\Models\Router::find((int) $routerParam);
+                }
 
-            // Otherwise try to resolve by ip/identifier/identity
-            if (! $router) {
-                $lookupCol = Schema::hasColumn('routers', 'identity') ? 'identity' : 'nas_identifier';
-                $router = \App\Models\Router::where('ip_address', $routerParam)
-                    ->orWhere($lookupCol, $routerParam)
-                    ->first();
+                // Otherwise try to resolve by ip/identifier/identity
+                if (! $router) {
+                    $lookupCol = Schema::hasColumn('routers', 'identity') ? 'identity' : 'nas_identifier';
+                    $router = \App\Models\Router::where('ip_address', $routerParam)
+                        ->orWhere($lookupCol, $routerParam)
+                        ->first();
+                }
             }
-        }
 
         $activeSessionsQuery = RadAcct::query()->whereNull('acctstoptime');
         if ($router) {
@@ -101,5 +102,9 @@ class StatsController extends Controller
         ];
 
         return response()->json($stats);
+        } catch (\Exception $e) {
+            \Log::error('Stats API error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 }

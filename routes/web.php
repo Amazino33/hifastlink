@@ -141,7 +141,7 @@ Route::get('/payment/callback', [PaymentController::class, 'handleGatewayCallbac
 
 // Admin stats JSON endpoint for PWA
 Route::get('/api/admin/stats', [StatsController::class, 'getStats'])
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth'])
     ->name('api.admin.stats');
 
 // Admin dashboard route
