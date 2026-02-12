@@ -154,6 +154,15 @@ Route::get('/admin/routers/{router}/download-config', [RouterController::class, 
     ->middleware(['auth', 'verified', 'admin'])
     ->name('router.download');
 
+// Admin UI to review & assign unmatched router refs
+Route::get('/admin/unmatched-router-refs', [\App\Http\Controllers\AdminRouterController::class, 'index'])
+    ->middleware(['auth', 'verified', 'admin'])
+    ->name('admin.router.unmatched');
+
+Route::post('/admin/unmatched-router-refs/assign', [\App\Http\Controllers\AdminRouterController::class, 'assign'])
+    ->middleware(['auth', 'verified', 'admin'])
+    ->name('admin.router.assign');
+
 // Diagnostic routes (admin only)
 require __DIR__.'/diagnostic.php';
 

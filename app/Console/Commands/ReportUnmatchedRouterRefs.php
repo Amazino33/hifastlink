@@ -23,6 +23,15 @@ class ReportUnmatchedRouterRefs extends Command
         $this->info("Transactions with null router_id: {$txNull}");
         $this->info("Payments with null router_id: {$payNull}");
 
+        // Basic RADIUS inspection
+        $radacctCount = \App\Models\RadAcct::count();
+        $this->info("RADIUS records count (radacct): {$radacctCount}");
+        $this->info("Sample RADIUS entries:");
+        $sampleRad = \App\Models\RadAcct::orderByDesc('acctstarttime')->limit(5)->get();
+        foreach ($sampleRad as $sr) {
+            $this->line("  session id={$sr->id} username={$sr->username} nasip={$sr->nasipaddress} nasid={$sr->nasidentifier} start={$sr->acctstarttime}");
+        }
+
         if ($txNull > 0) {
             $this->info("Sample transactions (showing nearby RADIUS sessions within ±{$days} days):");
             $rows = Transaction::whereNull('router_id')->orderByDesc('created_at')->limit($sample)->get();
@@ -30,6 +39,15 @@ class ReportUnmatchedRouterRefs extends Command
                 $username = optional($r->user)->username;
                 $this->line("tx id={$r->id} user_id={$r->user_id} username={$username} amount={$r->amount} ref={$r->reference} created_at={$r->created_at}");
                 $this->showNearbySessions($r->created_at, $username, $days);
+
+                // If sessions found but no router matched, show candidate router identifiers present
+                $sessions = \App\Models\RadAcct::whereRaw('LOWER(username) = ?', [mb_strtolower($username)])->whereBetween('acctstarttime', [$r->created_at->copy()->subDays($days), $r->created_at->copy()->addDays($days)])->get();
+                if ($sessions->isNotEmpty()) {
+                    $names = $sessions->pluck('nasidentifier')->filter()->unique()->implode(', ');
+                    $ips = $sessions->pluck('nasipaddress')->filter()->unique()->implode(', ');
+                    $this->line("  Candidate NAS identifiers: {$names}");
+                    $this->line("  Candidate NAS IPs: {$ips}");
+                }
             }
         }
 
@@ -40,6 +58,14 @@ class ReportUnmatchedRouterRefs extends Command
                 $username = optional($r->user)->username;
                 $this->line("pay id={$r->id} user_id={$r->user_id} username={$username} amount={$r->amount} ref={$r->reference} created_at={$r->created_at}");
                 $this->showNearbySessions($r->created_at, $username, $days);
+
+                $sessions = \App\Models\RadAcct::whereRaw('LOWER(username) = ?', [mb_strtolower($username)])->whereBetween('acctstarttime', [$r->created_at->copy()->subDays($days), $r->created_at->copy()->addDays($days)])->get();
+                if ($sessions->isNotEmpty()) {
+                    $names = $sessions->pluck('nasidentifier')->filter()->unique()->implode(', ');
+                    $ips = $sessions->pluck('nasipaddress')->filter()->unique()->implode(', ');
+                    $this->line("  Candidate NAS identifiers: {$names}");
+                    $this->line("  Candidate NAS IPs: {$ips}");
+                }
             }
         }
 
