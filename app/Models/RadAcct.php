@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class RadAcct extends Model
 {
-    protected $connection = 'radius';
+    // protected $connection = 'radius';
     protected $table = 'radacct';
     protected $fillable = [
         'username', 'acctsessionid', 'acctuniqueid', 'realm', 'nasipaddress',

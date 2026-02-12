@@ -17,7 +17,7 @@ class RouterFilter extends Component
     public function selectRouter($routerId)
     {
         $this->selectedRouter = $routerId;
-        $this->dispatch('routerChanged', routerId: $routerId);
+        $this->dispatch('routerChanged', routerId: $routerId)->to(\App\Livewire\AdminStats::class);
     }
 
     public function render()
