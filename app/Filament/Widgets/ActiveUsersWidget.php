@@ -19,12 +19,21 @@ class ActiveUsersWidget extends BaseWidget
 
         $routerId = request()->input('router_id');
 
+        $router = null;
+        if ($routerId && strtolower($routerId) !== 'all') {
+            $router = \App\Models\Router::where('nas_identifier', $routerId)
+                ->orWhere('ip_address', $routerId)
+                ->first();
+        }
+
         // Currently online users (active sessions)
         $onlineUsersQuery = RadAcct::whereNull('acctstoptime');
-        if ($routerId && strtolower($routerId) !== 'all') {
-            $onlineUsersQuery->where(function($q) use ($routerId) {
-                $q->where('nasipaddress', $routerId)
-                  ->orWhere('nasidentifier', $routerId);
+        if ($router) {
+            $onlineUsersQuery->where(function($q) use ($router) {
+                $q->where('nasipaddress', $router->ip_address);
+                if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
+                    $q->orWhere('nasidentifier', $router->nas_identifier);
+                }
             });
         }
 

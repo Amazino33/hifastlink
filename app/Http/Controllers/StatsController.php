@@ -24,11 +24,10 @@ class StatsController extends Controller
                     $router = \App\Models\Router::find((int) $routerParam);
                 }
 
-                // Otherwise try to resolve by ip/identifier/identity
+                // Otherwise try to resolve by nas_identifier first, then ip_address
                 if (! $router) {
-                    $lookupCol = Schema::hasColumn('routers', 'identity') ? 'identity' : 'nas_identifier';
-                    $router = \App\Models\Router::where('ip_address', $routerParam)
-                        ->orWhere($lookupCol, $routerParam)
+                    $router = \App\Models\Router::where('nas_identifier', $routerParam)
+                        ->orWhere('ip_address', $routerParam)
                         ->first();
                 }
             }
@@ -36,9 +35,12 @@ class StatsController extends Controller
         $activeSessionsQuery = RadAcct::query()->whereNull('acctstoptime');
         if ($router) {
             $activeSessionsQuery->where(function ($q) use ($router) {
-                $q->where('nasipaddress', $router->ip_address)
-                  ->orWhere('nasidentifier', $router->nas_identifier)
-                  ->orWhere('nasidentifier', $router->identity ?? '');
+                $q->where('nasipaddress', $router->ip_address);
+
+                if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
+                    $q->orWhere('nasidentifier', $router->nas_identifier)
+                      ->orWhere('nasidentifier', $router->identity ?? '');
+                }
             });
         }
 
@@ -66,9 +68,12 @@ class StatsController extends Controller
             } else {
                 // As fallback, also check RadAcct usernames that have sessions on the router
                 $usernames = RadAcct::where(function($q) use ($router) {
-                    $q->where('nasipaddress', $router->ip_address)
-                      ->orWhere('nasidentifier', $router->nas_identifier)
-                      ->orWhere('nasidentifier', $router->identity ?? '');
+                    $q->where('nasipaddress', $router->ip_address);
+
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
+                        $q->orWhere('nasidentifier', $router->nas_identifier)
+                          ->orWhere('nasidentifier', $router->identity ?? '');
+                    }
                 })->distinct('username')->pluck('username');
 
                 if ($usernames->isNotEmpty()) {
@@ -86,9 +91,12 @@ class StatsController extends Controller
         $dataConsumedQuery = RadAcct::query()->whereDate('acctstarttime', today());
         if ($router) {
             $dataConsumedQuery->where(function ($q) use ($router) {
-                $q->where('nasipaddress', $router->ip_address)
-                  ->orWhere('nasidentifier', $router->nas_identifier)
-                  ->orWhere('nasidentifier', $router->identity ?? '');
+                $q->where('nasipaddress', $router->ip_address);
+
+                if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
+                    $q->orWhere('nasidentifier', $router->nas_identifier)
+                      ->orWhere('nasidentifier', $router->identity ?? '');
+                }
             });
         }
 

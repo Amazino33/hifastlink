@@ -1,6 +1,11 @@
 <div>
 <div class="mb-6">
-    <div class="flex overflow-x-auto pb-2 mb-2 no-scrollbar space-x-2">
+    <div class="flex overflow-x-auto pb-2 mb-2" style="-ms-overflow-style: none; scrollbar-width: none;">
+        <div style="display: none;" class="webkit-scrollbar-hide">
+            <style>
+                .webkit-scrollbar-hide::-webkit-scrollbar { display: none; }
+            </style>
+        </div>
         <button class="filter-chip inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white shadow-sm ring-2 ring-blue-200 transition hover:bg-blue-700 {{ $selectedRouter === 'all' ? 'bg-blue-600 text-white ring-2 ring-blue-200 shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}"
                 wire:click="selectRouter('all')">
             All Locations
@@ -15,12 +20,5 @@
         @endforeach
     </div>
 </div>
-
-@push('styles')
-<style>
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-</style>
-@endpush
 
 </div>

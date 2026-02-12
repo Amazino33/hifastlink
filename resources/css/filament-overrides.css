@@ -1,0 +1,15 @@
+/* Filament admin overrides — NO @tailwind base (preflight) to avoid overriding Filament core styles.
+   Purpose: small app-specific tweaks for Filament widgets without breaking Filament's design system.
+   Rebuild assets with `npm run dev` or `npm run build` after editing. */
+
+/* Import only components and utilities, no base (preflight) */
+@tailwind components;
+@tailwind utilities;
+
+/* Example: make router chips slightly more compact */
+.router-chip {
+  padding: .25rem .5rem;
+  border-radius: .375rem;
+}
+
+/* Add any app-specific utility overrides here (avoid global resets) */

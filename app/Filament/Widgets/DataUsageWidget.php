@@ -16,6 +16,13 @@ class DataUsageWidget extends BaseWidget
     {
         $routerId = request()->input('router_id');
 
+        $router = null;
+        if ($routerId && strtolower($routerId) !== 'all') {
+            $router = \App\Models\Router::where('nas_identifier', $routerId)
+                ->orWhere('ip_address', $routerId)
+                ->first();
+        }
+
         // Build base query for optional router filtering
         $monthThisQuery = RadAcct::whereMonth('acctstarttime', now()->month)
             ->whereYear('acctstarttime', now()->year);
@@ -24,22 +31,33 @@ class DataUsageWidget extends BaseWidget
         $totalDataQuery = RadAcct::query();
         $activeSessionsQuery = RadAcct::whereNull('acctstoptime');
 
-        if ($routerId && strtolower($routerId) !== 'all') {
-            $monthThisQuery->where(function($q) use ($routerId) {
-                $q->where('nasipaddress', $routerId)
-                  ->orWhere('nasidentifier', $routerId);
+        if ($router) {
+            $monthThisQuery->where(function($q) use ($router) {
+                $q->where('nasipaddress', $router->ip_address);
+                if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
+                    $q->orWhere('nasidentifier', $router->nas_identifier);
+                }
             });
-            $monthLastQuery->where(function($q) use ($routerId) {
-                $q->where('nasipaddress', $routerId)
-                  ->orWhere('nasidentifier', $routerId);
+
+            $monthLastQuery->where(function($q) use ($router) {
+                $q->where('nasipaddress', $router->ip_address);
+                if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
+                    $q->orWhere('nasidentifier', $router->nas_identifier);
+                }
             });
-            $totalDataQuery->where(function($q) use ($routerId) {
-                $q->where('nasipaddress', $routerId)
-                  ->orWhere('nasidentifier', $routerId);
+
+            $totalDataQuery->where(function($q) use ($router) {
+                $q->where('nasipaddress', $router->ip_address);
+                if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
+                    $q->orWhere('nasidentifier', $router->nas_identifier);
+                }
             });
-            $activeSessionsQuery->where(function($q) use ($routerId) {
-                $q->where('nasipaddress', $routerId)
-                  ->orWhere('nasidentifier', $routerId);
+
+            $activeSessionsQuery->where(function($q) use ($router) {
+                $q->where('nasipaddress', $router->ip_address);
+                if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
+                    $q->orWhere('nasidentifier', $router->nas_identifier);
+                }
             });
         }
 

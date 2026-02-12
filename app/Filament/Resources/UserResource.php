@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\UserResource\Pages\CreateUser;
+use App\Filament\Resources\UserResource\Pages\EditUser;
+use App\Filament\Resources\UserResource\Pages\ListUsers;
 use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -10,20 +13,20 @@ use Filament\Tables\Actions\DeleteAction;
 use App\Models\RadCheck;
 use App\Models\RadReply;
 use App\Models\RadAcct;
+use Filament\Actions\DeleteAction as ActionsDeleteAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Forms\Form;
 use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Fieldset;
-use Illuminate\Support\Number;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use App\Filament\Resources\UserResource\Pages;
-use Filament\Actions\DeleteAction as ActionsDeleteAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Fieldset as ComponentsFieldset;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Number;
 use UnitEnum;
 
 class UserResource extends Resource
@@ -83,6 +86,14 @@ class UserResource extends Resource
                     ->label('Email')
                     ->searchable()
                     ->sortable(),
+
+                TextColumn::make('roles.name')
+                    ->label('Roles')
+                    ->badge()
+                    ->color('primary')
+                    ->listWithLineBreaks()
+                    ->limitList(2)
+                    ->expandableLimitedList(),
             ])
             ->defaultSort('name')
             ->actions([
@@ -126,6 +137,14 @@ class UserResource extends Resource
                             ->tel()
                             ->maxLength(20)
                             ->columnSpan(1),
+                        Select::make('roles')
+                            ->options(\Spatie\Permission\Models\Role::pluck('name', 'name'))
+                            ->label('Roles')
+                            ->multiple()
+                            ->preload()
+                            ->searchable()
+                            ->default(fn ($record) => $record ? $record->roles->pluck('name')->toArray() : [])
+                            ->columnSpan(1),
                     ])->columns(2),
 
                 ComponentsFieldset::make('Security')
@@ -149,7 +168,7 @@ class UserResource extends Resource
                             ->password()
                             ->helperText('Plain-text password for RADIUS; leave blank to keep existing')
                             ->dehydrated(fn ($state) => filled($state))
-                            ->columnSpan(2),
+                            ->columnSpan(1),
                     ])->columns(2),
 
                 ComponentsFieldset::make('Subscription Details')
@@ -200,9 +219,9 @@ class UserResource extends Resource
         return [
             // Minimal page registration. These classes live in
             // App\Filament\Resources\UserResource\Pages\
-            'index' => Pages\ListUsers::route('/'),
-            'create' => Pages\CreateUser::route('/create'),
-            'edit' => Pages\EditUser::route('/{record}/edit'),
+            'index' => ListUsers::route('/'),
+            'create' => CreateUser::route('/create'),
+            'edit' => EditUser::route('/{record}/edit'),
         ];
     }
 }

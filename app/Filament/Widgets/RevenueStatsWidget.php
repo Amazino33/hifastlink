@@ -16,14 +16,23 @@ class RevenueStatsWidget extends BaseWidget
     {
         $routerId = request()->input('router_id');
 
+        $router = null;
+        if ($routerId && strtolower($routerId) !== 'all') {
+            $router = \App\Models\Router::where('nas_identifier', $routerId)
+                ->orWhere('ip_address', $routerId)
+                ->first();
+        }
+
         // Helper: get user ids that had sessions on the router in given date range
-        $userIdsForPeriod = function ($start, $end) use ($routerId) {
+        $userIdsForPeriod = function ($start, $end) use ($router) {
             $query = \App\Models\RadAcct::query();
             $query->whereBetween('acctstarttime', [$start, $end]);
-            if ($routerId && strtolower($routerId) !== 'all') {
-                $query->where(function($q) use ($routerId) {
-                    $q->where('nasipaddress', $routerId)
-                      ->orWhere('nasidentifier', $routerId);
+            if ($router) {
+                $query->where(function($q) use ($router) {
+                    $q->where('nasipaddress', $router->ip_address);
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
+                        $q->orWhere('nasidentifier', $router->nas_identifier);
+                    }
                 });
             }
 
@@ -43,7 +52,7 @@ class RevenueStatsWidget extends BaseWidget
             ->whereYear('created_at', now()->year);
         if ($userIds->isNotEmpty()) {
             $revenueThisMonthQuery->whereIn('user_id', $userIds);
-        } elseif ($routerId && strtolower($routerId) !== 'all') {
+        } elseif ($router) {
             // No users matched - zero revenue for this router
             $revenueThisMonthQuery->whereRaw('1 = 0');
         }
@@ -59,18 +68,20 @@ class RevenueStatsWidget extends BaseWidget
             ->whereYear('created_at', now()->subMonth()->year);
         if ($userIdsLast->isNotEmpty()) {
             $revenueLastMonthQuery->whereIn('user_id', $userIdsLast);
-        } elseif ($routerId && strtolower($routerId) !== 'all') {
+        } elseif ($router) {
             $revenueLastMonthQuery->whereRaw('1 = 0');
         }
         $revenueLastMonth = $revenueLastMonthQuery->sum('amount');
 
         // All-time revenue
         $totalRevenueQuery = Transaction::where('status', 'completed');
-        if ($routerId && strtolower($routerId) !== 'all') {
+        if ($router) {
             $allUsernamesQuery = \App\Models\RadAcct::query();
-            $allUsernamesQuery->where(function($q) use ($routerId) {
-                $q->where('nasipaddress', $routerId)
-                  ->orWhere('nasidentifier', $routerId);
+            $allUsernamesQuery->where(function($q) use ($router) {
+                $q->where('nasipaddress', $router->ip_address);
+                if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
+                    $q->orWhere('nasidentifier', $router->nas_identifier);
+                }
             });
             $usernamesAll = $allUsernamesQuery->distinct('username')->pluck('username')->filter()->unique();
             $userIdsAll = \App\Models\User::whereIn('username', $usernamesAll)->pluck('id');
