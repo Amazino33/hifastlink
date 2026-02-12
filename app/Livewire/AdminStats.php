@@ -17,6 +17,9 @@ class AdminStats extends Component
     public $todayRevenue = 0;
     public $activeSubscribers = 0;
     public $dataConsumed = '0 B';
+    public $totalUsers = 0;
+    public $todayTransactions = 0;
+    public $monthlyRevenue = 0;
     public $currentRouter = 'all';
 
     public function mount()
@@ -75,6 +78,11 @@ class AdminStats extends Component
         $dataConsumedBytes = (int) $dataConsumedQuery->sum(DB::raw('COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)'));
 
         $this->dataConsumed = Number::fileSize($dataConsumedBytes);
+
+        // Additional stats
+        $this->totalUsers = User::count();
+        $this->todayTransactions = Transaction::where('status', 'completed')->whereDate('created_at', today())->count();
+        $this->monthlyRevenue = (float) Transaction::where('status', 'completed')->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->sum('amount');
     }
 
     public function render()

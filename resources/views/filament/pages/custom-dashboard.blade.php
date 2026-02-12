@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    <div>
+    <div class="space-y-6">
         @livewire('router-filter')
         @livewire('admin-stats')
     </div>
