@@ -17,7 +17,7 @@ class RouterFilter extends Component
     public function selectRouter($routerId)
     {
         $this->selectedRouter = $routerId;
-        $this->emit('routerChanged', $routerId);
+        $this->dispatch('routerChanged', routerId: $routerId);
     }
 
     public function render()

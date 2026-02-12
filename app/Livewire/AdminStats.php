@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use Livewire\Component;
+use Livewire\Attributes\On;
 use App\Models\RadAcct;
 use App\Models\Transaction;
 use App\Models\User;
@@ -18,14 +19,13 @@ class AdminStats extends Component
     public $dataConsumed = '0 B';
     public $currentRouter = 'all';
 
-    protected $listeners = ['routerChanged' => 'updateStats'];
-
     public function mount()
     {
         $this->currentRouter = request()->input('router_id', 'all');
         $this->updateStats($this->currentRouter);
     }
 
+    #[On('routerChanged')]
     public function updateStats($routerId)
     {
         try {
