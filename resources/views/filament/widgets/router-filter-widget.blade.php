@@ -1,17 +1,44 @@
 <div class="mb-4">
     <div class="d-flex overflow-auto pb-2 mb-2 no-scrollbar">
         <button class="btn btn-sm me-2 filter-chip {{ $currentRouter === 'all' ? 'btn-primary shadow-sm text-white' : 'btn-light text-dark border-0' }}"
-                onclick="(function(){ const p = new URLSearchParams(window.location.search); p.set('router_id','all'); window.location.search = p.toString(); })()">
+                data-router-id="all"
+                onclick="onRouterChipClick(this)">
             All Locations
         </button>
 
         @foreach($allRouters as $router)
             @php $id = $router->ip_address ?? ($router->nas_identifier ?? $router->identity); @endphp
             <button class="btn btn-sm me-2 filter-chip {{ $currentRouter == $id ? 'btn-primary shadow-sm text-white' : 'btn-light text-dark border-0' }}"
-                    onclick="(function(){ const p = new URLSearchParams(window.location.search); p.set('router_id','{{ $id }}'); window.location.search = p.toString(); })()">
+                    data-router-id="{{ $id }}"
+                    onclick="onRouterChipClick(this)">
                 {{ $router->name ?? $id }}
             </button>
         @endforeach
+
+<script>
+    function onRouterChipClick(el) {
+        // Visual toggle
+        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('btn-primary','shadow-sm','text-white'));
+        el.classList.add('btn-primary','shadow-sm','text-white');
+
+        const routerId = el.dataset.routerId || 'all';
+
+        // Update URL without reloading
+        const url = new URL(window.location.href);
+        url.searchParams.set('router_id', routerId);
+        window.history.replaceState({}, '', url.toString());
+
+        // Fetch stats and update Filament widgets
+        fetch(`{{ route('api.admin.stats') }}?router_id=${encodeURIComponent(routerId)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (typeof updateFilamentStats === 'function') {
+                    updateFilamentStats(data);
+                }
+            })
+            .catch(e => console.error('Failed to fetch stats', e));
+    }
+</script>
     </div>
 </div>
 
