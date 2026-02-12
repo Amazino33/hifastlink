@@ -292,6 +292,43 @@
 
     @livewireScripts
     @livewire('notifications')
+
+    <script>
+        // Global delegated handler for router filter chips (works across Filament and main UI)
+        document.addEventListener('click', function (e) {
+            try {
+                const el = e.target.closest && e.target.closest('.filter-chip');
+                if (!el) return;
+
+                // Visual toggle
+                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('btn-primary','shadow-sm','text-white'));
+                el.classList.add('btn-primary','shadow-sm','text-white');
+
+                const routerId = el.dataset.routerId || 'all';
+
+                // Update URL without reloading
+                const url = new URL(window.location.href);
+                url.searchParams.set('router_id', routerId);
+                window.history.replaceState({}, '', url.toString());
+
+                // Fetch stats and update global dashboard (if endpoint exists)
+                fetch((function(){ try { return new URL("{{ route('api.admin.stats') }}", window.location.origin).toString(); } catch (err) { return '/api/admin/stats'; } })() + '?router_id=' + encodeURIComponent(routerId))
+                    .then(r => r.json())
+                    .then(data => {
+                        if (typeof updateFilamentStats === 'function') {
+                            updateFilamentStats(data);
+                        }
+                        if (typeof fetchStats === 'function') {
+                            // also update legacy dashboard (if present)
+                            try { fetchStats(routerId, el); } catch (err) { /* ignore */ }
+                        }
+                    })
+                    .catch(err => console.error('Failed to fetch stats:', err));
+            } catch (err) {
+                console.warn('Filter chip handler error:', err);
+            }
+        });
+    </script>
 </body>
 
 </html>
