@@ -9,7 +9,7 @@ class CustomDashboard extends BaseDashboard
 {
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-home';
 
-    protected static string $view = 'filament.pages.custom-dashboard';
+    protected string $view = 'filament.pages.custom-dashboard';
 
     public function getWidgets(): array
     {
