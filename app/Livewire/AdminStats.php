@@ -42,11 +42,7 @@ class AdminStats extends Component
 
         $activeSessionsQuery = RadAcct::query()->whereNull('acctstoptime');
         if ($router) {
-            $activeSessionsQuery->where(function ($q) use ($router) {
-                $q->where('nasipaddress', $router->ip_address)
-                  ->orWhere('nas_identifier', $router->nas_identifier)
-                  ->orWhere('nas_identifier', $router->identity ?? '');
-            });
+            $activeSessionsQuery->where('nasipaddress', $router->ip_address);
         }
         $this->onlineUsers = $activeSessionsQuery->distinct('username')->count('username');
 
@@ -60,11 +56,8 @@ class AdminStats extends Component
             if ($userIds->isNotEmpty()) {
                 $activeSubscribersQuery->whereIn('id', $userIds);
             } else {
-                $usernames = RadAcct::where(function($q) use ($router){
-                    $q->where('nasipaddress', $router->ip_address)
-                      ->orWhere('nas_identifier', $router->nas_identifier)
-                      ->orWhere('nas_identifier', $router->identity ?? '');
-                })->distinct('username')->pluck('username');
+                $usernames = RadAcct::where('nasipaddress', $router->ip_address)
+                    ->distinct('username')->pluck('username');
 
                 if ($usernames->isNotEmpty()) {
                     $activeSubscribersQuery->whereIn('username', $usernames);
@@ -77,11 +70,7 @@ class AdminStats extends Component
 
         $dataConsumedQuery = RadAcct::whereDate('acctstarttime', today());
         if ($router) {
-            $dataConsumedQuery->where(function ($q) use ($router) {
-                $q->where('nasipaddress', $router->ip_address)
-                  ->orWhere('nas_identifier', $router->nas_identifier)
-                  ->orWhere('nas_identifier', $router->identity ?? '');
-            });
+            $dataConsumedQuery->where('nasipaddress', $router->ip_address);
         }
         $dataConsumedBytes = (int) $dataConsumedQuery->sum(DB::raw('COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)'));
 
