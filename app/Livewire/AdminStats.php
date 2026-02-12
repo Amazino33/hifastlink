@@ -21,6 +21,7 @@ class AdminStats extends Component
     public $todayTransactions = 0;
     public $monthlyRevenue = 0;
     public $currentRouter = 'all';
+    public $recentSessions = [];
 
     public function mount()
     {
@@ -83,6 +84,13 @@ class AdminStats extends Component
         $this->totalUsers = User::count();
         $this->todayTransactions = Transaction::where('status', 'completed')->whereDate('created_at', today())->count();
         $this->monthlyRevenue = (float) Transaction::where('status', 'completed')->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->sum('amount');
+
+        // Recent sessions
+        $recentSessionsQuery = RadAcct::orderBy('acctstarttime', 'desc')->limit(10);
+        if ($router) {
+            $recentSessionsQuery->where('nasipaddress', $router->ip_address);
+        }
+        $this->recentSessions = $recentSessionsQuery->get();
     }
 
     public function render()
