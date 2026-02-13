@@ -3,43 +3,55 @@
 namespace App\Filament\Resources;
 
 use App\Models\Plan;
-use Filament\Forms\Components\Toggle;
-use Filament\Schemas\Components\Fieldset;
-use Filament\Schemas\Components\Grid;
 use Filament\Resources\Resource;
-use Filament\Resources\Form;
-use Filament\Resources\Table as ResourceTable;
-use Filament\Tables\Columns\IconColumn;
-use Illuminate\Support\Str;
+use Filament\Tables\Table;
 use App\Filament\Resources\PlanResource\Pages;
 use BackedEnum;
-use Filament\Actions\Action;
-use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Schemas\Schema;
+use UnitEnum;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Schemas\Schema;
+use Filament\Forms\Components\Toggle;
+use Filament\Panel;
+use Filament\Resources\RelationManagers\RelationGroup;
+use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Resources\RelationManagers\RelationManagerConfiguration;
+use Filament\Schemas\Components\Fieldset;
+use Filament\Schemas\Components\Grid;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
+use Filament\Widgets\Widget;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Number;
-use UnitEnum;
+use Illuminate\Support\Traits\Macroable;
 
 class PlanResource extends Resource
 {
+    use Macroable {
+        Macroable::__call as dynamicMacroCall;
+    }
+
+    protected static bool $isDiscovered = true;
+
+    /**
+     * @var class-string<Model>|null
+     */
     protected static ?string $model = Plan::class;
 
-    protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-cog';
-
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cog';
     protected static string|UnitEnum|null $navigationGroup = 'Plans & Billing';
 
     protected static ?int $navigationSort = 1;
 
-    public static function form(Schema $form): Schema
+    public static function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Fieldset::make('Plan Details')
                     ->schema([
@@ -154,8 +166,30 @@ class PlanResource extends Resource
                     ])->columns(2),
             ]);
     }
+    public static function infolist(Schema $schema): Schema
+    {
+        return $schema;
+    }
 
-    public static function table(Table $table): Table
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery();
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            //
+        ];
+    }
+
+    public static function getWidgets(): array
+    {
+        return [
+            //
+        ];
+    }
+    public static function Table(Table $table): Table
     {
         return $table
             ->columns([

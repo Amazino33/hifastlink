@@ -463,4 +463,22 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
 
         return Number::fileSize($remaining);
     }
+
+    /**
+     * Get the router the user is currently connected to.
+     */
+    public function getCurrentRouter()
+    {
+        // Check active RADIUS session to determine current router
+        $activeSession = $this->radAccts()
+            ->whereNull('acctstoptime')
+            ->latest('acctstarttime')
+            ->first();
+
+        if ($activeSession && $activeSession->nasipaddress) {
+            return Router::where('ip_address', $activeSession->nasipaddress)->first();
+        }
+
+        return null;
+    }
 }

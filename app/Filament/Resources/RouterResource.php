@@ -4,69 +4,92 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\RouterResource\Pages;
 use App\Models\Router;
+use Filament\Resources\Resource;
+use Filament\Tables\Table;
 use BackedEnum;
-use Filament\Actions\Action as ActionsAction;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Resources\Resource;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Filament\Tables;
-use Filament\Tables\Table;
-use Filament\Tables\Actions\Action;
-use Illuminate\Support\Facades\Number;
 use UnitEnum;
+use Filament\Facades\Filament;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
+use Filament\Panel;
+use Filament\Resources\RelationManagers\RelationGroup;
+use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Resources\RelationManagers\RelationManagerConfiguration;
+use Filament\Schemas\Components\Section as ComponentsSection;
+use Filament\Tables\Columns\BadgeColumn;
+use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Widgets\Widget;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Traits\Macroable;
 
 class RouterResource extends Resource
 {
+    use Macroable {
+        Macroable::__call as dynamicMacroCall;
+    }
+
+    protected static bool $isDiscovered = true;
+
+    /**
+     * @var class-string<Model>|null
+     */
     protected static ?string $model = Router::class;
 
-    protected static string|null|BackedEnum $navigationIcon = 'heroicon-o-server-stack';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-server-stack';
     protected static ?string $navigationLabel = 'Routers';
-    protected static string|null|UnitEnum $navigationGroup = 'Network Management';
+    protected static string|UnitEnum|null $navigationGroup = 'Network Management';
     protected static ?int $navigationSort = 1;
 
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->schema([
-                Section::make('Router Information')
+                ComponentsSection::make('Router Information')
                     ->schema([
-                        Forms\Components\TextInput::make('name')
+                        TextInput::make('name')
                             ->required()
                             ->maxLength(255)
                             ->placeholder('e.g., Uyo Hub'),
                         
-                        Forms\Components\TextInput::make('location')
+                        TextInput::make('location')
                             ->required()
                             ->maxLength(255)
                             ->placeholder('Address or site location'),
                         
-                        Forms\Components\Textarea::make('description')
+                        Textarea::make('description')
                             ->rows(2)
                             ->placeholder('Additional details about this router'),
                     ])->columns(1),
 
-            Section::make('Network Configuration')
+            ComponentsSection::make('Network Configuration')
                     ->schema([
-                        Forms\Components\TextInput::make('ip_address')
+                        TextInput::make('ip_address')
                             ->label('IP Address')
+                            ->required()
                             ->ip()
                             ->unique(ignoreRecord: true)
                             ->placeholder('e.g., 192.168.1.1'),
                         
-                        Forms\Components\TextInput::make('nas_identifier')
+                        TextInput::make('nas_identifier')
                             ->label('NAS Identifier')
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->placeholder('e.g., router_uyo_01')
                             ->helperText('Unique identifier for RADIUS'),
                         
-                        Forms\Components\TextInput::make('secret')
+                        TextInput::make('secret')
                             ->label('RADIUS Secret')
                             ->required()
                             ->password()
@@ -74,25 +97,25 @@ class RouterResource extends Resource
                             ->placeholder('Shared secret for RADIUS auth'),
                     ])->columns(2),
 
-                Section::make('MikroTik API Configuration')
+                ComponentsSection::make('MikroTik API Configuration')
                     ->schema([
-                        Forms\Components\TextInput::make('api_user')
+                        TextInput::make('api_user')
                             ->label('API Username')
                             ->placeholder('admin'),
                         
-                        Forms\Components\TextInput::make('api_password')
+                        TextInput::make('api_password')
                             ->label('API Password')
                             ->password()
                             ->revealable(),
                         
-                        Forms\Components\TextInput::make('api_port')
+                        TextInput::make('api_port')
                             ->label('API Port')
                             ->numeric()
                             ->default(8728)
                             ->placeholder('8728'),
                     ])->columns(3),
 
-                Forms\Components\Toggle::make('is_active')
+                Toggle::make('is_active')
                     ->label('Active')
                     ->default(true)
                     ->helperText('Disable to stop accepting connections from this router'),
@@ -103,34 +126,34 @@ class RouterResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
+                TextColumn::make('name')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
                 
-                Tables\Columns\TextColumn::make('location')
+                TextColumn::make('location')
                     ->searchable()
                     ->limit(30),
                 
-                Tables\Columns\TextColumn::make('ip_address')
+                TextColumn::make('ip_address')
                     ->label('IP Address')
                     ->searchable()
                     ->copyable()
                     ->badge()
                     ->color('info'),
                 
-                Tables\Columns\TextColumn::make('nas_identifier')
+                TextColumn::make('nas_identifier')
                     ->label('NAS ID')
                     ->searchable()
                     ->toggleable(),
                 
-                Tables\Columns\TextColumn::make('active_users_count')
+                TextColumn::make('active_users_count')
                     ->label('Active Users')
                     ->badge()
                     ->color('success')
                     ->formatStateUsing(fn ($state) => $state ?? 0),
                 
-                Tables\Columns\BadgeColumn::make('status')
+                BadgeColumn::make('status')
                     ->label('Status')
                     ->getStateUsing(fn ($record) => $record->is_online ? 'Online' : 'Offline')
                     ->colors([
@@ -139,20 +162,21 @@ class RouterResource extends Resource
                     ])
                     ->sortable(),
                 
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\TernaryFilter::make('is_active')
+                SelectFilter::make('is_active')
                     ->label('Status')
-                    ->placeholder('All routers')
-                    ->trueLabel('Active only')
-                    ->falseLabel('Inactive only'),
+                    ->options([
+                        true => 'Active',
+                        false => 'Inactive',
+                    ]),
             ])
-            ->recordActions([
-                ActionsAction::make('download_config')
+            ->actions([
+                Action::make('download_config')
                     ->label('Download Config (.rsc)')
                     ->icon('heroicon-m-cloud-arrow-down')
                     ->url(fn (Router $record) => route('router.download', $record))
@@ -160,7 +184,7 @@ class RouterResource extends Resource
                 EditAction::make(),
                 DeleteAction::make(),
             ])
-            ->toolbarActions([
+            ->bulkActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),

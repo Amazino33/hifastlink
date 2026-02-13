@@ -1,7 +1,12 @@
 {
   "resources/css/app.css": {
-    "file": "assets/app-BBGxFC2Z.css",
+    "file": "assets/app-CXpFkQmp.css",
     "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/css/filament-overrides.css": {
+    "file": "assets/filament-overrides-DAHEgGi_.css",
+    "src": "resources/css/filament-overrides.css",
     "isEntry": true
   },
   "resources/js/app.js": {

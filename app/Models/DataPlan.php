@@ -17,6 +17,9 @@ class DataPlan extends Model
         'is_featured',
         'sort_order',
         'features',
+        'router_id',
+        'is_custom',
+        'show_universal_plans',
     ];
 
     protected $casts = [
@@ -27,6 +30,8 @@ class DataPlan extends Model
         'is_featured' => 'boolean',
         'sort_order' => 'integer',
         'features' => 'array',
+        'is_custom' => 'boolean',
+        'show_universal_plans' => 'boolean',
     ];
 
     // Helper methods
@@ -57,12 +62,41 @@ class DataPlan extends Model
         return $query->where('is_featured', true);
     }
 
+    public function scopeUniversal($query)
+    {
+        return $query->where('is_custom', false);
+    }
+
+    public function scopeCustom($query)
+    {
+        return $query->where('is_custom', true);
+    }
+
+    public function scopeForRouter($query, $routerId)
+    {
+        return $query->where(function ($q) use ($routerId) {
+            $q->where('is_custom', false) // Universal plans
+              ->orWhere(function ($subQuery) use ($routerId) {
+                  $subQuery->where('is_custom', true)
+                           ->where('router_id', $routerId);
+              });
+        });
+    }
+
     /**
      * Get users subscribed to this plan.
      */
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    /**
+     * Get the router this custom plan belongs to.
+     */
+    public function router()
+    {
+        return $this->belongsTo(Router::class);
     }
 
     /**

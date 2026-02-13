@@ -82,4 +82,12 @@ class Router extends Model
             ->whereDate('acctstarttime', today())
             ->sum(\DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
     }
+
+    /**
+     * Scope for active routers
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
 }

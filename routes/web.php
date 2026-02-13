@@ -85,6 +85,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', \App\Http\Livewire\UserDashboard::class)->name('dashboard');
     Route::get('/dashboard/realtime-data', [DashboardController::class, 'getRealtimeData'])->name('dashboard.realtime');
 
+    // Custom plan requests for users
+    Route::get('/request-custom-plans', \App\Livewire\RequestCustomPlans::class)->name('request-custom-plans');
+
     // Bridge connector that returns a page which redirects to router using GET (bridge flow)
     Route::get('/connect-bridge', [\App\Http\Controllers\HotspotController::class, 'connectBridge'])->name('connect.bridge')->middleware(['auth','web']);
     

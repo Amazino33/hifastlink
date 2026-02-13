@@ -2,25 +2,42 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\TransactionResource\Pages;
 use App\Models\Transaction;
 use Filament\Resources\Resource;
 use Filament\Tables\Table;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\BadgeColumn;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\Filter;
-use Filament\Forms\Components\DatePicker;
-use Illuminate\Database\Eloquent\Builder;
-use App\Filament\Resources\TransactionResource\Pages;
+use BackedEnum;
 use Filament\Schemas\Schema;
+use UnitEnum;
+use Filament\Facades\Filament;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\DateTimePicker;
-use BackedEnum;
-use UnitEnum;
+use Filament\Panel;
+use Filament\Resources\RelationManagers\RelationGroup;
+use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Resources\RelationManagers\RelationManagerConfiguration;
+use Filament\Tables\Columns\BadgeColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Widgets\Widget;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Traits\Macroable;
 
 class TransactionResource extends Resource
 {
+    use Macroable {
+        Macroable::__call as dynamicMacroCall;
+    }
+
+    protected static bool $isDiscovered = true;
+
+    /**
+     * @var class-string<Model>|null
+     */
     protected static ?string $model = Transaction::class;
 
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-banknotes';
@@ -92,6 +109,11 @@ class TransactionResource extends Resource
                     ->default(now())
                     ->columnSpan(2),
             ])->columns(2);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return $schema;
     }
 
     public static function table(Table $table): Table
@@ -190,7 +212,68 @@ class TransactionResource extends Resource
                     }),
             ]);
     }
+    public static function configureTable(Table $table): void
+    {
+        $table
+            ->modelLabel(static::getModelLabel(...))
+            ->pluralModelLabel(static::getPluralModelLabel(...))
+            ->recordTitleAttribute(static::getRecordTitleAttribute(...))
+            ->recordTitle(static::getRecordTitle(...))
+            ->authorizeReorder(static::canReorder(...));
 
+        static::table($table); /** @phpstan-ignore staticMethod.resultUnused */
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = static::getModel()::query();
+
+        if (! static::isScopedToTenant()) {
+            $panel = Filament::getCurrentOrDefaultPanel();
+
+            if ($panel?->hasTenancy()) {
+                $query->withoutGlobalScope($panel->getTenancyScopeName());
+            }
+        }
+
+        return $query;
+    }
+
+    /**
+     * @return class-string<Model>
+     */
+    public static function getModel(): string
+    {
+        return static::$model ?? (string) str(class_basename(static::class))
+            ->beforeLast('Resource')
+            ->prepend(app()->getNamespace() . 'Models\\');
+    }
+
+    /**
+     * @return array<class-string<RelationManager> | RelationGroup | RelationManagerConfiguration>
+     */
+    public static function getRelations(): array
+    {
+        return [];
+    }
+
+    /**
+     * @return array<class-string<Widget>>
+     */
+    public static function getWidgets(): array
+    {
+        return [];
+    }
+
+    public static function isEmailVerificationRequired(Panel $panel): bool
+    {
+        return $panel->isEmailVerificationRequired();
+    }
+
+    public static function isDiscovered(): bool
+    {
+        return static::$isDiscovered;
+    }
     public static function getPages(): array
     {
         return [

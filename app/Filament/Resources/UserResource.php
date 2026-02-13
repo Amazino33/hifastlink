@@ -5,32 +5,47 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\UserResource\Pages\CreateUser;
 use App\Filament\Resources\UserResource\Pages\EditUser;
 use App\Filament\Resources\UserResource\Pages\ListUsers;
-use App\Models\User;
-use BackedEnum;
-use Filament\Resources\Resource;
-use Filament\Tables\Table;
-use Filament\Tables\Actions\DeleteAction;
+use App\Models\RadAcct;
 use App\Models\RadCheck;
 use App\Models\RadReply;
-use App\Models\RadAcct;
-use Filament\Actions\DeleteAction as ActionsDeleteAction;
-use Filament\Tables\Columns\IconColumn;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Forms\Form;
+use App\Models\User;
+use Filament\Resources\Resource;
+use Filament\Tables\Table;
+use BackedEnum;
+use Filament\Actions\DeleteAction;
+use Filament\Schemas\Schema;
+use UnitEnum;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Fieldset;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Schemas\Components\Fieldset as ComponentsFieldset;
-use Filament\Schemas\Schema;
+use Filament\Panel;
+use Filament\Resources\RelationManagers\RelationGroup;
+use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Resources\RelationManagers\RelationManagerConfiguration;
+use Filament\Schemas\Components\Fieldset;
+use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Widgets\Widget;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Number;
-use UnitEnum;
+use Illuminate\Support\Traits\Macroable;
 
 class UserResource extends Resource
 {
+    use Macroable {
+        Macroable::__call as dynamicMacroCall;
+    }
+
+    protected static bool $isDiscovered = true;
+
+    /**
+     * @var class-string<Model>|null
+     */
     protected static ?string $model = User::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user-group';
@@ -39,7 +54,7 @@ class UserResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    public static function table(Table $table): Table
+    public static function Table(Table $table): Table
     {
         return $table
             ->columns([
@@ -97,8 +112,8 @@ class UserResource extends Resource
             ])
             ->defaultSort('name')
             ->actions([
-                ActionsDeleteAction::make()
-                    ->before(function (ActionsDeleteAction $action, $record) {
+                DeleteAction::make()
+                    ->before(function (DeleteAction $action, $record) {
                         // Delete from RADIUS before deleting user
                         RadCheck::where('username', $record->username)->delete();
                         RadReply::where('username', $record->username)->delete();
@@ -111,7 +126,7 @@ class UserResource extends Resource
     {
         return $schema
             ->schema([
-                ComponentsFieldset::make('Account Information')
+                Fieldset::make('Account Information')
                     ->schema([
                         TextInput::make('name')
                             ->label('Full Name')
@@ -147,7 +162,7 @@ class UserResource extends Resource
                             ->columnSpan(1),
                     ])->columns(2),
 
-                ComponentsFieldset::make('Security')
+                Fieldset::make('Security')
                     ->schema([
                         TextInput::make('password')
                             ->label('Login Password')
@@ -171,7 +186,7 @@ class UserResource extends Resource
                             ->columnSpan(1),
                     ])->columns(2),
 
-                ComponentsFieldset::make('Subscription Details')
+                Fieldset::make('Subscription Details')
                     ->schema([
                         Select::make('plan_id')
                             ->relationship('plan', 'name')
@@ -189,7 +204,7 @@ class UserResource extends Resource
                             ->columnSpan(1),
                     ])->columns(2),
 
-                ComponentsFieldset::make('Family Plan Settings')
+                Fieldset::make('Family Plan Settings')
                     ->schema([
                         Toggle::make('is_family_admin')
                             ->label('Family Plan Administrator')
@@ -213,7 +228,29 @@ class UserResource extends Resource
                     ])->columns(2),
             ]);
     }
+    public static function infolist(Schema $schema): Schema
+    {
+        return $schema;
+    }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery();
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            //
+        ];
+    }
+
+    public static function getWidgets(): array
+    {
+        return [
+            //
+        ];
+    }
     public static function getPages(): array
     {
         return [

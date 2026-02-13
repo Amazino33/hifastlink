@@ -4,19 +4,39 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\RadCheckResource\Pages;
 use App\Models\RadCheck;
-use BackedEnum;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\EditAction;
-use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Schemas\Schema;
-use Filament\Tables;
 use Filament\Tables\Table;
+use BackedEnum;
+use Filament\Actions\DeleteAction as ActionsDeleteAction;
+use Filament\Actions\EditAction as ActionsEditAction;
+use Filament\Schemas\Schema;
 use UnitEnum;
+use Filament\Facades\Filament;
+use Filament\Panel;
+use Filament\Resources\RelationManagers\RelationGroup;
+use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Resources\RelationManagers\RelationManagerConfiguration;
+use Filament\Widgets\Widget;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Traits\Macroable;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Hidden;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Actions\EditAction;
+use Filament\Tables\Actions\DeleteAction;
 
 class RadCheckResource extends Resource
 {
+    use Macroable {
+        Macroable::__call as dynamicMacroCall;
+    }
+
+    protected static bool $isDiscovered = true;
+
+    /**
+     * @var class-string<Model>|null
+     */
     protected static ?string $model = RadCheck::class;
 
     protected static null|BackedEnum|string $navigationIcon = 'heroicon-o-wifi';
@@ -28,29 +48,53 @@ class RadCheckResource extends Resource
     {
         return $schema
             ->schema([
-                Forms\Components\TextInput::make('username')
+                TextInput::make('username')
                     ->required()
                     ->maxLength(64),
-                Forms\Components\TextInput::make('value')
+                TextInput::make('value')
                     ->label('Password')
                     ->required(),
-                Forms\Components\Hidden::make('attribute')->default('Cleartext-Password'),
-                Forms\Components\Hidden::make('op')->default(':='),
+                Hidden::make('attribute')->default('Cleartext-Password'),
+                Hidden::make('op')->default(':='),
             ]);
     }
 
-    public static function table(Table $table): Table
+    public static function Table(Table $table): Table
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('username')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('value')->label('Password'),
-                Tables\Columns\TextColumn::make('attribute')->color('gray'),
+                TextColumn::make('username')->searchable()->sortable(),
+                TextColumn::make('value')->label('Password'),
+                TextColumn::make('attribute')->color('gray'),
             ])
             ->actions([
-                EditAction::make(),
-                DeleteAction::make(),
+                ActionsEditAction::make(),
+                ActionsDeleteAction::make(),
             ]);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return $schema;
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery();
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            //
+        ];
+    }
+
+    public static function getWidgets(): array
+    {
+        return [
+            //
+        ];
     }
 
     public static function getPages(): array

@@ -90,6 +90,11 @@
                                 <span>Settings</span>
                             </x-dropdown-link>
 
+                            <x-dropdown-link :href="route('request-custom-plans')" class="flex items-center space-x-2 hover:bg-green-50">
+                                <i class="fa-solid fa-plus-circle text-green-600"></i>
+                                <span>Request Custom Plan</span>
+                            </x-dropdown-link>
+
                             @if(Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('cashier') || Auth::user()->email === 'amazino33@gmail.com')
                                 <div class="border-t border-gray-200 my-2"></div>
                                 
@@ -188,6 +193,12 @@
                     class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4">
                     <i class="fa-solid fa-user"></i>
                     <span>{{ __('Profile') }}</span>
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('request-custom-plans')" 
+                    class="text-white hover:bg-green-500/30 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 bg-green-600/20">
+                    <i class="fa-solid fa-plus-circle"></i>
+                    <span>Request Custom Plan</span>
                 </x-responsive-nav-link>
 
                 <!-- Authentication -->
