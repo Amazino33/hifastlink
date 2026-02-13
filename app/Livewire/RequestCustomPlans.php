@@ -26,6 +26,8 @@ class RequestCustomPlans extends Component
 
     public $successMessage = '';
     public $errorMessage = '';
+    public $showSuccessMessage = false;
+    public $showErrorMessage = false;
 
     protected $rules = [
         'router_id' => 'required|exists:routers,id',
@@ -76,9 +78,19 @@ class RequestCustomPlans extends Component
         // Clear any previous messages
         $this->successMessage = '';
         $this->errorMessage = '';
+        $this->showSuccessMessage = false;
+        $this->showErrorMessage = false;
+
+        \Log::info('Starting custom plan request submission', [
+            'user_id' => Auth::id(),
+            'router_id' => $this->router_id,
+            'plans_count' => count($this->plans)
+        ]);
 
         try {
             $this->validate();
+
+            \Log::info('Validation passed');
 
             // Check if user already has a pending request for this router
             $existingRequest = CustomPlanRequest::where('user_id', Auth::id())
@@ -91,6 +103,8 @@ class RequestCustomPlans extends Component
                 return;
             }
 
+            \Log::info('No existing pending request found, creating new request');
+
             $request = CustomPlanRequest::create([
                 'user_id' => Auth::id(),
                 'router_id' => $this->router_id,
@@ -98,18 +112,22 @@ class RequestCustomPlans extends Component
                 'requested_plans' => $this->plans,
             ]);
 
+            \Log::info('Request created successfully', ['request_id' => $request->id]);
+
             // Send notification to admins (if any exist)
             try {
                 $admins = \App\Models\User::where(function ($query) {
-                    $query->where('is_admin', true)
-                          ->orWhere('email', 'amazino33@gmail.com')
+                    $query->where('email', 'amazino33@gmail.com')
                           ->orWhereHas('roles', function ($roleQuery) {
                               $roleQuery->whereIn('name', ['super_admin', 'admin']);
                           });
                 })->get();
 
+                \Log::info('Found admins for notification', ['admin_count' => $admins->count()]);
+
                 if ($admins->isNotEmpty()) {
                     Notification::send($admins, new CustomPlanRequestSubmitted($request));
+                    \Log::info('Admin notification sent successfully');
                 }
             } catch (\Exception $notificationError) {
                 // Log notification error but don't fail the request
@@ -120,6 +138,9 @@ class RequestCustomPlans extends Component
             }
 
             $this->successMessage = 'Your custom plan request has been submitted successfully!';
+            $this->showSuccessMessage = true;
+
+            \Log::info('Success message set, resetting form');
 
             // Reset form
             $this->reset(['plans', 'show_universal_plans']);
@@ -144,6 +165,18 @@ class RequestCustomPlans extends Component
 
             // Show user-friendly error message
             $this->errorMessage = 'An error occurred while submitting your request. Please try again or contact support.';
+            $this->showErrorMessage = true;
+        }
+    }
+
+    public function hideMessage($type)
+    {
+        if ($type === 'success') {
+            $this->showSuccessMessage = false;
+            $this->successMessage = '';
+        } elseif ($type === 'error') {
+            $this->showErrorMessage = false;
+            $this->errorMessage = '';
         }
     }
 
