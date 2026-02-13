@@ -294,15 +294,14 @@ class RouterController extends Controller
 :put ">> DNS Configured"
 
 # 9. Heartbeat Scheduler (Router Status Monitoring)
-:local heartbeatURL ("https://" . $DomainName . "/api/routers/heartbeat?identity=" . $LocationName)
 :if ($isV7) do={
     /system/scheduler remove [find name="heartbeat"]
-    /system/scheduler add name="heartbeat" interval=1m on-event=("/tool/fetch url=\"$heartbeatURL\" mode=https output=none")
+    /system/scheduler add name="heartbeat" interval=1m on-event=("/tool/fetch url=\"https://{DOMAIN}/api/routers/heartbeat?identity={LOCATION}\" mode=https output=none")
 } else={
     /system scheduler remove [find name="heartbeat"]
-    /system scheduler add name="heartbeat" interval=1m on-event=("/tool fetch url=\"$heartbeatURL\" mode=https keep-result=no")
+    /system scheduler add name="heartbeat" interval=1m on-event=("/tool fetch url=\"https://{DOMAIN}/api/routers/heartbeat?identity={LOCATION}\" mode=https keep-result=no")
 }
-:put (">> Heartbeat Scheduler Added: " . $heartbeatURL)
+:put (">> Heartbeat Scheduler Added: https://{DOMAIN}/api/routers/heartbeat?identity={LOCATION}")
 
 # 10. NTP Client (Time Sync)
 :if ($isV7) do={
