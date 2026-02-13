@@ -1,215 +1,145 @@
-# MikroTik Router Auto-Setup Script for HiFastLink
-# Run this on each new router via: /import setup-mikrotik-router.rsc
-# Or copy-paste into terminal
+# ==================================================
+#  HIFASTLINK ROUTER SETUP SCRIPT (v6 & v7 COMPATIBLE)
+#  Author: Gem (The Developer)
+# ==================================================
 
-:log info "Starting HiFastLink router setup..."
+# --- 1. CONFIGURATION VARIABLES (EDIT HERE) ---
+:global LocationName "uniuyo_cbn_1"
+:global ServerIP     "142.93.47.189"
+:global RadiusSecret "testing123"
+:global DomainName   "hifastlink.com"
+:global DNSName      "login.wifi"
+:global BridgeName   "bridge"
+:global WebsiteIP    "194.36.184.49"
 
-# ============================================
-# CONFIGURATION VARIABLES (EDIT THESE)
-# ============================================
-:local radiusServer "142.93.47.189"
-:local radiusSecret "SimpleTestKey123"
-:local hotspotInterface "ether2"
-:local hotspotNetwork "192.168.88.0/24"
-:local hotspotGateway "192.168.88.1"
-:local dnsServers "8.8.8.8,8.8.4.4"
-:local hotspotName "HiFastLink WiFi"
-:local apiUser "hifastlink"
-:local apiPassword "1a2345678B"
-
-# ============================================
-# 1. CONFIGURE RADIUS CLIENT
-# ============================================
-:log info "Step 1: Configuring RADIUS..."
-
-# Remove old RADIUS servers
-/radius remove [find]
-
-# Add RADIUS server for authentication and accounting
-/radius add \
-    address=$radiusServer \
-    secret=$radiusSecret \
-    service=hotspot \
-    timeout=3s \
-    comment="HiFastLink RADIUS Server"
-
-:log info "RADIUS server added: $radiusServer"
-
-# ============================================
-# 2. CONFIGURE HOTSPOT NETWORK
-# ============================================
-:log info "Step 2: Setting up hotspot network..."
-
-# Configure IP address on hotspot interface
-/ip address add \
-    address=($hotspotGateway . "/24") \
-    interface=$hotspotInterface \
-    comment="HiFastLink Hotspot Gateway" \
-    disabled=no
-
-# Configure DHCP server pool
-/ip pool add \
-    name=hotspot-pool \
-    ranges=192.168.88.10-192.168.88.254
-
-# Setup DHCP server
-/ip dhcp-server add \
-    name=hotspot-dhcp \
-    interface=$hotspotInterface \
-    address-pool=hotspot-pool \
-    disabled=no
-
-/ip dhcp-server network add \
-    address=$hotspotNetwork \
-    gateway=$hotspotGateway \
-    dns-server=$dnsServers \
-    comment="HiFastLink Hotspot DHCP"
-
-:log info "Network configuration complete"
-
-# ============================================
-# 3. SETUP HOTSPOT
-# ============================================
-:log info "Step 3: Setting up hotspot..."
-
-# Create hotspot profile
-/ip hotspot profile add \
-    name=hsprof1 \
-    hotspot-address=$hotspotGateway \
-    dns-name="login.wifi" \
-    login-by=http-chap,http-pap \
-    use-radius=yes \
-    radius-accounting=yes \
-    radius-interim-update=1m \
-    nas-port-type=wireless-802.11 \
-    shared-users=10 \
-    comment="HiFastLink Hotspot Profile"
-
-:log info "Hotspot profile created with shared-users=10"
-
-# Create hotspot server
-/ip hotspot add \
-    name=hotspot1 \
-    interface=$hotspotInterface \
-    address-pool=hotspot-pool \
-    profile=hsprof1 \
-    disabled=no
-
-# Configure hotspot server profile
-/ip hotspot service-port set ftp disabled=yes
-/ip hotspot service-port set telnet disabled=yes
-/ip hotspot service-port set imap disabled=yes
-/ip hotspot service-port set pop3 disabled=yes
-/ip hotspot service-port set smtp disabled=yes
-
-:log info "Hotspot server configured"
-
-# ============================================
-# 4. CONFIGURE FIREWALL & NAT
-# ============================================
-:log info "Step 4: Configuring firewall..."
-
-# Add NAT masquerade rule for hotspot traffic
-/ip firewall nat add \
-    chain=srcnat \
-    src-address=$hotspotNetwork \
-    action=masquerade \
-    comment="HiFastLink Hotspot NAT"
-
-# Allow RADIUS traffic
-/ip firewall filter add \
-    chain=input \
-    protocol=udp \
-    dst-port=1812,1813 \
-    src-address=$radiusServer \
-    action=accept \
-    comment="Allow RADIUS from server"
-
-:log info "Firewall rules configured"
-
-# ============================================
-# 5. ENABLE API ACCESS
-# ============================================
-:log info "Step 5: Enabling API access..."
-
-# Enable API and API-SSL services
-/ip service set api disabled=no port=8728
-/ip service set api-ssl disabled=no port=8729
-
-# Create API user if it doesn't exist
-:if ([/user find name=$apiUser] = "") do={
-    /user add \
-        name=$apiUser \
-        password=$apiPassword \
-        group=full \
-        comment="HiFastLink API User"
-    :log info "API user created: $apiUser"
+# --- 2. DETECT ROUTEROS VERSION ---
+:global rosVersion [/system resource get version]
+:global isV7 false
+:if ([:pick $rosVersion 0 1] = "7") do={
+    :set isV7 true
+    :put ">> Detected RouterOS v7"
 } else={
-    /user set [find name=$apiUser] password=$apiPassword
-    :log info "API user password updated: $apiUser"
+    :put ">> Detected RouterOS v6"
 }
 
-# Restrict API access to specific IPs (optional)
-# /ip service set api address=127.0.0.1,$radiusServer
+# --------------------------------------------------
+#       DO NOT EDIT BELOW THIS LINE
+# --------------------------------------------------
 
-:log info "API access enabled"
+:put (">> Starting Setup for " . $LocationName . "...")
 
-# ============================================
-# 6. CONFIGURE DNS
-# ============================================
-:log info "Step 6: Configuring DNS..."
-
-/ip dns set \
-    servers=$dnsServers \
-    allow-remote-requests=yes
-
-:log info "DNS configured"
-
-# ============================================
-# 7. SET SYSTEM IDENTITY
-# ============================================
-:log info "Step 7: Setting system identity..."
-
-# Prompt for router name (or set default)
-:local routerName
-:set routerName [/system identity get name]
-
-:if ($routerName = "MikroTik") do={
-    :log warning "Please set a unique router name!"
-    :log warning "Run: /system identity set name=\"YourLocation-Hub\""
+# 1. Set Identity
+:if ($isV7) do={
+    /system/identity set name=$LocationName
+} else={
+    /system identity set name=$LocationName
 }
 
-# ============================================
-# SETUP COMPLETE
-# ============================================
-:log info "=========================================="
-:log info "HiFastLink Router Setup Complete!"
-:log info "=========================================="
-:log info ""
-:log info "Next Steps:"
-:log info "1. Set router identity: /system identity set name=\"YourLocation-Hub\""
-:log info "2. Get router's public IP: /ip address print"
-:log info "3. Add router to Laravel admin panel"
-:log info "4. Test with a user account"
-:log info ""
-:log info "Configuration Summary:"
-:log info "- RADIUS Server: $radiusServer"
-:log info "- Hotspot Network: $hotspotNetwork"
-:log info "- Gateway: $hotspotGateway"
-:log info "- DNS: $dnsServers"
-:log info "- Max Devices per User: 10"
-:log info "- API User: $apiUser"
-:log info "- API Port: 8728"
-:log info ""
-:log info "=========================================="
+# 2. Configure RADIUS Client
+/radius remove [find]
+/radius add address=$ServerIP secret=$RadiusSecret service=hotspot timeout=3000ms comment="HiFastLink RADIUS"
+:put ">> RADIUS Configured"
 
-# Display current configuration
-:put ""
-:put "Current Router Configuration:"
-:put "============================="
-/system identity print
-/ip address print where interface=$hotspotInterface
-/ip hotspot print
-/radius print
-:put ""
-:put "Setup script completed successfully!"
+# 3. Update Hotspot Server Interface to Bridge
+:if ($isV7) do={
+    /ip/hotspot set [find] interface=$BridgeName
+} else={
+    /ip hotspot set [find] interface=$BridgeName
+}
+:put (">> Hotspot Server Interface set to: " . $BridgeName)
+
+# 4. Configure Hotspot Server Profile with HTTP PAP (Required for URL redirects)
+:if ($isV7) do={
+    /ip/hotspot/profile set [find] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+} else={
+    /ip hotspot profile set [find] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+}
+:put (">> Hotspot DNS Name set to: " . $DNSName . " (Applied to ALL profiles)")
+
+# 5. Configure User Profile (Limits)
+:if ($isV7) do={
+    /ip/hotspot/user/profile set [find] shared-users=10
+} else={
+    /ip hotspot user profile set [find] shared-users=10
+}
+:put ">> User Profile Updated (10 Devices Allowed)"
+
+# 6. Walled Garden - DNS Based Rules
+:if ($isV7) do={
+    /ip/hotspot/walled-garden remove [find]
+    /ip/hotspot/walled-garden add dst-host=("*." . $DomainName) comment="Allow Dashboard Subdomains"
+    /ip/hotspot/walled-garden add dst-host=$DomainName comment="Allow Dashboard Root"
+    /ip/hotspot/walled-garden add dst-host="*.paystack.com" comment="Allow Paystack"
+    /ip/hotspot/walled-garden add dst-host="*.paystack.co" comment="Allow Paystack Alt"
+    /ip/hotspot/walled-garden add dst-host="*.sentry.io" comment="Allow Error Logs"
+} else={
+    /ip hotspot walled-garden remove [find]
+    /ip hotspot walled-garden add dst-host=("*" . $DomainName) comment="Allow Dashboard Subdomains"
+    /ip hotspot walled-garden add dst-host=$DomainName comment="Allow Dashboard Root"
+    /ip hotspot walled-garden add dst-host=*paystack.com comment="Allow Paystack"
+    /ip hotspot walled-garden add dst-host=*paystack.co comment="Allow Paystack Alt"
+    /ip hotspot walled-garden add dst-host=*sentry.io comment="Allow Error Logs"
+}
+:put ">> Walled Garden (DNS) Configured"
+
+# 7. Walled Garden - IP Based Rules (CRITICAL for HTTPS)
+:if ($isV7) do={
+    /ip/hotspot/walled-garden/ip remove [find]
+    /ip/hotspot/walled-garden/ip add action=accept dst-address=$WebsiteIP comment="HiFastLink Server IP (HTTPS)"
+    /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=443 dst-address=$WebsiteIP comment="HTTPS Explicit"
+    /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=80 dst-address=$WebsiteIP comment="HTTP Explicit"
+} else={
+    /ip hotspot walled-garden ip remove [find]
+    /ip hotspot walled-garden ip add action=accept dst-address=$WebsiteIP comment="HiFastLink Server IP (HTTPS)"
+    /ip hotspot walled-garden ip add action=accept protocol=tcp dst-port=443 dst-address=$WebsiteIP comment="HTTPS Explicit"
+    /ip hotspot walled-garden ip add action=accept protocol=tcp dst-port=80 dst-address=$WebsiteIP comment="HTTP Explicit"
+}
+:put ">> Walled Garden (IP) Configured for HTTPS"
+
+# 8. Configure DNS for Hotspot
+:if ($isV7) do={
+    /ip/dns set servers=8.8.8.8,8.8.4.4 allow-remote-requests=yes
+} else={
+    /ip dns set servers=8.8.8.8,8.8.4.4 allow-remote-requests=yes
+}
+:put ">> DNS Configured"
+
+# 9. Heartbeat Scheduler (Router Status Monitoring)
+:local heartbeatURL ("https://" . $DomainName . "/api/routers/heartbeat?identity=" . $LocationName)
+:if ($isV7) do={
+    /system/scheduler remove [find name="heartbeat"]
+    /system/scheduler add name="heartbeat" interval=1m on-event=("/tool/fetch url=\"$heartbeatURL\" mode=https output=none")
+} else={
+    /system scheduler remove [find name="heartbeat"]
+    /system scheduler add name="heartbeat" interval=1m on-event=("/tool fetch url=\"$heartbeatURL\" mode=https keep-result=no")
+}
+:put (">> Heartbeat Scheduler Added: " . $heartbeatURL)
+
+# 10. NTP Client (Time Sync)
+:if ($isV7) do={
+    /system/ntp/client set enabled=yes
+    :do {/system/ntp/client/servers remove [find address=162.159.200.1]} on-error={}
+    :do {/system/ntp/client/servers remove [find address=162.159.200.123]} on-error={}
+    /system/ntp/client/servers add address=162.159.200.1
+    /system/ntp/client/servers add address=162.159.200.123
+} else={
+    /system ntp client set enabled=yes primary-ntp=162.159.200.1 secondary-ntp=162.159.200.123
+}
+:put ">> Time Sync Enabled"
+
+# 11. Enable API
+:if ($isV7) do={
+    /ip/service set api disabled=no port=8728
+} else={
+    /ip service set api disabled=no port=8728
+}
+:put ">> API Service Enabled"
+
+:put "========================================"
+:put ("   SETUP COMPLETE FOR: " . $LocationName)
+:put ("   Login Link: http://" . $DNSName)
+:put ("   Hotspot Interface: " . $BridgeName)
+:put ("   Website IP: " . $WebsiteIP)
+:put ("   Heartbeat: Every 1 minute")
+:put "   READY TO DEPLOY"
+:put "========================================"

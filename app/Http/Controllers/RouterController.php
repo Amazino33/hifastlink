@@ -175,6 +175,7 @@ class RouterController extends Controller
         $domain = parse_url($appUrl, PHP_URL_HOST) ?: preg_replace('#https?://#', '', $appUrl);
         $dnsName = 'login.wifi';
         $bridgeName = 'bridge';
+        $websiteIp = env('WEBSITE_IP', '194.36.184.49');
 
         // Escape double quotes in values
         $escLocation = str_replace('"', '\\"', $location);
@@ -183,6 +184,7 @@ class RouterController extends Controller
         $escDomain = str_replace('"', '\\"', $domain);
         $escDns = str_replace('"', '\\"', $dnsName);
         $escBridge = str_replace('"', '\\"', $bridgeName);
+        $escWebsiteIp = str_replace('"', '\\"', $websiteIp);
 
         $template = <<<'RSC'
 # ==================================================
@@ -197,6 +199,7 @@ class RouterController extends Controller
 :global DomainName   "{DOMAIN}"
 :global DNSName      "{DNSNAME}"
 :global BridgeName   "{BRIDGE}"
+:global WebsiteIP    "{WEBSITEIP}"
 
 # --- 2. DETECT ROUTEROS VERSION ---
 :global rosVersion [/system resource get version]
@@ -234,11 +237,11 @@ class RouterController extends Controller
 }
 :put (">> Hotspot Server Interface set to: " . $BridgeName)
 
-# 4. Configure Hotspot Server Profile
+# 4. Configure Hotspot Server Profile with HTTP PAP (Required for URL redirects)
 :if ($isV7) do={
-    /ip/hotspot/profile set [find] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+    /ip/hotspot/profile set [find] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
 } else={
-    /ip hotspot profile set [find] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+    /ip hotspot profile set [find] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
 }
 :put (">> Hotspot DNS Name set to: " . $DNSName . " (Applied to ALL profiles)")
 
@@ -250,25 +253,58 @@ class RouterController extends Controller
 }
 :put ">> User Profile Updated (10 Devices Allowed)"
 
-# 6. Walled Garden (Allow Dashboard & Payments)
+# 6. Walled Garden - DNS Based Rules
 :if ($isV7) do={
     /ip/hotspot/walled-garden remove [find]
-    /ip/hotspot/walled-garden add dst-host=("*." . $DomainName) comment="Allow Dashboard"
+    /ip/hotspot/walled-garden add dst-host=("*." . $DomainName) comment="Allow Dashboard Subdomains"
     /ip/hotspot/walled-garden add dst-host=$DomainName comment="Allow Dashboard Root"
     /ip/hotspot/walled-garden add dst-host="*.paystack.com" comment="Allow Paystack"
-    /ip/hotspot/walled-garden add dst-host="*.paystack.co" comment="Allow Paystack"
+    /ip/hotspot/walled-garden add dst-host="*.paystack.co" comment="Allow Paystack Alt"
     /ip/hotspot/walled-garden add dst-host="*.sentry.io" comment="Allow Error Logs"
 } else={
     /ip hotspot walled-garden remove [find]
-    /ip hotspot walled-garden add dst-host=("*" . $DomainName) comment="Allow Dashboard"
+    /ip hotspot walled-garden add dst-host=("*" . $DomainName) comment="Allow Dashboard Subdomains"
     /ip hotspot walled-garden add dst-host=$DomainName comment="Allow Dashboard Root"
     /ip hotspot walled-garden add dst-host=*paystack.com comment="Allow Paystack"
-    /ip hotspot walled-garden add dst-host=*paystack.co comment="Allow Paystack"
+    /ip hotspot walled-garden add dst-host=*paystack.co comment="Allow Paystack Alt"
     /ip hotspot walled-garden add dst-host=*sentry.io comment="Allow Error Logs"
 }
-:put ">> Walled Garden Configured"
+:put ">> Walled Garden (DNS) Configured"
 
-# 7. NTP Client (Time Sync)
+# 7. Walled Garden - IP Based Rules (CRITICAL for HTTPS)
+:if ($isV7) do={
+    /ip/hotspot/walled-garden/ip remove [find]
+    /ip/hotspot/walled-garden/ip add action=accept dst-address=$WebsiteIP comment="HiFastLink Server IP (HTTPS)"
+    /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=443 dst-address=$WebsiteIP comment="HTTPS Explicit"
+    /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=80 dst-address=$WebsiteIP comment="HTTP Explicit"
+} else={
+    /ip hotspot walled-garden ip remove [find]
+    /ip hotspot walled-garden ip add action=accept dst-address=$WebsiteIP comment="HiFastLink Server IP (HTTPS)"
+    /ip hotspot walled-garden ip add action=accept protocol=tcp dst-port=443 dst-address=$WebsiteIP comment="HTTPS Explicit"
+    /ip hotspot walled-garden ip add action=accept protocol=tcp dst-port=80 dst-address=$WebsiteIP comment="HTTP Explicit"
+}
+:put ">> Walled Garden (IP) Configured for HTTPS"
+
+# 8. Configure DNS for Hotspot
+:if ($isV7) do={
+    /ip/dns set servers=8.8.8.8,8.8.4.4 allow-remote-requests=yes
+} else={
+    /ip dns set servers=8.8.8.8,8.8.4.4 allow-remote-requests=yes
+}
+:put ">> DNS Configured"
+
+# 9. Heartbeat Scheduler (Router Status Monitoring)
+:local heartbeatURL ("https://" . $DomainName . "/api/routers/heartbeat?identity=" . $LocationName)
+:if ($isV7) do={
+    /system/scheduler remove [find name="heartbeat"]
+    /system/scheduler add name="heartbeat" interval=1m on-event=("/tool/fetch url=\"$heartbeatURL\" mode=https output=none")
+} else={
+    /system scheduler remove [find name="heartbeat"]
+    /system scheduler add name="heartbeat" interval=1m on-event=("/tool fetch url=\"$heartbeatURL\" mode=https keep-result=no")
+}
+:put (">> Heartbeat Scheduler Added: " . $heartbeatURL)
+
+# 10. NTP Client (Time Sync)
 :if ($isV7) do={
     /system/ntp/client set enabled=yes
     :do {/system/ntp/client/servers remove [find address=162.159.200.1]} on-error={}
@@ -280,7 +316,7 @@ class RouterController extends Controller
 }
 :put ">> Time Sync Enabled"
 
-# 8. Enable API
+# 11. Enable API
 :if ($isV7) do={
     /ip/service set api disabled=no port=8728
 } else={
@@ -288,29 +324,20 @@ class RouterController extends Controller
 }
 :put ">> API Service Enabled"
 
-# 9. Configure Heartbeat (Router Status Monitor)
-:local HeartbeatURL ("https://" . $DomainName . "/api/routers/heartbeat\?identity=" . $LocationName)
-:if ($isV7) do={
-    /system/scheduler remove [find name="heartbeat"]
-    /system/scheduler add name="heartbeat" interval=5m on-event=("/tool/fetch url=\"" . $HeartbeatURL . "\" mode=https keep-result=no") comment="Ping server every 5 minutes"
-} else={
-    /system scheduler remove [find name="heartbeat"]
-    /system scheduler add name="heartbeat" interval=5m on-event=("/tool fetch url=\"" . $HeartbeatURL . "\" mode=https keep-result=no") comment="Ping server every 5 minutes"
-}
-:put ">> Heartbeat Scheduler Configured"
-
 :put "========================================"
 :put ("   SETUP COMPLETE FOR: " . $LocationName)
 :put ("   Login Link: http://" . $DNSName)
 :put ("   Hotspot Interface: " . $BridgeName)
+:put ("   Website IP: " . $WebsiteIP)
+:put ("   Heartbeat: Every 1 minute")
 :put "   READY TO DEPLOY"
 :put "========================================"
 RSC;
 
         $script = str_replace([
-            '{LOCATION}', '{SERVERIP}', '{SECRET}', '{DOMAIN}', '{DNSNAME}', '{BRIDGE}'
+            '{LOCATION}', '{SERVERIP}', '{SECRET}', '{DOMAIN}', '{DNSNAME}', '{BRIDGE}', '{WEBSITEIP}'
         ], [
-            $escLocation, $escServerIp, $escSecret, $escDomain, $escDns, $escBridge
+            $escLocation, $escServerIp, $escSecret, $escDomain, $escDns, $escBridge, $escWebsiteIp
         ], $template);
 
         $filename = 'router-' . ($router->nas_identifier ?: $router->id) . '.rsc';
