@@ -92,7 +92,32 @@ class AdminStatsWidget extends Widget
         $dataConsumedBytes = (int) $dataConsumedQuery->sum(DB::raw('COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)'));
 
         // additional stats
-        $totalUsers = User::count();
+        $totalUsersQuery = User::query();
+        if ($router) {
+            // Get users who have had transactions on this router
+            $userIds = Transaction::where('router_id', $router->id)->distinct('user_id')->pluck('user_id');
+            if ($userIds->isNotEmpty()) {
+                $totalUsersQuery->whereIn('id', $userIds);
+            } else {
+                // Fallback: get users who have had RADIUS sessions on this router
+                $usernames = RadAcct::where(function($q) use ($router){
+                    $q->where('nasipaddress', $router->ip_address);
+
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
+                        $q->orWhere('nasidentifier', $router->nas_identifier)
+                          ->orWhere('nasidentifier', $router->identity ?? '');
+                    }
+                })->distinct('username')->pluck('username');
+
+                if ($usernames->isNotEmpty()) {
+                    $totalUsersQuery->whereIn('username', $usernames);
+                } else {
+                    // No users found for this router
+                    $totalUsersQuery->whereRaw('1 = 0');
+                }
+            }
+        }
+        $totalUsers = $totalUsersQuery->count();
         $todayTransactions = Transaction::where('status', 'completed')->whereDate('created_at', today())->count();
         $monthlyRevenue = (float) Transaction::where('status', 'completed')->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->sum('amount');
 
