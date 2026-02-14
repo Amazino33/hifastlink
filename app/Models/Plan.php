@@ -22,7 +22,6 @@ class Plan extends Model
         'speed_limit_upload',
         'speed_limit_download',
         'validity_days',
-        'duration_days',
         'speed_limit',
         'is_family',
         'family_limit',
@@ -40,6 +39,12 @@ class Plan extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+        'data_limit' => 'integer',
+        'time_limit' => 'integer',
+        'speed_limit_upload' => 'integer',
+        'speed_limit_download' => 'integer',
+        'validity_days' => 'integer',
+        'max_devices' => 'integer',
         'is_family' => 'boolean',
         'is_active' => 'boolean',
         'is_featured' => 'boolean',

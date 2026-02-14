@@ -17,7 +17,7 @@ class DataPlansSeeder extends Seeder
                 'name' => 'Basic Plan',
                 'description' => 'Perfect for light browsing and email',
                 'data_limit' => 1073741824, // 1GB
-                'duration_days' => 30,
+                'validity_days' => 30,
                 'price' => 2500.00,
                 'speed_limit' => '5M/5M',
                 'is_active' => true,
@@ -29,7 +29,7 @@ class DataPlansSeeder extends Seeder
                 'name' => 'Standard Plan',
                 'description' => 'Great for streaming and work from home',
                 'data_limit' => 5368709120, // 5GB
-                'duration_days' => 30,
+                'validity_days' => 30,
                 'price' => 5000.00,
                 'speed_limit' => '10M/10M',
                 'is_active' => true,
@@ -41,7 +41,7 @@ class DataPlansSeeder extends Seeder
                 'name' => 'Premium Plan',
                 'description' => 'Ultimate speed for heavy users',
                 'data_limit' => 10737418240, // 10GB
-                'duration_days' => 30,
+                'validity_days' => 30,
                 'price' => 8000.00,
                 'speed_limit' => '20M/20M',
                 'is_active' => true,
@@ -53,7 +53,7 @@ class DataPlansSeeder extends Seeder
                 'name' => 'Business Plan',
                 'description' => 'Dedicated connection for businesses',
                 'data_limit' => 53687091200, // 50GB
-                'duration_days' => 30,
+                'validity_days' => 30,
                 'price' => 15000.00,
                 'speed_limit' => '50M/50M',
                 'is_active' => true,

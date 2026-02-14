@@ -156,6 +156,11 @@ class UserDashboard extends Component
             if ($router) {
                 $routerId = $router->id;
                 $routerIdentifier = $router->nas_identifier;
+                \Log::info('UserDashboard: Using user router_id', [
+                    'user_id' => $user->id,
+                    'router_id' => $user->router_id,
+                    'router_identifier' => $routerIdentifier
+                ]);
             }
         }
 
@@ -166,6 +171,11 @@ class UserDashboard extends Component
                 $router = $urlRouter;
                 $routerId = $urlRouter->id;
                 $routerIdentifier = $urlRouter->nas_identifier;
+                \Log::info('UserDashboard: Using URL router parameter', [
+                    'router_param' => $this->router,
+                    'router_id' => $routerId,
+                    'router_identifier' => $routerIdentifier
+                ]);
             }
         }
 
@@ -176,13 +186,32 @@ class UserDashboard extends Component
                 $router = \App\Models\Router::where('nas_identifier', $routerIdentifier)->first();
                 if ($router) {
                     $routerId = $router->id;
+                    \Log::info('UserDashboard: Using session router', [
+                        'session_router' => $routerIdentifier,
+                        'router_id' => $routerId
+                    ]);
                 }
             }
         }
 
+        \Log::info('UserDashboard: Final router determination', [
+            'user_id' => $user->id,
+            'final_router_id' => $routerId,
+            'final_router_identifier' => $routerIdentifier,
+            'has_router' => $router ? 'yes' : 'no'
+        ]);
+
         // Get available plans based on NAS identifier and router
         $planFilterService = new PlanFilterService();
         $plans = $planFilterService->getAvailablePlans($routerIdentifier, $routerId);
+
+        \Log::info('UserDashboard: Plans retrieved', [
+            'user_id' => $user->id,
+            'router_identifier' => $routerIdentifier,
+            'router_id' => $routerId,
+            'plans_count' => $plans->count(),
+            'plan_names' => $plans->pluck('name')->toArray()
+        ]);
 
         // Active RADIUS session (acctstoptime NULL - no time restriction)
         $radiusReachable = true;

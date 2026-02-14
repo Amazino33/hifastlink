@@ -16,11 +16,18 @@ class RequestCustomPlans extends Component
     public $plans = [
         [
             'name' => '',
-            'data_limit' => '',
-            'duration_days' => 30,
+            'description' => '',
             'price' => '',
+            'data_limit' => '',
+            'time_limit' => '',
+            'speed_limit_upload' => '',
+            'speed_limit_download' => '',
+            'validity_days' => 30,
             'speed_limit' => '',
+            'allowed_login_time' => '',
+            'limit_unit' => 'MB',
             'max_devices' => '',
+            'features' => '',
         ]
     ];
 
@@ -34,11 +41,18 @@ class RequestCustomPlans extends Component
         'show_universal_plans' => 'boolean',
         'plans' => 'required|array|min:1',
         'plans.*.name' => 'required|string|max:255',
-        'plans.*.data_limit' => 'required|integer|min:1',
-        'plans.*.duration_days' => 'required|integer|min:1',
+        'plans.*.description' => 'nullable|string|max:1000',
         'plans.*.price' => 'required|numeric|min:0',
+        'plans.*.data_limit' => 'required|integer|min:1',
+        'plans.*.time_limit' => 'nullable|integer|min:1',
+        'plans.*.speed_limit_upload' => 'nullable|integer|min:1',
+        'plans.*.speed_limit_download' => 'nullable|integer|min:1',
+        'plans.*.validity_days' => 'required|integer|min:1',
         'plans.*.speed_limit' => 'nullable|string|max:255',
+        'plans.*.allowed_login_time' => 'nullable|string|max:255',
+        'plans.*.limit_unit' => 'required|in:MB,GB',
         'plans.*.max_devices' => 'nullable|integer|min:1',
+        'plans.*.features' => 'nullable|string|max:2000',
     ];
 
     public function mount()
@@ -92,6 +106,26 @@ class RequestCustomPlans extends Component
 
             \Log::info('Validation passed');
 
+            // Clean up the plans data - convert empty strings to null for numeric fields, provide defaults for required string fields
+            $cleanedPlans = [];
+            foreach ($this->plans as $plan) {
+                $cleanedPlans[] = [
+                    'name' => $plan['name'],
+                    'description' => $plan['description'] ?: null,
+                    'price' => $plan['price'],
+                    'data_limit' => $plan['data_limit'],
+                    'time_limit' => $plan['time_limit'] ?: null,
+                    'speed_limit_upload' => $plan['speed_limit_upload'] ?: null,
+                    'speed_limit_download' => $plan['speed_limit_download'] ?: null,
+                    'validity_days' => $plan['validity_days'],
+                    'speed_limit' => $plan['speed_limit'] ?: '10M/10M', // Provide default for non-nullable field
+                    'allowed_login_time' => $plan['allowed_login_time'] ?: null,
+                    'limit_unit' => $plan['limit_unit'],
+                    'max_devices' => $plan['max_devices'] ?: null,
+                    'features' => $plan['features'] ?: null,
+                ];
+            }
+
             // Check if user already has a pending request for this router
             $existingRequest = CustomPlanRequest::where('user_id', Auth::id())
                 ->where('router_id', $this->router_id)
@@ -109,7 +143,7 @@ class RequestCustomPlans extends Component
                 'user_id' => Auth::id(),
                 'router_id' => $this->router_id,
                 'show_universal_plans' => $this->show_universal_plans,
-                'requested_plans' => $this->plans,
+                'requested_plans' => $cleanedPlans,
             ]);
 
             \Log::info('Request created successfully', ['request_id' => $request->id]);

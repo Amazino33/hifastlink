@@ -10,7 +10,7 @@ class DataPlan extends Model
         'name',
         'description',
         'data_limit',
-        'duration_days',
+        'validity_days',
         'price',
         'speed_limit',
         'is_active',
@@ -24,7 +24,7 @@ class DataPlan extends Model
 
     protected $casts = [
         'data_limit' => 'integer',
-        'duration_days' => 'integer',
+        'validity_days' => 'integer',
         'price' => 'decimal:2',
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
@@ -112,7 +112,7 @@ class DataPlan extends Model
      */
     public function getDurationHoursAttribute(): int
     {
-        return $this->duration_days * 24;
+        return $this->validity_days * 24;
     }
 
     /**
@@ -120,6 +120,6 @@ class DataPlan extends Model
      */
     public function getDurationSecondsAttribute(): int
     {
-        return $this->duration_days * 24 * 3600;
+        return $this->validity_days * 24 * 3600;
     }
 }

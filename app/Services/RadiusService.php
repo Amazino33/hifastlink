@@ -245,8 +245,8 @@ class RadiusService
                 'data_limit' => $plan->data_limit,
                 'data_used' => 0,
                 'subscription_start_date' => Carbon::now(),
-                'subscription_end_date' => Carbon::now()->addDays($plan->duration_days),
-                'plan_expiry' => Carbon::now()->addDays($plan->duration_days),
+                'subscription_end_date' => Carbon::now()->addDays($plan->validity_days),
+                'plan_expiry' => Carbon::now()->addDays($plan->validity_days),
                 'connection_status' => 'active',
                 'online_status' => false,
             ]);

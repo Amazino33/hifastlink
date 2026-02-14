@@ -101,14 +101,35 @@ class CustomPlanRequestResource extends Resource
                                     foreach ($plan as $key => $value) {
                                         $label = match($key) {
                                             'name' => 'Plan Name',
+                                            'description' => 'Description',
                                             'data_limit' => 'Data Limit (MB)',
-                                            'duration_days' => 'Duration (Days)',
+                                            'time_limit' => 'Time Limit (Hours)',
+                                            'speed_limit_upload' => 'Upload Speed (Mbps)',
+                                            'speed_limit_download' => 'Download Speed (Mbps)',
+                                            'validity_days' => 'Validity Days',
                                             'price' => 'Price (₦)',
                                             'speed_limit' => 'Speed Limit',
+                                            'allowed_login_time' => 'Allowed Login Time',
+                                            'limit_unit' => 'Limit Unit',
                                             'max_devices' => 'Max Simultaneous Devices',
+                                            'features' => 'Features',
                                             default => ucwords(str_replace('_', ' ', $key))
                                         };
-                                        $formattedPlan[$label] = $value ?: 'Not specified';
+
+                                        if ($key === 'allowed_login_time') {
+                                            $timeOptions = [
+                                                'Al2300-0600' => 'Night Plan (11:00 PM - 6:00 AM)',
+                                                'Al0000-0500' => 'Midnight Owl (12:00 AM - 5:00 AM)',
+                                                'SaSu0000-2400' => 'Weekend Only (Sat & Sun)',
+                                                'Wk0800-1700' => 'Work Hours (Mon-Fri, 8 AM - 5 PM)',
+                                                'Al0800-1800' => 'Daytime Only (8 AM - 6 PM)',
+                                            ];
+                                            $formattedPlan[$label] = $timeOptions[$value] ?? ($value ?: '24/7 Access');
+                                        } elseif ($value === null || $value === '') {
+                                            $formattedPlan[$label] = 'Not specified';
+                                        } else {
+                                            $formattedPlan[$label] = $value;
+                                        }
                                     }
                                     $formatted["Plan " . ($planIndex + 1)] = $formattedPlan;
                                 }
@@ -265,10 +286,18 @@ class CustomPlanRequestResource extends Resource
 
             \App\Models\Plan::create([
                 'name' => $planData['name'],
-                'data_limit' => $dataLimitInBytes,
-                'duration_days' => $planData['duration_days'] ?? 30,
+                'description' => $planData['description'] ?? null,
                 'price' => $planData['price'] ?? 0,
+                'data_limit' => $dataLimitInBytes,
+                'time_limit' => $planData['time_limit'] ?? null,
+                'speed_limit_upload' => $planData['speed_limit_upload'] ?? null,
+                'speed_limit_download' => $planData['speed_limit_download'] ?? null,
+                'validity_days' => $planData['validity_days'] ?? 30,
                 'speed_limit' => $planData['speed_limit'] ?? '10M/10M',
+                'allowed_login_time' => $planData['allowed_login_time'] ?? null,
+                'limit_unit' => $planData['limit_unit'] ?? 'MB',
+                'max_devices' => $planData['max_devices'] ?? null,
+                'features' => $planData['features'] ?? null,
                 'is_active' => true,
                 'is_featured' => false,
                 'sort_order' => 0,

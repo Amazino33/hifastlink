@@ -68,7 +68,7 @@
                                 @endif
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <!-- Plan Name -->
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -81,38 +81,6 @@
                                         placeholder="e.g., Premium 10GB"
                                     >
                                     @error('plans.' . $index . '.name')
-                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
-                                <!-- Data Limit -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Data Limit (MB) *
-                                    </label>
-                                    <input
-                                        wire:model="plans.{{ $index }}.data_limit"
-                                        type="number"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 @error('plans.' . $index . '.data_limit') border-red-500 @enderror"
-                                        placeholder="e.g., 10240"
-                                    >
-                                    @error('plans.' . $index . '.data_limit')
-                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
-                                <!-- Duration -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Duration (Days) *
-                                    </label>
-                                    <input
-                                        wire:model="plans.{{ $index }}.duration_days"
-                                        type="number"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 @error('plans.' . $index . '.duration_days') border-red-500 @enderror"
-                                        placeholder="30"
-                                    >
-                                    @error('plans.' . $index . '.duration_days')
                                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                     @enderror
                                 </div>
@@ -134,7 +102,104 @@
                                     @enderror
                                 </div>
 
-                                <!-- Max Devices (Optional) -->
+                                <!-- Data Limit -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Data Limit (MB) *
+                                    </label>
+                                    <input
+                                        wire:model="plans.{{ $index }}.data_limit"
+                                        type="number"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 @error('plans.' . $index . '.data_limit') border-red-500 @enderror"
+                                        placeholder="e.g., 10240"
+                                    >
+                                    @error('plans.' . $index . '.data_limit')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <!-- Limit Unit -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Limit Unit *
+                                    </label>
+                                    <select
+                                        wire:model="plans.{{ $index }}.limit_unit"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 @error('plans.' . $index . '.limit_unit') border-red-500 @enderror"
+                                    >
+                                        <option value="MB">MB</option>
+                                        <option value="GB">GB</option>
+                                    </select>
+                                    @error('plans.' . $index . '.limit_unit')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <!-- Time Limit -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Time Limit (Hours) (Optional)
+                                    </label>
+                                    <input
+                                        wire:model="plans.{{ $index }}.time_limit"
+                                        type="number"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 @error('plans.' . $index . '.time_limit') border-red-500 @enderror"
+                                        placeholder="e.g., 24"
+                                    >
+                                    @error('plans.' . $index . '.time_limit')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <!-- Validity Days -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Validity Days *
+                                    </label>
+                                    <input
+                                        wire:model="plans.{{ $index }}.validity_days"
+                                        type="number"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 @error('plans.' . $index . '.validity_days') border-red-500 @enderror"
+                                        placeholder="30"
+                                    >
+                                    @error('plans.' . $index . '.validity_days')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <!-- Speed Limit Upload -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Upload Speed (Mbps) (Optional)
+                                    </label>
+                                    <input
+                                        wire:model="plans.{{ $index }}.speed_limit_upload"
+                                        type="number"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 @error('plans.' . $index . '.speed_limit_upload') border-red-500 @enderror"
+                                        placeholder="e.g., 10"
+                                    >
+                                    @error('plans.' . $index . '.speed_limit_upload')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <!-- Speed Limit Download -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Download Speed (Mbps) (Optional)
+                                    </label>
+                                    <input
+                                        wire:model="plans.{{ $index }}.speed_limit_download"
+                                        type="number"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 @error('plans.' . $index . '.speed_limit_download') border-red-500 @enderror"
+                                        placeholder="e.g., 50"
+                                    >
+                                    @error('plans.' . $index . '.speed_limit_download')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <!-- Max Devices -->
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         Max Simultaneous Devices (Optional)
@@ -150,10 +215,32 @@
                                     @enderror
                                 </div>
 
-                                <!-- Speed Limit (Optional) -->
+                                <!-- Allowed Login Time -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Time Restriction (Optional)
+                                    </label>
+                                    <select
+                                        wire:model="plans.{{ $index }}.allowed_login_time"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 @error('plans.' . $index . '.allowed_login_time') border-red-500 @enderror"
+                                    >
+                                        <option value="">24/7 Access</option>
+                                        <option value="Al2300-0600">Night Plan (11:00 PM - 6:00 AM)</option>
+                                        <option value="Al0000-0500">Midnight Owl (12:00 AM - 5:00 AM)</option>
+                                        <option value="SaSu0000-2400">Weekend Only (Sat & Sun)</option>
+                                        <option value="Wk0800-1700">Work Hours (Mon-Fri, 8 AM - 5 PM)</option>
+                                        <option value="Al0800-1800">Daytime Only (8 AM - 6 PM)</option>
+                                    </select>
+                                    <p class="mt-1 text-sm text-gray-500">Limit when users can connect</p>
+                                    @error('plans.' . $index . '.allowed_login_time')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <!-- Speed Limit (General) -->
                                 <div class="md:col-span-2">
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                                        Speed Limit (Optional)
+                                        Speed Limit Description (Optional)
                                     </label>
                                     <input
                                         wire:model="plans.{{ $index }}.speed_limit"
@@ -161,6 +248,22 @@
                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                         placeholder="e.g., 10Mbps, Unlimited"
                                     >
+                                </div>
+
+                                <!-- Features -->
+                                <div class="md:col-span-3">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Features (Optional)
+                                    </label>
+                                    <textarea
+                                        wire:model="plans.{{ $index }}.features"
+                                        rows="3"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 @error('plans.' . $index . '.features') border-red-500 @enderror"
+                                        placeholder="List plan features, one per line..."
+                                    ></textarea>
+                                    @error('plans.' . $index . '.features')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
                                 </div>
                             </div>
                         </div>
