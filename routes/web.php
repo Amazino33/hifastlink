@@ -31,6 +31,27 @@ Route::get('/installation-guide', [PageController::class, 'installation'])->name
 Route::get('/network-status', [PageController::class, 'status'])->name('status');
 
 // TEMPORARY DEBUG ROUTE
+Route::get('/debug-router', function () {
+    $user = auth()->user();
+    
+    if (!$user) {
+        return "Not logged in";
+    }
+    
+    $router001 = \App\Models\Router::where('nas_identifier', 'router-001')->first();
+    $allRouters = \App\Models\Router::all();
+    
+    return [
+        'user_id' => $user->id,
+        'user_router_id' => $user->router_id,
+        'router_001_exists' => $router001 ? 'YES' : 'NO',
+        'router_001_id' => $router001 ? $router001->id : null,
+        'total_routers' => $allRouters->count(),
+        'routers' => $allRouters->map(function($r) {
+            return ['id' => $r->id, 'name' => $r->name, 'nas_identifier' => $r->nas_identifier];
+        })
+    ];
+})->middleware('auth');
 Route::get('/debug-janitor', function () {
     // 1. Hardcode the user we are testing
     $targetUser = 'princewill'; // Make sure this matches exactly

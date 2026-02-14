@@ -100,6 +100,14 @@ class DataPlan extends Model
     }
 
     /**
+     * Get MAC address assignments for this plan.
+     */
+    public function macAssignments(): HasMany
+    {
+        return $this->hasMany(MacPlanAssignment::class);
+    }
+
+    /**
      * Get duration in hours.
      */
     public function getDurationHoursAttribute(): int

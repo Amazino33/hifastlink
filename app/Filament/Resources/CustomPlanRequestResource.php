@@ -263,12 +263,12 @@ class CustomPlanRequestResource extends Resource
             // Convert MB to bytes (1 MB = 1,048,576 bytes)
             $dataLimitInBytes = ($planData['data_limit'] ?? 0) * 1048576;
 
-            \App\Models\DataPlan::create([
+            \App\Models\Plan::create([
                 'name' => $planData['name'],
                 'data_limit' => $dataLimitInBytes,
                 'duration_days' => $planData['duration_days'] ?? 30,
                 'price' => $planData['price'] ?? 0,
-                'speed_limit' => $planData['speed_limit'] ?? null,
+                'speed_limit' => $planData['speed_limit'] ?? '10M/10M',
                 'is_active' => true,
                 'is_featured' => false,
                 'sort_order' => 0,

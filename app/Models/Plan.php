@@ -15,23 +15,37 @@ class Plan extends Model
 
     protected $fillable = [
         'name',
+        'description',
         'price',
         'data_limit',
         'time_limit',
         'speed_limit_upload',
         'speed_limit_download',
         'validity_days',
+        'duration_days',
+        'speed_limit',
         'is_family',
         'family_limit',
         'allowed_login_time',
-        'data_limit',
         'limit_unit',
         'max_devices',
+        'is_active',
+        'is_featured',
+        'sort_order',
+        'features',
+        'router_id',
+        'is_custom',
+        'show_universal_plans',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'is_family' => 'boolean',
+        'is_active' => 'boolean',
+        'is_featured' => 'boolean',
+        'is_custom' => 'boolean',
+        'show_universal_plans' => 'boolean',
+        'features' => 'array',
     ];
 
     /**

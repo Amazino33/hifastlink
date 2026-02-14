@@ -20,6 +20,18 @@ class HotspotController extends Controller
             return redirect()->route('dashboard')->with('error', 'Please sign in.');
         }
 
+        // Get router identifier from request
+        $routerIdentifier = $request->get('router') ?: $request->get('nas_identifier');
+        if (!$routerIdentifier) {
+            return redirect()->route('dashboard')->with('error', 'Router not specified.');
+        }
+
+        // Validate router exists
+        $router = \App\Models\Router::where('nas_identifier', $routerIdentifier)->first();
+        if (!$router) {
+            return redirect()->route('dashboard')->with('error', 'Router not found.');
+        }
+
         // Determine if user has an active subscription using Subscription model when available
         $validSubscription = null;
         if (class_exists(\App\Models\Subscription::class)) {
@@ -75,7 +87,7 @@ class HotspotController extends Controller
 
         // link_login is what the bridge/portal uses
         $link_login = $loginUrl;
-        $link_orig = route('dashboard');
+        $link_orig = route('dashboard', ['router' => $routerIdentifier]);
 
         // Mark this browser session as having initiated a connection (used for device detection)
         $claimAt = now()->timestamp;

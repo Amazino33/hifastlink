@@ -15,7 +15,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Models\Voucher;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Carbon;
+use App\Services\PlanFilterService;
 
 /**
  * @method void emit(string $event, mixed ...$params)
@@ -34,6 +34,38 @@ class UserDashboard extends Component
     protected $layout = 'layouts.app';
 
     public $voucherCode = '';
+    public $router = null; // URL parameter for router identification
+
+    protected $queryString = [
+        'router' => ['as' => 'router'],
+    ];
+
+    public function mount()
+    {
+        $user = Auth::user();
+
+        // Update user's router association if router parameter is provided
+        if ($this->router) {
+            $router = \App\Models\Router::where('nas_identifier', $this->router)->first();
+            \Log::info('UserDashboard router update attempt', [
+                'router_identifier' => $this->router,
+                'router_found' => $router ? 'yes' : 'no',
+                'router_id' => $router ? $router->id : null,
+                'user_id' => $user->id,
+                'current_router_id' => $user->router_id
+            ]);
+
+            if ($router) {
+                $user->router_id = $router->id;
+                $saved = $user->save();
+                \Log::info('User router_id updated in UserDashboard', [
+                    'user_id' => $user->id,
+                    'new_router_id' => $user->router_id,
+                    'saved' => $saved
+                ]);
+            }
+        }
+    }
 
     public function subscribe(int $planId): void
     {
@@ -113,8 +145,44 @@ class UserDashboard extends Component
     {
         $user = Auth::user();
 
-        // Get most popular plans (ordered by price ascending to show best deals first)
-        $plans = Plan::orderBy('price', 'asc')->get();
+        // Get router information from user record, then URL parameter, then session
+        $router = null;
+        $routerId = null;
+        $routerIdentifier = null;
+
+        // Priority 1: User's stored router_id
+        if ($user->router_id) {
+            $router = $user->router;
+            if ($router) {
+                $routerId = $router->id;
+                $routerIdentifier = $router->nas_identifier;
+            }
+        }
+
+        // Priority 2: URL parameter (can override user's router)
+        if ($this->router) {
+            $urlRouter = \App\Models\Router::where('nas_identifier', $this->router)->first();
+            if ($urlRouter) {
+                $router = $urlRouter;
+                $routerId = $urlRouter->id;
+                $routerIdentifier = $urlRouter->nas_identifier;
+            }
+        }
+
+        // Priority 3: Session fallback
+        if (!$routerIdentifier) {
+            $routerIdentifier = session('current_router');
+            if ($routerIdentifier) {
+                $router = \App\Models\Router::where('nas_identifier', $routerIdentifier)->first();
+                if ($router) {
+                    $routerId = $router->id;
+                }
+            }
+        }
+
+        // Get available plans based on NAS identifier and router
+        $planFilterService = new PlanFilterService();
+        $plans = $planFilterService->getAvailablePlans($routerIdentifier, $routerId);
 
         // Active RADIUS session (acctstoptime NULL - no time restriction)
         $radiusReachable = true;
@@ -184,9 +252,9 @@ class UserDashboard extends Component
         }
         $currentMac = session('current_device_mac');
 
-        // Router identity capture (from redirect): store ?router=... in session
-        if (request()->has('router')) {
-            session(['current_router_id' => request('router')]);
+        // Router identity capture (from redirect): store ?nas_identifier=... in session
+        if (request()->has('nas_identifier')) {
+            session(['current_router_nas_identifier' => request('nas_identifier')]);
         }
 
         $activeSessions = RadAcct::where('username', $user->username)
@@ -208,10 +276,9 @@ class UserDashboard extends Component
         $currentLocation = null;
         $currentRouter = null;
 
-        $currentRouterIdentity = session('current_router_id');
-        if ($currentRouterIdentity) {
-            $routerLookupColumn = Schema::hasColumn('routers', 'identity') ? 'identity' : 'nas_identifier';
-            $routerFromParam = \App\Models\Router::where($routerLookupColumn, $currentRouterIdentity)->first();
+        $currentRouterNasIdentifier = session('current_router_nas_identifier');
+        if ($currentRouterNasIdentifier) {
+            $routerFromParam = \App\Models\Router::where('nas_identifier', $currentRouterNasIdentifier)->first();
             if ($routerFromParam) {
                 $currentRouter = $routerFromParam;
                 $currentLocation = $routerFromParam->location ?: ($routerFromParam->name ?: 'Unknown Location');

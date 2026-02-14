@@ -84,6 +84,14 @@ class Router extends Model
     }
 
     /**
+     * Get MAC plan assignments for this router.
+     */
+    public function macAssignments(): HasMany
+    {
+        return $this->hasMany(MacPlanAssignment::class);
+    }
+
+    /**
      * Scope for active routers
      */
     public function scopeActive($query)

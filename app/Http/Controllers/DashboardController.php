@@ -25,15 +25,13 @@ class DashboardController extends Controller
 
         // 1b) Router identity capture: read ?router=... and store in session
         if ($request->has('router')) {
-            session(['current_router_id' => $request->input('router')]);
+            session(['current_router' => $request->input('router')]);
         }
 
         // Use stored router identity (from session) to find router location
-        $routerLookupColumn = Schema::hasColumn('routers', 'identity') ? 'identity' : 'nas_identifier';
-
-        $currentRouterIdentity = session('current_router_id');
-        $currentRouter = $currentRouterIdentity
-            ? Router::where($routerLookupColumn, $currentRouterIdentity)->first()
+        $currentRouterNasIdentifier = session('current_router');
+        $currentRouter = $currentRouterNasIdentifier
+            ? Router::where('nas_identifier', $currentRouterNasIdentifier)->first()
             : null;
         $currentLocation = $currentRouter
             ? ($currentRouter->location ?: ($currentRouter->name ?: 'Unknown Location'))

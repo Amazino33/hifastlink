@@ -46,6 +46,7 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'family_limit',
         'rollover_available_bytes',
         'rollover_validity_days',
+        'router_id',
     ];
 
     /**
@@ -54,6 +55,14 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     public function plan(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(\App\Models\Plan::class);
+    }
+
+    /**
+     * Router relationship
+     */
+    public function router(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Router::class);
     }
 
     /**

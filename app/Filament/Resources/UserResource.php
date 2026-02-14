@@ -8,6 +8,7 @@ use App\Filament\Resources\UserResource\Pages\ListUsers;
 use App\Models\RadAcct;
 use App\Models\RadCheck;
 use App\Models\RadReply;
+use App\Models\Router;
 use App\Models\User;
 use Filament\Resources\Resource;
 use Filament\Tables\Table;
@@ -83,6 +84,13 @@ class UserResource extends Resource
                     ->label('Current Plan')
                     ->badge()
                     ->color('info')
+                    ->sortable(),
+
+                TextColumn::make('router.name')
+                    ->label('Associated Router')
+                    ->badge()
+                    ->color('warning')
+                    ->placeholder('No router')
                     ->sortable(),
 
                 TextColumn::make('plan_expiry')
@@ -202,6 +210,14 @@ class UserResource extends Resource
                             ->label('Plan Expiry Date')
                             ->default(now()->addDays(30))
                             ->columnSpan(1),
+                        Select::make('router_id')
+                            ->relationship('router', 'name')
+                            ->label('Associated Router')
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('Select router or leave blank')
+                            ->helperText('Router this user is associated with for custom plan filtering')
+                            ->columnSpan(2),
                     ])->columns(2),
 
                 Fieldset::make('Family Plan Settings')
