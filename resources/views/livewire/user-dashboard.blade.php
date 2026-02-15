@@ -393,6 +393,14 @@
                                             {{ $device->is_connected ? 'Connected' : 'Offline' }}
                                         </div>
                                         <div class="text-xs text-gray-400 mt-1">{{ $device->last_seen ? $device->last_seen->diffForHumans() : '—' }}</div>
+
+                                        <div class="mt-2">
+                                            @if(session('current_device_mac') === $device->mac)
+                                                <button wire:click="forgetDevice({{ $device->id }})" class="text-xs text-gray-500 hover:underline">Forget</button>
+                                            @else
+                                                <button wire:click="claimDevice({{ $device->id }})" class="text-xs text-blue-600 hover:underline">Claim this device</button>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                             @endforeach

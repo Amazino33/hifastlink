@@ -16,6 +16,9 @@ use App\Models\User;
 use App\Models\Voucher;
 use Filament\Notifications\Notification;
 use App\Services\PlanFilterService;
+use App\Models\Device;
+use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\Hash;
 
 /**
  * @method void emit(string $event, mixed ...$params)
@@ -279,7 +282,46 @@ class UserDashboard extends Component
         if (request()->filled('mac')) {
             session(['current_device_mac' => request()->input('mac')]);
         }
+
+        // Try cookie-based remembered browser first (persistent per-browser token)
         $currentMac = session('current_device_mac');
+        if (! $currentMac) {
+            $cookieToken = Cookie::get('fastlink_device_token');
+            if ($cookieToken) {
+                // find a device owned by this user with a matching token hash in meta
+                $deviceWithToken = Device::where('user_id', $user->id)->get()->first(function ($d) use ($cookieToken) {
+                    $hash = $d->meta['browser_token_hash'] ?? null;
+                    return $hash && Hash::check($cookieToken, $hash);
+                });
+
+                if ($deviceWithToken) {
+                    session(['current_device_mac' => $deviceWithToken->mac]);
+                    $currentMac = $deviceWithToken->mac;
+                }
+            }
+        }
+
+        // If still no currentMac, attempt an IP -> radacct lookup (best-effort auto-detect for same physical device)
+        if (! $currentMac) {
+            try {
+                $ip = request()->ip();
+                $rad = RadAcct::forUser($user->username)
+                    ->active()
+                    ->where('framedipaddress', $ip)
+                    ->first();
+
+                if ($rad && $rad->callingstationid) {
+                    $detectedMac = $rad->callingstationid;
+                    session(['current_device_mac' => $detectedMac]);
+                    // persist into devices table for UI/record
+                    Device::upsertFromLogin($user, $detectedMac, $rad->nasidentifier ?? $rad->nasipaddress, $rad->framedipaddress, request()->userAgent());
+                    $currentMac = $detectedMac;
+                    Log::info('UserDashboard: auto-detected device by IP -> RadAcct', ['user' => $user->username, 'ip' => $ip, 'mac' => $detectedMac]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('UserDashboard: RadAcct lookup failed for IP auto-detect: ' . $e->getMessage());
+            }
+        }
 
         // Router identity capture (from redirect): store ?nas_identifier=... in session
         if (request()->has('nas_identifier')) {
@@ -700,6 +742,61 @@ class UserDashboard extends Component
     // 7. Reset Form
     $this->reset('voucherCode');
     }
+
+    // Claim / Remember this browser for a device (stores hashed token in Device.meta and sets secure cookie)
+    public function claimDevice($deviceId)
+    {
+        $user = Auth::user();
+        $device = Device::where('id', $deviceId)->where('user_id', $user->id)->first();
+        if (! $device) {
+            Notification::make()->title('Device not found')->danger()->send();
+            return;
+        }
+
+        try {
+            $token = bin2hex(random_bytes(32));
+            $hash = Hash::make($token);
+
+            $meta = $device->meta ?? [];
+            $meta['browser_token_hash'] = $hash;
+            $device->meta = $meta;
+            $device->save();
+
+            // Set a secure, HttpOnly cookie for one year
+            Cookie::queue(Cookie::make('fastlink_device_token', $token, 60 * 24 * 365, '/', null, true, true, false, 'Lax'));
+
+            session(['current_device_mac' => $device->mac]);
+
+            Notification::make()->title('Device remembered')->success()->send();
+        } catch (\Exception $e) {
+            Log::error('Failed to claim device: ' . $e->getMessage());
+            Notification::make()->title('Error')->danger()->send();
+        }
+    }
+
+    public function forgetDevice($deviceId)
+    {
+        $user = Auth::user();
+        $device = Device::where('id', $deviceId)->where('user_id', $user->id)->first();
+        if (! $device) return;
+
+        $meta = $device->meta ?? [];
+        unset($meta['browser_token_hash']);
+        $device->meta = $meta;
+        $device->save();
+
+        Cookie::queue(Cookie::forget('fastlink_device_token'));
+        if (session('current_device_mac') === $device->mac) session()->forget('current_device_mac');
+
+        Notification::make()->title('Device forgotten')->success()->send();
+    }
+
+    /**
+     * Disconnect user from MikroTik router via HTTP API
+     * 
+     * This method attempts to remove active hotspot session from MikroTik
+     * Requires MikroTik API credentials to be configured in .env
+     */
     
     /**
      * Disconnect user from MikroTik router via HTTP API
