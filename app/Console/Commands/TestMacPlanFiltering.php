@@ -8,7 +8,7 @@ use App\Models\MacPlanAssignment;
 use App\Models\DataPlan;
 use App\Models\Router;
 
-class TestNasPlanFiltering extends Command
+class TestMacPlanFiltering extends Command
 {
     /**
      * The name and signature of the console command.
