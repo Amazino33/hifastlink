@@ -18,10 +18,10 @@
 
                 <!-- Navigation Links -->
                 <div class="hidden space-x-2 sm:ms-10 sm:flex items-center">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                    <a href="{{ route('dashboard') }}" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group {{ request()->routeIs('dashboard') ? 'bg-white/10 rounded-lg' : '' }}">
                         <span class="relative z-10">{{ __('Dashboard') }}</span>
                         <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
-                    </x-nav-link>
+                    </a>
                     
                     <a href="{{ route('services') }}" class="relative px-6 py-3 text-white font-semibold hover:text-blue-300 transition-all duration-300 group {{ request()->routeIs('services') ? 'bg-white/10 rounded-lg' : '' }}">
                         <span class="relative z-10">Services</span>
@@ -137,11 +137,10 @@
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden bg-white/10 backdrop-blur-md border-t border-white/20">
         <div class="pt-4 pb-3 space-y-2 px-4">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" 
-                class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4">
+            <a href="{{ route('dashboard') }}" class="text-white hover:bg-white/20 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 transition-all duration-300 {{ request()->routeIs('dashboard') ? 'bg-white/20' : '' }}">
                 <i class="fa-solid fa-dashboard"></i>
                 <span>{{ __('Dashboard') }}</span>
-            </x-responsive-nav-link>
+            </a>
             
             @auth
             @if(Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('cashier') || Auth::user()->email === 'amazino33@gmail.com')
