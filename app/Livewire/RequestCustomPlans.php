@@ -57,9 +57,14 @@ class RequestCustomPlans extends Component
 
     public function mount()
     {
-        // Try to pre-select the user's current router
+        // Authorization: only family master (family owner / parent account) may request custom plans
         $user = Auth::user();
-        if ($user && method_exists($user, 'getCurrentRouter')) {
+        if (! $user || ! $user->is_family_admin || $user->parent_id) {
+            abort(403, 'Access denied. Family master only.');
+        }
+
+        // Try to pre-select the user's current router
+        if (method_exists($user, 'getCurrentRouter')) {
             $currentRouter = $user->getCurrentRouter();
             if ($currentRouter) {
                 $this->router_id = $currentRouter->id;

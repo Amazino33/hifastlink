@@ -26,6 +26,7 @@ FastLink is a complete ISP hotspot management system built on Laravel with RADIU
 ✅ Multi-router management (unlimited sites)  
 ✅ Location tracking (users see which site they're connected to)  
 ✅ Automated router setup (scripts for MikroTik)  
+✅ Request custom plans (family master only — UI + server-side enforcement)  
 ✅ Health monitoring (`php artisan router:check`)  
 ✅ RADIUS auto-sync (changes sync automatically)  
 ✅ Admin panel (Filament)  
