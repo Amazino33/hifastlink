@@ -105,5 +105,49 @@ class DashboardProgressBarTest extends TestCase
             ->assertSee('style="width: 50%"', false)
             ->assertSee('150 MB');
     }
+
+    public function test_dashboard_shows_assigned_router_location_when_user_is_online()
+    {
+        $plan = Plan::factory()->create([
+            'name' => 'Location Plan',
+            'data_limit' => 10,
+            'limit_unit' => 'MB',
+            'validity_days' => 30,
+        ]);
+
+        $router = \App\Models\Router::create([
+            'name' => 'Office Router',
+            'location' => 'Office Lobby',
+            'ip_address' => '10.0.0.5',
+            'nas_identifier' => 'router_office',
+            'secret' => 'testing-secret',
+            'is_active' => true,
+        ]);
+
+        $user = User::factory()->create([
+            'username' => 'loc_user',
+            'plan_id' => $plan->id,
+            'data_limit' => 10,
+            'plan_expiry' => now()->addDays(30),
+            'router_id' => $router->id,
+        ]);
+
+        // Create an active radacct session tied to the router IP
+        RadAcct::create([
+            'acctuniqueid' => 'test_loc_' . time() . rand(1000,9999),
+            'username' => $user->username,
+            'acctstarttime' => now()->subMinutes(10),
+            'acctupdatetime' => now()->subMinutes(5),
+            'acctstoptime' => null,
+            'framedipaddress' => '203.0.113.10',
+            'nasipaddress' => $router->ip_address,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertStatus(200)
+            ->assertSee('Connected via:')
+            ->assertSee('Office Lobby');
+    }
 }
 

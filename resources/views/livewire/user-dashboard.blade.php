@@ -50,6 +50,14 @@
                             <span class="text-gray-500 dark:text-gray-400">(Not this device)</span>
                         </p>
                     </div>
+                    @if($currentLocation)
+                        <div class="flex items-center space-x-2 mt-1">
+                            <i class="fa-solid fa-location-dot text-xs text-blue-500 dark:text-blue-400"></i>
+                            <p class="text-xs text-blue-600 dark:text-blue-400">
+                                Connected via: <span class="font-semibold">{{ $currentLocation }}</span>
+                            </p>
+                        </div>
+                    @endif
                 @elseif($connectionStatus === 'active')
                     <div class="flex items-center space-x-3 mt-2">
                         <span class="relative flex h-3 w-3">

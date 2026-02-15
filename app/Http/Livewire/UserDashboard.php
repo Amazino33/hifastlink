@@ -349,6 +349,12 @@ class UserDashboard extends Component
         $currentLocation = null;
         $currentRouter = null;
 
+        // If a router was already determined earlier (for example via user.router_id or URL param), prefer it
+        if (isset($router) && $router) {
+            $currentRouter = $router;
+            $currentLocation = $router->location ?: ($router->name ?: 'Unknown Location');
+        }
+
         $currentRouterNasIdentifier = session('current_router_nas_identifier');
         if ($currentRouterNasIdentifier) {
             $routerFromParam = \App\Models\Router::where('nas_identifier', $currentRouterNasIdentifier)->first();
