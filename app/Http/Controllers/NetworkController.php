@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\RadAcct;
+use App\Models\Device;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cookie;
 
 class NetworkController extends Controller
 {
@@ -66,6 +68,20 @@ class NetworkController extends Controller
         }
 
         $user->update(['connection_status' => 'disconnected']);
+
+        // Immediately mark Device entries as disconnected so the dashboard updates instantly
+        if ($mac) {
+            Device::where('user_id', $user->id)->where('mac', $mac)->update(['is_connected' => false, 'last_seen' => now()]);
+            if (session('current_device_mac') === $mac) {
+                session()->forget('current_device_mac');
+                Cookie::queue(Cookie::forget('fastlink_device_token'));
+            }
+        } else {
+            // No MAC provided -> mark all user's devices as disconnected
+            Device::where('user_id', $user->id)->where('is_connected', true)->update(['is_connected' => false, 'last_seen' => now()]);
+            session()->forget('current_device_mac');
+            Cookie::queue(Cookie::forget('fastlink_device_token'));
+        }
 
         // For browser form posts, redirect back with a flash message so the UI updates naturally
         if (! $request->wantsJson()) {
