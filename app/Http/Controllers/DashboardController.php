@@ -234,22 +234,24 @@ class DashboardController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        // Determine if user has an active subscription using Subscription model when available
-        // Validate active plan (used instead of Subscription model)
-        $validSubscription = null;
-        $hasExpiry = $user->plan_expiry && $user->plan_expiry->isFuture();
-        $dataRemaining = is_null($user->data_limit) ? null : max(0, ($user->data_limit ?? 0) - ($user->data_used ?? 0));
+        // Family-aware subscription check: allow connect when either the user or their family master has an active plan.
+        $masterUser = $user->parent_id ? $user->parent : $user;
 
-        if ($hasExpiry && (is_null($user->data_limit) || $dataRemaining > 0)) {
-            $validSubscription = (object) ['plan_id' => $user->plan_id, 'expires_at' => $user->plan_expiry];
+        $validSubscription = null;
+        $hasExpiry = $masterUser->plan_expiry && $masterUser->plan_expiry->isFuture();
+        $dataRemaining = is_null($masterUser->data_limit) ? null : max(0, ($masterUser->data_limit ?? 0) - ($masterUser->data_used ?? 0));
+
+        if ($hasExpiry && (is_null($masterUser->data_limit) || $dataRemaining > 0)) {
+            $validSubscription = (object) ['plan_id' => $masterUser->plan_id, 'expires_at' => $masterUser->plan_expiry, 'owner_id' => $masterUser->id];
         }
 
         if (! $validSubscription) {
             return response()->json(['message' => 'No active subscription. Please renew to connect.'], 422);
         }
 
-        // Self-repair plan_id if missing
-        if (isset($validSubscription->plan_id) && empty($user->plan_id) && $validSubscription->plan_id) {
+        // If user's own plan_id is missing but family master has one, do not overwrite user's plan_id.
+        // We only self-repair user's plan_id when the subscription actually belongs to the user.
+        if (isset($validSubscription->plan_id) && empty($user->plan_id) && $validSubscription->plan_id && $validSubscription->owner_id === $user->id) {
             try {
                 $user->plan_id = $validSubscription->plan_id;
                 $user->save();
