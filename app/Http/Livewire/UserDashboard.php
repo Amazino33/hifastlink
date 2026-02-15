@@ -32,6 +32,7 @@ class UserDashboard extends Component
 
     protected $listeners = [
         'subscribeEvent' => 'subscribe',
+        'refreshDashboard' => '$refresh',
     ];
 
     protected $layout = 'layouts.app';

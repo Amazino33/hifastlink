@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cookie;
 
 class NetworkController extends Controller
@@ -81,6 +82,14 @@ class NetworkController extends Controller
             Device::where('user_id', $user->id)->where('is_connected', true)->update(['is_connected' => false, 'last_seen' => now()]);
             session()->forget('current_device_mac');
             Cookie::queue(Cookie::forget('fastlink_device_token'));
+        }
+
+        // Ensure the devices table is in sync immediately
+        try {
+            Artisan::call('radius:sync-devices');
+            Log::info('NetworkController: radius:sync-devices called after disconnect');
+        } catch (\Exception $e) {
+            Log::warning('NetworkController: radius:sync-devices failed: ' . $e->getMessage());
         }
 
         // For browser form posts, redirect back with a flash message so the UI updates naturally

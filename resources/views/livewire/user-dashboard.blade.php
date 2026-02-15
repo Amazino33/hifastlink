@@ -172,6 +172,50 @@
                                             <i class="fa-solid fa-power-off mr-1"></i>Disconnect
                                         </button>
                                     </form>
+
+                                    <script>
+                                        // Intercept disconnect form and do AJAX so we can refresh Livewire instantly
+                                        (function(){
+                                            const disconnectForm = document.querySelector('form[action="{{ route("user.disconnect") }}"]');
+                                            if (!disconnectForm) return;
+
+                                            disconnectForm.addEventListener('submit', async function(e){
+                                                // Allow normal POST if JavaScript disabled
+                                                if (!window.Livewire) return;
+                                                e.preventDefault();
+
+                                                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                                                try {
+                                                    const resp = await fetch(disconnectForm.action, {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Accept': 'application/json',
+                                                            'Content-Type': 'application/json',
+                                                            'X-CSRF-TOKEN': token
+                                                        },
+                                                        body: JSON.stringify({})
+                                                    });
+
+                                                    if (resp.ok) {
+                                                        // Refresh Livewire component
+                                                        Livewire.emit('refreshDashboard');
+
+                                                        // Optionally show a toast or reload page for full state
+                                                        const data = await resp.json().catch(() => ({}));
+                                                        if (data && data.status === 'offline') {
+                                                            // nothing more to do — UI refreshed
+                                                        }
+                                                    } else {
+                                                        // fallback to full form submit
+                                                        disconnectForm.submit();
+                                                    }
+                                                } catch (err) {
+                                                    // fallback
+                                                    disconnectForm.submit();
+                                                }
+                                            });
+                                        })();
+                                    </script>
                                 @else
                                     <!-- Connect button (shown if subscription is active and device limit not reached) -->
                                     @if($subscriptionStatus === 'active')
