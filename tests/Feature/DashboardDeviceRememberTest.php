@@ -116,4 +116,77 @@ class DashboardDeviceRememberTest extends TestCase
         $this->assertEquals(session('current_device_mac'), $mac);
         $this->assertDatabaseHas('devices', ['user_id' => $user->id, 'mac' => $mac]);
     }
+
+    public function test_same_mac_auto_claims_device()
+    {
+        $user = User::factory()->create(['username' => 'auto_claim_user']);
+
+        // Ensure radacct table exists in the test database
+        if (! \Illuminate\Support\Facades\Schema::hasTable('radacct')) {
+            \Illuminate\Support\Facades\Schema::create('radacct', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->id();
+                $table->string('username');
+                $table->timestamp('acctstarttime')->nullable();
+                $table->timestamp('acctupdatetime')->nullable();
+                $table->timestamp('acctstoptime')->nullable();
+                $table->string('callingstationid')->nullable();
+                $table->string('framedipaddress')->nullable();
+                $table->string('nasipaddress')->nullable();
+                $table->bigInteger('acctinputoctets')->default(0);
+                $table->bigInteger('acctoutputoctets')->default(0);
+            });
+        }
+
+        $mac = 'AA:BB:CC:11:22:33';
+        $ip = '203.0.113.6';
+
+        // Pre-create a Device record for this user (no browser_token_hash yet)
+        $device = Device::create([
+            'user_id' => $user->id,
+            'mac' => $mac,
+            'is_connected' => false,
+        ]);
+
+        RadAcct::create([
+            'username' => $user->username,
+            'acctstarttime' => now()->subMinutes(5),
+            'acctupdatetime' => now()->subMinutes(1),
+            'acctstoptime' => null,
+            'callingstationid' => $mac,
+            'framedipaddress' => $ip,
+            'nasipaddress' => '10.0.0.1',
+        ]);
+
+        $response = $this->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->actingAs($user)
+            ->get(route('dashboard'));
+
+        $response->assertStatus(200)->assertCookie('fastlink_device_token');
+
+        $device = $device->fresh();
+        $this->assertArrayHasKey('browser_token_hash', $device->meta ?? []);
+        $this->assertEquals(session('current_device_mac'), $mac);
+    }
+
+    public function test_claim_link_only_shown_for_current_device()
+    {
+        $user = User::factory()->create(['username' => 'claim_visible_user']);
+
+        $deviceA = Device::create(['user_id' => $user->id, 'mac' => 'AA:AA:AA:AA:AA:AA', 'is_connected' => false]);
+        $deviceB = Device::create(['user_id' => $user->id, 'mac' => 'BB:BB:BB:BB:BB:BB', 'is_connected' => false]);
+
+        $response = $this->withSession(['current_device_mac' => $deviceA->mac])
+            ->actingAs($user)
+            ->get(route('dashboard'));
+
+        $response->assertStatus(200);
+        $content = $response->getContent();
+
+        // After auto-claim behavior the current device will be remembered (so "Claim" is hidden)
+        // and the UI shows the "Forget" link for the current browser/device. Non-current devices do not show a claim link.
+        $this->assertEquals(0, substr_count($content, 'Claim this device'));
+        $this->assertStringContainsString('(This browser/device)', $content);
+        $this->assertStringContainsString('Forget', $content);
+    }
 }
+

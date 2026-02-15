@@ -451,9 +451,13 @@
 
                                         <div class="mt-2">
                                             @if(session('current_device_mac') === $device->mac)
-                                                <button wire:click="forgetDevice({{ $device->id }})" class="text-xs text-gray-500 hover:underline">Forget</button>
+                                                @if(data_get($device->meta, 'browser_token_hash'))
+                                                    <button wire:click="forgetDevice({{ $device->id }})" class="text-xs text-gray-500 hover:underline">Forget</button>
+                                                @else
+                                                    <button wire:click="claimDevice({{ $device->id }})" class="text-xs text-blue-600 hover:underline">Claim this device</button>
+                                                @endif
                                             @else
-                                                <button wire:click="claimDevice({{ $device->id }})" class="text-xs text-blue-600 hover:underline">Claim this device</button>
+                                                {{-- Claim link hidden for devices that are not the current browser/device --}}
                                             @endif
                                         </div>
                                     </div>

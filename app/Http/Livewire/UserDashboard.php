@@ -325,6 +325,47 @@ class UserDashboard extends Component
             }
         }
 
+        // Auto-claim devices when the detected MAC matches an existing device owned by this user.
+        // This will create a persistent browser token for that device (same behavior as manual claim).
+        if ($currentMac) {
+            try {
+                $foundDevice = Device::where('user_id', $user->id)->where('mac', $currentMac)->first();
+                if ($foundDevice) {
+                    $browserTokenHash = data_get($foundDevice->meta, 'browser_token_hash');
+                    $cookieToken = Cookie::get('fastlink_device_token');
+
+                    // If the device already had a token hash but the cookie is missing/mismatched, re-issue a token/hash pair.
+                    if ($browserTokenHash) {
+                        if (! $cookieToken || ! Hash::check($cookieToken, $browserTokenHash)) {
+                            $token = bin2hex(random_bytes(32));
+                            $hash = Hash::make($token);
+                            $meta = $foundDevice->meta ?? [];
+                            $meta['browser_token_hash'] = $hash;
+                            $foundDevice->meta = $meta;
+                            $foundDevice->save();
+                            Cookie::queue(Cookie::make('fastlink_device_token', $token, 60 * 24 * 365, '/', null, true, true, false, 'Lax'));
+                            Log::info('UserDashboard: re-issued browser token for matched device', ['user_id' => $user->id, 'device_id' => $foundDevice->id, 'mac' => $currentMac]);
+                        }
+                    } else {
+                        // New auto-claim: generate token + hash and persist
+                        $token = bin2hex(random_bytes(32));
+                        $hash = Hash::make($token);
+                        $meta = $foundDevice->meta ?? [];
+                        $meta['browser_token_hash'] = $hash;
+                        $foundDevice->meta = $meta;
+                        $foundDevice->save();
+                        Cookie::queue(Cookie::make('fastlink_device_token', $token, 60 * 24 * 365, '/', null, true, true, false, 'Lax'));
+                        Log::info('UserDashboard: auto-claimed device by MAC match', ['user_id' => $user->id, 'device_id' => $foundDevice->id, 'mac' => $currentMac]);
+                    }
+
+                    // Ensure session is set to the detected MAC
+                    session(['current_device_mac' => $currentMac]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('UserDashboard: auto-claim failed: ' . $e->getMessage());
+            }
+        }
+
         // Router identity capture (from redirect): store ?nas_identifier=... in session
         if (request()->has('nas_identifier')) {
             session(['current_router_nas_identifier' => request('nas_identifier')]);
