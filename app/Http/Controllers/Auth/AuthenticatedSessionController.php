@@ -52,6 +52,18 @@ class AuthenticatedSessionController extends Controller
         if ($request->filled('link_login')) {
             $user = \Illuminate\Support\Facades\Auth::user();
 
+            // Block captive logins when subscription/plan is not valid.
+            // This prevents users from authenticating via the captive bridge if they have expired/exhausted plans.
+            $subscriptionService = new \App\Services\SubscriptionService();
+            if (! $subscriptionService->canConnectToHotspot($user)) {
+                // Immediately undo the authenticated session and show the purchase prompt
+                \Illuminate\Support\Facades\Auth::guard('web')->logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return redirect()->route('dashboard')->with('error', 'Please buy a plan.');
+            }
+
             $linkLogin = $request->input('link_login');
             // Force returning users to their dashboard after router completes login
             $linkOrig = route('dashboard');

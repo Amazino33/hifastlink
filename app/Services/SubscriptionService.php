@@ -116,4 +116,61 @@ class SubscriptionService
 
         return 0;
     }
+
+    /**
+     * Determine whether the user (or their family master) may connect to a hotspot/router.
+     *
+     * Rules:
+     * - User OR family master must have an active plan/subscription with remaining data or unlimited.
+     * - Stored rollover bytes alone do NOT allow connection.
+     *
+     * @param  \App\Models\User  $user
+     * @return bool
+     */
+    public function canConnectToHotspot(\App\Models\User $user): bool
+    {
+        $masterId = $user->parent_id ?? $user->id;
+
+        // If application uses a Subscription model, prefer that authoritative source
+        if (class_exists(\App\Models\Subscription::class) && \Illuminate\Support\Facades\Schema::hasTable('subscriptions')) {
+            // Check user's own active subscription
+            $own = \App\Models\Subscription::where('user_id', $user->id)
+                ->where('status', 'ACTIVE')
+                ->where('expires_at', '>', now())
+                ->where(function ($q) {
+                    $q->where('data_remaining', '>', 0)->orWhereNull('data_limit');
+                })->exists();
+
+            if ($own) return true;
+
+            // Check family master (if different)
+            if ($masterId !== $user->id) {
+                $masterSub = \App\Models\Subscription::where('user_id', $masterId)
+                    ->where('status', 'ACTIVE')
+                    ->where('expires_at', '>', now())
+                    ->where(function ($q) {
+                        $q->where('data_remaining', '>', 0)->orWhereNull('data_limit');
+                    })->exists();
+
+                if ($masterSub) return true;
+            }
+
+            return false;
+        }
+
+        // Fallback: use User plan fields
+        $userHasPlan = ($user->plan_expiry && $user->plan_expiry->isFuture()) && (is_null($user->data_limit) || max(0, ($user->data_limit ?? 0) - ($user->data_used ?? 0)) > 0);
+        if ($userHasPlan) return true;
+
+        if ($masterId !== $user->id) {
+            $masterUser = \App\Models\User::find($masterId);
+            if ($masterUser) {
+                $masterHasPlan = ($masterUser->plan_expiry && $masterUser->plan_expiry->isFuture()) && (is_null($masterUser->data_limit) || max(0, ($masterUser->data_limit ?? 0) - ($masterUser->data_used ?? 0)) > 0);
+                if ($masterHasPlan) return true;
+            }
+        }
+
+        // Rollover-only does NOT permit connection here
+        return false;
+    }
 }

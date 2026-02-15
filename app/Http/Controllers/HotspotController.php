@@ -32,6 +32,12 @@ class HotspotController extends Controller
             return redirect()->route('dashboard')->with('error', 'Router not found.');
         }
 
+        // Block early if subscription rules deny hotspot access (centralized check)
+        $subscriptionService = new \App\Services\SubscriptionService();
+        if (! $subscriptionService->canConnectToHotspot($user)) {
+            return redirect()->route('dashboard')->with('error', 'Please buy a plan.');
+        }
+
         // Determine if user has an active subscription using Subscription model when available
         $validSubscription = null;
         if (class_exists(\App\Models\Subscription::class)) {

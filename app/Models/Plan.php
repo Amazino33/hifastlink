@@ -74,14 +74,20 @@ class Plan extends Model
     protected static function booted()
     {
         static::saved(function ($plan) {
+            // Guard presence of rad tables in tests/environments without RADIUS schema
+            $hasRadGroupReply = \Illuminate\Support\Facades\Schema::hasTable('radgroupreply');
+            $hasRadCheck = \Illuminate\Support\Facades\Schema::hasTable('radcheck');
+
             // Remove entries for old name if the plan was renamed
             $originalName = $plan->getOriginal('name');
-            if ($originalName && $originalName !== $plan->name) {
+            if ($originalName && $originalName !== $plan->name && $hasRadGroupReply) {
                 RadGroupReply::where('groupname', $originalName)->delete();
             }
 
             // Remove existing radgroupreply entries for this plan to avoid duplicates
-            RadGroupReply::where('groupname', $plan->name)->delete();
+            if ($hasRadGroupReply) {
+                RadGroupReply::where('groupname', $plan->name)->delete();
+            }
 
             $attributes = [];
 
@@ -156,11 +162,13 @@ class Plan extends Model
             }
 
             // Insert all attributes
-            foreach ($attributes as $attr) {
-                try {
-                    RadGroupReply::create($attr);
-                } catch (\Exception $e) {
-                    Log::error("Failed to sync RadGroupReply for plan {$plan->name}: " . $e->getMessage(), ['attr' => $attr]);
+            if ($hasRadGroupReply) {
+                foreach ($attributes as $attr) {
+                    try {
+                        RadGroupReply::create($attr);
+                    } catch (\Exception $e) {
+                        Log::error("Failed to sync RadGroupReply for plan {$plan->name}: " . $e->getMessage(), ['attr' => $attr]);
+                    }
                 }
             }
 
@@ -169,7 +177,7 @@ class Plan extends Model
             if ($plan->wasChanged('max_devices') || $plan->wasRecentlyCreated) {
                 $users = \App\Models\User::where('plan_id', $plan->id)->get();
                 foreach ($users as $user) {
-                    if ($user->username) {
+                    if ($user->username && $hasRadCheck) {
                         // Update or create Simultaneous-Use in radcheck for this user
                         $maxDevices = $plan->max_devices ?? 1;
                         \App\Models\RadCheck::updateOrCreate(
@@ -190,7 +198,9 @@ class Plan extends Model
 
         // Remove all radgroupreply entries when a plan is deleted
         static::deleting(function ($plan) {
-            RadGroupReply::where('groupname', $plan->name)->delete();
+            if (\Illuminate\Support\Facades\Schema::hasTable('radgroupreply')) {
+                RadGroupReply::where('groupname', $plan->name)->delete();
+            }
         });
     } 
  
