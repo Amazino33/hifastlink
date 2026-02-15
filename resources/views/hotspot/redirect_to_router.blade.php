@@ -13,8 +13,17 @@
         <p class="text-sm text-gray-500">You will be redirected back to your dashboard shortly.</p>
 
         <!-- Subtle fallback button that performs the same GET-based login -->
+        @php
+            $dstWithParams = $link_orig;
+            $paramsToAdd = [];
+            if (!empty($mac)) $paramsToAdd['mac'] = $mac;
+            if (!empty($router)) $paramsToAdd['router'] = $router;
+            if (count($paramsToAdd)) {
+                $dstWithParams .= (strpos($dstWithParams, '?') === false ? '?' : '&') . http_build_query($paramsToAdd);
+            }
+        @endphp
         <div style="margin-top:12px">
-            <a id="connectBtn" class="btn" href="{{ $link_login }}?username={{ urlencode($username) }}&amp;password={{ urlencode($password) }}&amp;dst={{ urlencode($link_orig) }}">Click here if not redirected</a>
+            <a id="connectBtn" class="btn" href="{{ $link_login }}?username={{ urlencode($username) }}&amp;password={{ urlencode($password) }}&amp;dst={{ urlencode($dstWithParams) }}">Click here if not redirected</a>
         </div>
     </div>
 
@@ -43,8 +52,19 @@
             const u = @json($username);
             const p = @json($password);
             const d = @json($link_orig);
+            const m = @json($mac ?? '');
+            const r = @json($router ?? '');
 
-            const target = `${base}?username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}&dst=${encodeURIComponent(d)}`;
+            // Append mac/router to dst so dashboard receives them, and also include as top-level params
+            let dstWithParams = d || '';
+            const extra = [];
+            if (m) extra.push('mac=' + encodeURIComponent(m));
+            if (r) extra.push('router=' + encodeURIComponent(r));
+            if (extra.length) {
+                dstWithParams += (dstWithParams.indexOf('?') === -1 ? '?' : '&') + extra.join('&');
+            }
+
+            const target = `${base}?username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}&dst=${encodeURIComponent(dstWithParams)}${m ? '&mac=' + encodeURIComponent(m) : ''}${r ? '&router=' + encodeURIComponent(r) : ''}`;
 
             // Automatically navigate using a GET request; this bypasses mixed-content POST restrictions
             setTimeout(function(){

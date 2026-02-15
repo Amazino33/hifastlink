@@ -101,12 +101,24 @@ class HotspotController extends Controller
             'request_ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
+
+        // Upsert device record if a MAC is available (persist device for Option B)
+        $macToUse = session('current_device_mac') ?? $request->input('mac');
+        if ($macToUse) {
+            try {
+                \App\Models\Device::upsertFromLogin($user, $macToUse, $routerIdentifier, $request->ip(), $request->userAgent());
+            } catch (\Throwable $e) {
+                Log::warning('Device upsert failed in connectBridge: ' . $e->getMessage(), ['user_id' => $user->id, 'mac' => $macToUse]);
+            }
+        }
         
         return view('hotspot.redirect_to_router', [
             'username' => $user->username,
             'password' => $password,
             'link_login' => $link_login,
             'link_orig' => $link_orig,
+            'mac' => $macToUse,
+            'router' => $routerIdentifier,
         ]);
     }
 

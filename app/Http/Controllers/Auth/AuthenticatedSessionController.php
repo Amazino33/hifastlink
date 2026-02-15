@@ -30,9 +30,22 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        // Capture MAC from router callback/query if present so dashboard can track this device
+        // Capture MAC and router from router callback/query so dashboard can track this device and router
         if ($request->filled('mac')) {
-            $request->session()->put('current_device_mac', $request->input('mac'));
+            $mac = $request->input('mac');
+            $request->session()->put('current_device_mac', $mac);
+
+            // Persist device record (Option B)
+            try {
+                \App\Models\Device::upsertFromLogin($request->user(), $mac, $request->input('router') ?? null, $request->input('ip') ?? $request->ip(), $request->userAgent() ?? null);
+            } catch (\Throwable $e) {
+                \Log::warning('Device upsert failed during login capture: ' . $e->getMessage(), ['user_id' => $request->user()?->id, 'mac' => $mac]);
+            }
+        }
+
+        // Preserve router identifier when provided so dashboard can use it
+        if ($request->filled('router')) {
+            $request->session()->put('current_router', $request->input('router'));
         }
 
         // Immediately handle captive portal bridge flow if requested by router parameters
@@ -61,6 +74,7 @@ class AuthenticatedSessionController extends Controller
                 'link_orig' => $linkOrig,
                 'mac' => $mac,
                 'ip' => $ip,
+                'router' => $request->input('router') ?? null,
             ]);
         }
 

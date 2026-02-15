@@ -34,6 +34,9 @@
         @if(request()->has('ip'))
             <input type="hidden" name="ip" value="{{ request()->get('ip') }}">
         @endif
+        @if(request()->has('router'))
+            <input type="hidden" name="router" value="{{ request()->get('router') }}">
+        @endif
         @if(request()->has('username'))
             <input type="hidden" name="router_username" value="{{ request()->get('username') }}">
         @endif
