@@ -435,13 +435,18 @@ class UserDashboard extends Component
                 $planBytes = $masterUser->plan->limit_unit === 'GB' ? (int) ($planVal * 1073741824) : (int) ($planVal * 1048576);
             }
 
-            $remainingBytes = max(0, $planBytes - $totalUsed);
+            // Include rollover in the effective quota only when validity matches the plan (same rule as PlanSyncService)
+            $rolloverBytes = (int) ($masterUser->rollover_available_bytes ?? 0);
+            $includeRollover = $rolloverBytes > 0 && $masterUser->rollover_validity_days == $masterUser->plan->validity_days;
+            $effectivePlanBytes = $includeRollover ? ($planBytes + $rolloverBytes) : $planBytes;
+
+            $remainingBytes = max(0, $effectivePlanBytes - $totalUsed);
             $formattedRemaining = Number::fileSize($remainingBytes);
 
-            // If used >= limit, immediately handle exhaustion
-            if ($planBytes > 0 && $totalUsed >= $planBytes && $masterUser->plan_id) {
+            // If used >= effective limit, immediately handle exhaustion
+            if ($effectivePlanBytes > 0 && $totalUsed >= $effectivePlanBytes && $masterUser->plan_id) {
                 Log::info("Data exhausted detected in dashboard for user {$masterUser->username}");
-                
+
                 // Clear plan immediately
                 $masterUser->plan_id = null;
                 $masterUser->data_plan_id = null;
@@ -452,7 +457,7 @@ class UserDashboard extends Component
                 $masterUser->subscription_end_date = null;
                 $masterUser->connection_status = 'exhausted';
                 $masterUser->save();
-                
+
                 // Disconnect active sessions from RADIUS
                 DB::table('radacct')
                     ->where('username', $masterUser->username)
@@ -461,27 +466,28 @@ class UserDashboard extends Component
                         'acctstoptime' => now(),
                         'acctterminatecause' => 'Data-Limit-Exceeded',
                     ]);
-                
+
                 // Remove RADIUS credentials (prevents re-authentication)
                 DB::table('radcheck')->where('username', $masterUser->username)->delete();
                 DB::table('radreply')->where('username', $masterUser->username)->delete();
-                
+
                 // Attempt to disconnect from MikroTik router via HTTP request
                 try {
                     $this->disconnectFromMikroTik($masterUser->username);
                 } catch (\Exception $e) {
                     Log::warning("Failed to disconnect user from MikroTik: " . $e->getMessage());
                 }
-                
+
                 // Force status update
                 $subscriptionStatus = 'inactive';
                 $connectionStatus = 'offline';
                 $activeSession = null;
-                
+
                 Log::info("Data exhaustion handled immediately for {$masterUser->username}");
             }
         } else {
             $formattedRemaining = 'Unlimited';
+            $effectivePlanBytes = null; // unlimited
         }
 
         // Prefer the framed IP from the active RADIUS session; otherwise show a connected indicator when the device is online
@@ -517,23 +523,16 @@ class UserDashboard extends Component
             $daysBadgeClass = 'bg-gray-500 text-white';
         }
 
-        // Calculate data usage percentage based on totalUsed and master's plan data_limit (convert plan to bytes first)
-        if ($masterUser && $masterUser->plan && $masterUser->plan->limit_unit !== 'Unlimited' && $masterUser->plan->data_limit) {
-            $planVal = (int) $masterUser->plan->data_limit;
-            if ($planVal > 1048576) {
-                // already bytes
-                $planBytes = $planVal;
-            } else {
-                $planBytes = $masterUser->plan->limit_unit === 'GB' ? (int) ($planVal * 1073741824) : (int) ($planVal * 1048576);
-            }
-
-            if ($planBytes > 0) {
-                $percentage = ($totalUsed / (float) $planBytes) * 100;
+        // Calculate data usage percentage based on totalUsed and effective quota (plan + rollover when applicable)
+        if (isset($effectivePlanBytes) && $effectivePlanBytes !== null) {
+            if ($effectivePlanBytes > 0) {
+                $percentage = ($totalUsed / (float) $effectivePlanBytes) * 100;
                 $dataUsagePercentage = (int) min(100, round($percentage));
             } else {
                 $dataUsagePercentage = 0;
             }
         } else {
+            // Unlimited plans or no plan
             $dataUsagePercentage = 0;
         }
 
@@ -557,7 +556,7 @@ class UserDashboard extends Component
             'plans' => $plans,
             'totalUsed' => $totalUsed,
             'formattedTotalUsed' => $formattedTotalUsed,
-            'formattedDataLimit' => $currentPlan?->data_limit_human ?? 'Unlimited',
+            'formattedDataLimit' => (isset($effectivePlanBytes) && $effectivePlanBytes !== null) ? Number::fileSize($effectivePlanBytes) : 'Unlimited',
             'subscriptionStatus' => $subscriptionStatus,
             'connectionStatus' => $connectionStatus,
             'currentIp' => $currentIp,
