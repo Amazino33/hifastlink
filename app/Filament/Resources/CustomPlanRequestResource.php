@@ -281,14 +281,11 @@ class CustomPlanRequestResource extends Resource
     protected static function createCustomPlans(CustomPlanRequest $request): void
     {
         foreach ($request->requested_plans as $planData) {
-            // Convert MB to bytes (1 MB = 1,048,576 bytes)
-            $dataLimitInBytes = ($planData['data_limit'] ?? 0) * 1048576;
-
             \App\Models\Plan::create([
                 'name' => $planData['name'],
                 'description' => $planData['description'] ?? null,
                 'price' => $planData['price'] ?? 0,
-                'data_limit' => $dataLimitInBytes,
+                'data_limit' => $planData['data_limit'] ?? 0,
                 'time_limit' => $planData['time_limit'] ?? null,
                 'speed_limit_upload' => $planData['speed_limit_upload'] ?? null,
                 'speed_limit_download' => $planData['speed_limit_download'] ?? null,

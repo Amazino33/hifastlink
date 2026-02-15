@@ -71,11 +71,18 @@ class RequestCustomPlans extends Component
     {
         $this->plans[] = [
             'name' => '',
-            'data_limit' => '',
-            'duration_days' => 30,
+            'description' => '',
             'price' => '',
+            'data_limit' => '',
+            'time_limit' => '',
+            'speed_limit_upload' => '',
+            'speed_limit_download' => '',
+            'validity_days' => 30,
             'speed_limit' => '',
+            'allowed_login_time' => '',
+            'limit_unit' => 'MB',
             'max_devices' => '',
+            'features' => '',
         ];
     }
 
@@ -181,11 +188,18 @@ class RequestCustomPlans extends Component
             $this->plans = [
                 [
                     'name' => '',
-                    'data_limit' => '',
-                    'duration_days' => 30,
+                    'description' => '',
                     'price' => '',
+                    'data_limit' => '',
+                    'time_limit' => '',
+                    'speed_limit_upload' => '',
+                    'speed_limit_download' => '',
+                    'validity_days' => 30,
                     'speed_limit' => '',
+                    'allowed_login_time' => '',
+                    'limit_unit' => 'MB',
                     'max_devices' => '',
+                    'features' => '',
                 ]
             ];
         } catch (\Exception $e) {

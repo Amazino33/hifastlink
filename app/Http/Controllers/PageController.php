@@ -12,12 +12,46 @@ class PageController extends Controller
     /**
      * Display the pricing page with plans grouped by duration.
      */
-    public function pricing()
+    public function pricing(Request $request)
     {
-        // Get all plans and group by validity_days
-        $plansByDuration = Plan::all()->groupBy('validity_days')->sortKeys();
-        
-        return view('pricing', compact('plansByDuration'));
+        // Determine router context (user -> query param -> session) and use PlanFilterService
+        $routerIdentifier = null;
+        $routerId = null;
+        $currentRouter = null;
+
+        $user = auth()->user();
+        if ($user && $user->router_id) {
+            $currentRouter = $user->router;
+            $routerIdentifier = $currentRouter?->nas_identifier;
+            $routerId = $user->router_id;
+        }
+
+        // URL parameter can override
+        if ($request->query('router')) {
+            $urlRouter = \App\Models\Router::where('nas_identifier', $request->query('router'))->first();
+            if ($urlRouter) {
+                $currentRouter = $urlRouter;
+                $routerIdentifier = $urlRouter->nas_identifier;
+                $routerId = $urlRouter->id;
+            }
+        }
+
+        // Session fallback
+        if (!$routerIdentifier && session('current_router')) {
+            $sessRouter = \App\Models\Router::where('nas_identifier', session('current_router'))->first();
+            if ($sessRouter) {
+                $currentRouter = $sessRouter;
+                $routerIdentifier = $sessRouter->nas_identifier;
+                $routerId = $sessRouter->id;
+            }
+        }
+
+        $planFilter = new \App\Services\PlanFilterService();
+        $plans = $planFilter->getAvailablePlans($routerIdentifier, $routerId);
+
+        $plansByDuration = $plans->groupBy('validity_days')->sortKeys();
+
+        return view('pricing', compact('plansByDuration', 'currentRouter'));
     }
 
     /**

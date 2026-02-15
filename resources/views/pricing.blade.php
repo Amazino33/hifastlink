@@ -25,6 +25,7 @@
                                 <!-- Plan Header -->
                                 <div class="bg-gradient-to-br from-primary to-secondary p-6 text-white">
                                     <h3 class="text-2xl font-bold mb-2">{{ $plan->name }}</h3>
+
                                     <div class="text-4xl font-black mb-1">₦{{ number_format($plan->price, 0) }}</div>
                                     <div class="text-sm text-white/80">{{ $plan->validity_days }} {{ $plan->validity_days == 1 ? 'day' : 'days' }} validity</div>
                                 </div>
@@ -36,10 +37,10 @@
                                         <li class="flex items-center space-x-3">
                                             <i class="fa-solid fa-database text-primary"></i>
                                             <span class="font-semibold">
-                                                @if($plan->limit_unit === 'Unlimited')
+                                                @if($plan->limit_unit === 'Unlimited' || $plan->data_limit === null)
                                                     Unlimited Data
                                                 @else
-                                                    {{ $plan->data_limit }} {{ $plan->limit_unit }} Data
+                                                    {{ $plan->data_limit_human }}
                                                 @endif
                                             </span>
                                         </li>
