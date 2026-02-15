@@ -360,52 +360,84 @@
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
-                <div class="flex items-center justify-between mb-6">
-                    <h3 id="hot-deals" class="text-2xl font-black text-gray-900 dark:text-white">Hot Deals</h3>
-                    <a href="{{ route('pricing') }}" class="text-sm font-bold text-primary hover:text-secondary transition-colors">
-                        Show All <i class="fa-solid fa-arrow-right ml-1"></i>
-                    </a>
-                </div>
+<div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-md">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Your Devices</h3>
+                        <a href="#" class="text-sm text-gray-500 hover:underline">Manage</a>
+                    </div>
 
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    @foreach($plans->take(4) as $plan)
-                        <div class="bg-gradient-to-br from-blue-600 to-blue-400 rounded-3xl shadow-lg transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
-                            <div class="text-center space-y-2 p-1">
-                                <div class="bg-white py-4 rounded-3xl m-1">
-                                    <div class="text-2xl font-black text-blue-600">{{ $plan->validity_days }}</div>
-                                    <div class="text-gray-400 text-xs font-bold uppercase tracking-wide">Days</div>
-                                    <div class="border-t border-gray-100 pt-2 mt-2">
-                                        <div class="text-xl font-black text-gray-800">{{ $plan->data_limit_human }}</div>
-                                        <div class="text-gray-400 text-xs">Data</div>
-                                    </div>
-                                    <div class="border-t border-gray-100 pt-2 mt-2">
-                                        <div class="text-sm font-bold text-gray-600 flex items-center justify-center">
-                                            <i class="fa-solid fa-devices text-blue-600 mr-1"></i>
-                                            {{ $plan->max_devices ?? 1 }} {{ ($plan->max_devices ?? 1) == 1 ? 'Device' : 'Devices' }}
+                    @if(isset($devices) && $devices->count())
+                        <div class="space-y-3">
+                            @foreach($devices as $device)
+                                <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="flex-shrink-0">
+                                            <span class="inline-flex items-center justify-center h-8 w-8 rounded-full {{ $device->is_connected ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700' }}">
+                                                <i class="fa-solid fa-wifi"></i>
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <div class="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                                                {{ strtoupper($device->mac) }}
+                                                @if(session('current_device_mac') && session('current_device_mac') === $device->mac)
+                                                    <span class="ml-2 text-xs font-medium text-blue-600">(This browser/device)</span>
+                                                @endif
+                                            </div>
+                                            <div class="text-xs text-gray-500">
+                                                {{ $device->router?->name ?? 'Router: ' . ($device->router_id ?? 'N/A') }} · IP: {{ $device->ip ?? 'N/A' }}
+                                            </div>
                                         </div>
                                     </div>
+                                    <div class="text-right">
+                                        <div class="text-sm font-medium {{ $device->is_connected ? 'text-green-600' : 'text-gray-500' }}">
+                                            {{ $device->is_connected ? 'Connected' : 'Offline' }}
+                                        </div>
+                                        <div class="text-xs text-gray-400 mt-1">{{ $device->last_seen ? $device->last_seen->diffForHumans() : '—' }}</div>
+                                    </div>
                                 </div>
-                                <div class="text-white font-bold text-xs px-2 py-1 truncate">
-                                    {{ $plan->name }}
-                                </div>
-                                <div class="text-white font-black py-1 px-3 text-sm">
-                                    ₦{{ number_format($plan->price) }}
-                                </div>
-                                <div class="pb-3 px-2">
-                                    <form action="{{ route('pay') }}" method="POST" class="w-full">
-                                        @csrf
-                                        <input type="hidden" name="plan_id" value="{{ $plan->id }}">
-                                        <button type="submit" class="w-full bg-white/20 hover:bg-white/40 text-white font-bold text-xs py-2 rounded-full transition-colors">
-                                            Buy
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
+                            @endforeach
                         </div>
-                    @endforeach
+                    @else
+                        <div class="text-sm text-gray-500">No devices recorded yet.</div>
+                    @endif
                 </div>
-            </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 id="hot-deals" class="text-2xl font-black text-gray-900 dark:text-white">Hot Deals</h3>
+                        <a href="{{ route('pricing') }}" class="text-sm font-bold text-primary hover:text-secondary transition-colors">
+                            Show All <i class="fa-solid fa-arrow-right ml-1"></i>
+                        </a>
+                    </div>
+
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        @foreach($plans->take(4) as $plan)
+                            <div class="bg-gradient-to-br from-blue-600 to-blue-400 rounded-3xl shadow-lg transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
+                                <div class="text-center space-y-2 p-1">
+                                    <div class="bg-white py-4 rounded-3xl m-1">
+                                        <div class="text-2xl font-black text-blue-600">{{ $plan->validity_days }}</div>
+                                        <div class="text-gray-400 text-xs font-bold uppercase tracking-wide">Days</div>
+                                        <div class="border-t border-gray-100 pt-2 mt-2">
+                                            <div class="text-xl font-black text-gray-800">{{ $plan->data_limit_human }}</div>
+                                            <div class="text-gray-400 text-xs">Data</div>
+                                        </div>
+                                        <div class="border-t border-gray-100 pt-2 mt-2">
+                                            <div class="text-sm font-bold text-gray-600 flex items-center justify-center">
+                                                <i class="fa-solid fa-devices text-blue-600 mr-1"></i>
+                                                {{ $plan->max_devices ?? 1 }} {{ ($plan->max_devices ?? 1) == 1 ? 'Device' : 'Devices' }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-white font-bold text-xs px-2 py-1 truncate">
+                                        {{ $plan->name }}
+                                    </div>
+                                    <div class="text-white font-black py-1 px-3 text-sm">
+                                        ₦{{ number_format($plan->price) }}
+                                    </div>
+                                    <div class="pb-3 px-2">
+                                        <form action="{{ route('pay') }}" method="POST" class="w-full">
+                                            @csrf
+                                            <input type="hidden" name="plan_id" value="{{ $plan->id }}">
 
              <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
                 <h3 class="text-2xl font-black text-gray-900 dark:text-white mb-6">Transaction History</h3>

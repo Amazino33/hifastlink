@@ -532,6 +532,7 @@ class UserDashboard extends Component
             'currentRouter' => $currentRouter,
             'isDeviceOnline' => $isDeviceOnline,
             'showDisconnectButton' => $isDeviceOnline,
+            'devices' => \App\Models\Device::where('user_id', $user->id)->orderBy('last_seen', 'desc')->get(),
         ]);
     }
 

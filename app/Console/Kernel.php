@@ -21,6 +21,9 @@ class Kernel extends ConsoleKernel
         // Sync users to RADIUS every 5 minutes
         $schedule->command('radius:sync-users')->everyFiveMinutes();
 
+        // Sync connected devices from RadAcct into devices table
+        $schedule->command('radius:sync-devices')->everyMinute();
+
         // Check data limits every hour
         $schedule->command('network:check-limits')->hourly();
 
