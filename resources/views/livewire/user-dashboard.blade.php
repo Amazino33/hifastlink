@@ -243,6 +243,9 @@
                             <div class="text-6xl font-black text-white mb-2">{{ $subscriptionDays }}</div>
                             <div class="text-sm text-white/80 font-semibold mb-3">{{ $subscriptionDays === 1 ? 'day remaining' : 'days remaining' }}</div>
                             <div class="text-blue-100 text-lg">{{ $formattedDataLimit }} connection</div>
+                            @if(isset($user) && isset($user->rollover_available_bytes) && $user->rollover_available_bytes > 0 && $user->rollover_validity_days)
+                                <div class="text-xs text-blue-100 mt-2">Includes <strong>{{ $user->formatBytes($user->rollover_available_bytes) }}</strong> rollover (valid for {{ $user->rollover_validity_days }} days)</div>
+                            @endif
                         @elseif($subscriptionStatus === 'exhausted')
                             <div class="flex items-center space-x-3">
                                 <div class="text-6xl font-black text-white mb-2">Data Exhausted</div>

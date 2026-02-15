@@ -60,8 +60,14 @@ class PlanSyncService
                 ->where('acctstarttime', '>=', $startDate)
                 ->sum(DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
 
-            // Remaining data in bytes
+            // Remaining data in bytes (plan->data_limit stored as MB)
             $remainingBytes = max(0, ($plan->data_limit * 1024 * 1024) - $totalUsed);
+
+            // Include rollover bytes when applicable (same-duration rule)
+            $rolloverBytes = (int) ($user->rollover_available_bytes ?? 0);
+            if ($rolloverBytes > 0 && $user->rollover_validity_days == $plan->validity_days) {
+                $remainingBytes += $rolloverBytes;
+            }
 
             // Speed limits and data limit go into radreply (Mikrotik specific)
             if (! empty($plan->speed_limit)) {

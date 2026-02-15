@@ -7,6 +7,7 @@ use App\Models\Plan;
 use App\Models\RadReply;
 use App\Models\RadUserGroup;
 use Illuminate\Support\Facades\Log;
+use App\Services\RadiusService;
 
 class SubscriptionService
 {
@@ -46,6 +47,16 @@ class SubscriptionService
 
             $user->connection_status = 'inactive';
             $user->save();
+
+            // Immediately disconnect active RADIUS sessions for this user
+            try {
+                $radius = new RadiusService();
+                $radius->disconnectUser($user);
+                // Also update devices table immediately
+                \Artisan::call('radius:sync-devices');
+            } catch (\Exception $e) {
+                Log::warning('Failed to force-disconnect user after expiry: ' . $e->getMessage());
+            }
 
             Log::info("Expired subscription for {$user->username}, rollover={$remaining} bytes");
         } catch (\Exception $e) {
