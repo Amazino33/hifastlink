@@ -438,6 +438,14 @@
                                         <form action="{{ route('pay') }}" method="POST" class="w-full">
                                             @csrf
                                             <input type="hidden" name="plan_id" value="{{ $plan->id }}">
+                                            <button type="submit" class="w-full mt-3 bg-white text-blue-900 font-bold py-2 rounded-xl hover:bg-gray-100 transition-colors shadow-lg">Buy</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
 
              <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
                 <h3 class="text-2xl font-black text-gray-900 dark:text-white mb-6">Transaction History</h3>
