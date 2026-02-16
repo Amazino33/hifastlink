@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Number;
 use App\Models\Router;
+use App\Models\RadAcct;
 
 class AffiliateController extends Controller
 {
@@ -25,6 +28,18 @@ class AffiliateController extends Controller
             abort(404, 'Router not found.');
         }
 
-        return view('affiliate.router-analytics', compact('router'));
+        // Recent sessions for this router (read-only for affiliates)
+        $sessionsQuery = RadAcct::query()->where(function ($q) use ($router) {
+            $q->where('nasipaddress', $router->ip_address);
+
+            if (Schema::hasColumn('radacct', 'nasidentifier')) {
+                $q->orWhere('nasidentifier', $router->nas_identifier)
+                  ->orWhere('nasidentifier', $router->identity ?? '');
+            }
+        });
+
+        $recentSessions = $sessionsQuery->latest('acctstarttime')->limit(25)->get();
+
+        return view('affiliate.router-analytics', compact('router', 'recentSessions'));
     }
 }
