@@ -607,6 +607,11 @@ class UserDashboard extends Component
             ->latest()
             ->paginate(10);
 
+        \Log::info('UserDashboard IP debug', [
+            'activeSession' => $activeSession ? $activeSession->toArray() : null,
+            'currentIp' => $currentIp,
+        ]);
+
         return view('livewire.user-dashboard', [
             'user' => $user,
             'plans' => $plans,
@@ -632,10 +637,6 @@ class UserDashboard extends Component
             'isDeviceOnline' => $isDeviceOnline,
             'showDisconnectButton' => $isDeviceOnline,
             'devices' => \App\Models\Device::where('user_id', $user->id)->orderBy('last_seen', 'desc')->get(),
-            \Log::info('UserDashboard IP debug', [
-                'activeSession' => $activeSession ? $activeSession->toArray() : null,
-                'currentIp' => $currentIp,
-            ])
         ]);
     }
 
