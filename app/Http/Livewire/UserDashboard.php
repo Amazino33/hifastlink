@@ -607,7 +607,7 @@ class UserDashboard extends Component
             ->latest()
             ->paginate(10);
 
-        \Log::info('UserDashboard IP debug', [
+        Log::info('UserDashboard IP debug', [
             'activeSession' => $activeSession ? $activeSession->toArray() : null,
             'currentIp' => $currentIp,
         ]);
