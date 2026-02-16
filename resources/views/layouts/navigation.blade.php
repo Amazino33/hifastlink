@@ -90,10 +90,21 @@
                                 <span>Settings</span>
                             </x-dropdown-link>
 
-                            @if(Auth::user()->is_family_admin && is_null(Auth::user()->parent_id))
+                            @php
+                                $isAffiliate = method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('affiliate');
+                            @endphp
+
+                            @if($isAffiliate)
                                 <x-dropdown-link :href="route('request-custom-plans')" class="flex items-center space-x-2 hover:bg-green-50">
                                     <i class="fa-solid fa-plus-circle text-green-600"></i>
                                     <span>Request Custom Plan</span>
+                                </x-dropdown-link>
+                            @endif
+
+                            @if($isAffiliate && Auth::user()->router_id)
+                                <x-dropdown-link :href="route('affiliate.router.analytics')" class="flex items-center space-x-2 hover:bg-blue-50">
+                                    <i class="fa-solid fa-chart-line text-blue-600"></i>
+                                    <span>My Router Analytics</span>
                                 </x-dropdown-link>
                             @endif
 
@@ -196,11 +207,23 @@
                     <span>{{ __('Profile') }}</span>
                 </x-responsive-nav-link>
 
-                @if(Auth::user()->is_family_admin && is_null(Auth::user()->parent_id))
+                @php
+                    $isAffiliate = method_exists(Auth::user(), 'hasRole') && Auth::user()->hasRole('affiliate');
+                @endphp
+
+                @if($isAffiliate)
                     <x-responsive-nav-link :href="route('request-custom-plans')" 
                         class="text-white hover:bg-green-500/30 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 bg-green-600/20">
                         <i class="fa-solid fa-plus-circle"></i>
                         <span>Request Custom Plan</span>
+                    </x-responsive-nav-link>
+                @endif
+
+                @if($isAffiliate && Auth::user()->router_id)
+                    <x-responsive-nav-link :href="route('affiliate.router.analytics')" 
+                        class="text-white hover:bg-blue-500/30 rounded-lg font-semibold flex items-center space-x-2 py-3 px-4 bg-blue-600/20">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <span>My Router Analytics</span>
                     </x-responsive-nav-link>
                 @endif
 

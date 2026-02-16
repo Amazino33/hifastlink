@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PlanSeeder::class,
             RouterSeeder::class,
+            \Database\Seeders\AffiliateRoleSeeder::class,
         ]);
 
         User::factory()->create([

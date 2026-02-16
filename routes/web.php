@@ -169,6 +169,11 @@ Route::get('/api/admin/stats', [StatsController::class, 'getStats'])
     ->middleware(['auth'])
     ->name('api.admin.stats');
 
+// Affiliate: router analytics (router owner / affiliate)
+Route::get('/affiliate/router/analytics', [\App\Http\Controllers\AffiliateController::class, 'routerAnalytics'])
+    ->middleware(['auth'])
+    ->name('affiliate.router.analytics');
+
 // Admin dashboard route
 Route::get('/admin/dashboard', [AdminController::class, 'dashboard'])
     ->middleware(['auth', 'verified', 'admin'])
