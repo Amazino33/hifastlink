@@ -607,13 +607,6 @@ class UserDashboard extends Component
             ->latest()
             ->paginate(10);
 
-dd('Log test', $currentIp, $activeSession);
-
-        Log::info('UserDashboard IP debug', [
-            'activeSession' => $activeSession ? $activeSession->toArray() : null,
-            'currentIp' => $currentIp,
-        ]);
-
         return view('livewire.user-dashboard', [
             'user' => $user,
             'plans' => $plans,
