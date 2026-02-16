@@ -125,6 +125,15 @@ class UserDashboard extends Component
         $user->data_limit = is_null($planBytes) ? null : $planBytes;
         $user->plan_expiry = now()->addDays($plan->validity_days ?? 0);
         $user->plan_started_at = now();
+        if ($plan->is_family) {
+            $user->is_family_admin = true;
+            $user->parent_id = null;
+            \App\Models\User::where('parent_id', $user->id)->update(['parent_id' => null]);
+        } else {
+            $user->is_family_admin = false;
+            $user->family_limit = null;
+        }
+        $user->family_limit = $plan->family_limit;
         $user->save(); // triggers observer -> RADIUS sync
 
         Notification::make()
@@ -721,12 +730,20 @@ class UserDashboard extends Component
 
         $newLimit = is_null($newPlanBytes) ? null : ($newPlanBytes + ($rolloverBytes ?? 0));
 
-        $user->update([
-            'plan_id' => $newPlan->id,
-            'data_limit' => $newLimit,
-            'data_used' => 0,
-            'plan_expiry' => now()->addDays($newPlan->validity_days),
-        ]);
+        $user->plan_id = $newPlan->id;
+        $user->data_limit = $newLimit;
+        $user->data_used = 0;
+        $user->plan_expiry = now()->addDays($newPlan->validity_days);
+        if ($newPlan->is_family) {
+            $user->is_family_admin = true;
+            $user->parent_id = null;
+            \App\Models\User::where('parent_id', $user->id)->update(['parent_id' => null]);
+        } else {
+            $user->is_family_admin = false;
+            $user->family_limit = null;
+        }
+        $user->family_limit = $newPlan->family_limit;
+        $user->save();
 
         // Note: The UserObserver will automatically sync this to Radius/MikroTik
         $msg = "Success! {$newPlan->name} is now active.";

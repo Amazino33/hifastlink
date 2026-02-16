@@ -98,6 +98,24 @@
                 @else
                     <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">Currently offline</p>
                 @endif
+
+                
+                <!-- Mobile-only controls: show family/bell/gear under the greeting -->
+                <div class="flex md:hidden items-center justify-between space-x-3 mt-3">
+                    @if(Auth::user()->is_family_admin)
+                        <a href="{{ route('family') }}" class="p-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-xl transition-all duration-300">
+                            <i class="fa-solid fa-users text-gray-600 dark:text-gray-300 text-xl"></i>
+                        </a>
+                    @endif
+
+                    <button class="p-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-xl transition-all duration-300">
+                        <i class="fa-solid fa-bell text-gray-600 dark:text-gray-300 text-xl"></i>
+                    </button>
+
+                    <button class="p-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-xl transition-all duration-300">
+                        <i class="fa-solid fa-gear text-gray-600 dark:text-gray-300 text-xl"></i>
+                    </button>
+                </div>
             </div>
             <div class="hidden md:flex items-center space-x-3">
                 @if(Auth::user()->is_family_admin)
