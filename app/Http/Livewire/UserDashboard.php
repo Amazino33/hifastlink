@@ -606,7 +606,19 @@ class UserDashboard extends Component
             $dataUsagePercentage = 0;
         }
 
-        $uptime = $activeSession && $activeSession->acctsessiontime ? Carbon::parse($activeSession->acctsessiontime)->diffForHumans() : ($user->last_online ? $user->last_online->diffForHumans() : '-');
+        // Uptime: acctsessiontime from radacct is a duration in seconds (e.g. 2940).
+        // Convert numeric seconds into a human duration; otherwise fall back to acctstarttime or user's last_online.
+        if ($activeSession) {
+            if (is_numeric($activeSession->acctsessiontime) && (int) $activeSession->acctsessiontime > 0) {
+                $uptime = \Carbon\CarbonInterval::seconds((int) $activeSession->acctsessiontime)->cascade()->forHumans();
+            } elseif (!empty($activeSession->acctstarttime)) {
+                $uptime = Carbon::parse($activeSession->acctstarttime)->diffForHumans();
+            } else {
+                $uptime = '-';
+            }
+        } else {
+            $uptime = $user->last_online ? $user->last_online->diffForHumans() : '-';
+        }
 
         // Fetch all transactions
         $recentTransactions = \App\Models\Transaction::where('user_id', Auth::id())
