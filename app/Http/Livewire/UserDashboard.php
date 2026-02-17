@@ -606,7 +606,7 @@ class UserDashboard extends Component
             $dataUsagePercentage = 0;
         }
 
-        $uptime = $activeSession && $activeSession->acctstarttime ? Carbon::parse($activeSession->acctstarttime)->diffForHumans() : ($user->last_online ? $user->last_online->diffForHumans() : '-');
+        $uptime = $activeSession && $activeSession->acctsessiontime ? Carbon::parse($activeSession->acctsessiontime)->diffForHumans() : ($user->last_online ? $user->last_online->diffForHumans() : '-');
 
         // Fetch all transactions
         $recentTransactions = \App\Models\Transaction::where('user_id', Auth::id())
