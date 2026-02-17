@@ -468,7 +468,7 @@
                                                 {{ $device->router?->name ?? 'Router: ' . ($device->router_id ?? 'N/A') }} · IP: {{ $device->ip ?? 'N/A' }}
                                                 @php
                                                     $mac = strtolower($device->mac);
-                                                    $deviceSession = $activeSessions_->get($mac);
+                                                    $deviceSession = $activeSession_->get($mac);
                                                     $displayIp = $deviceSession ? $deviceSession->framedipaddress : ($device->ip ?? 'N/A');
                                                 @endphp
                                                 <div class="text-xs text-gray-500">
