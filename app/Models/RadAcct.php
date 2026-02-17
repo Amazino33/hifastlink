@@ -33,15 +33,20 @@ class RadAcct extends Model
      */
     public function scopeActive(Builder $query): Builder
     {
-        // Consider a session active if it has no stop time and either:
-        // - the account update time is recent (last 5 minutes), OR
-        // - the session start time is recent (last 60 minutes), OR
-        // - acctupdatetime is null but acctstarttime is present
+        // A session is considered active only if:
+        //   • acctstoptime is NULL (router hasn't sent Accounting-Stop), AND
+        //   • the NAS is still alive — i.e. it sent an interim update within the last 5 minutes.
+        //     If acctupdatetime is NULL (router never sent interims), we fall back to
+        //     acctstarttime being within the last 5 minutes — beyond that, we treat
+        //     the session as stale so a downed router doesn't leave ghost "online" indicators.
+        // Adjust the 5-minute window to match your MikroTik Acct-Interim-Interval setting.
         return $query->whereNull('acctstoptime')
             ->where(function (Builder $q) {
                 $q->where('acctupdatetime', '>=', now()->subMinutes(5))
-                  ->orWhere('acctstarttime', '>=', now()->subHours(1))
-                  ->orWhereNull('acctupdatetime');
+                  ->orWhere(function (Builder $q2) {
+                      $q2->whereNull('acctupdatetime')
+                         ->where('acctstarttime', '>=', now()->subMinutes(5));
+                  });
             });
     }
 
