@@ -239,66 +239,6 @@
                                                 <i class="fa-solid fa-power-off mr-1"></i>Disconnect
                                             </button>
                                         </form>
-
-                                            (function () {
-                                                const disconnectForm = document.getElementById('disconnect-form');
-                                                const disconnectBtn = document.getElementById('disconnect-btn');
-                                                if (!disconnectForm || !disconnectBtn) return;
-
-                                                disconnectForm.addEventListener('submit', async function (e) {
-                                                    // Allow normal POST if Livewire/JS is missing
-                                                    if (!window.Livewire) return;
-                                                    e.preventDefault();
-
-                                                    if (!confirm('Disconnect this device from the network?')) {
-                                                        return;
-                                                    }
-
-                                                    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-                                                    const macField = disconnectForm.querySelector('input[name="mac"]');
-                                                    const mac = macField ? macField.value : null;
-
-                                                    disconnectBtn.disabled = true;
-                                                    const originalText = disconnectBtn.innerHTML;
-                                                    disconnectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Disconnecting...';
-
-                                                    try {
-                                                        const resp = await fetch(disconnectForm.action, {
-                                                            method: 'POST',
-                                                            headers: {
-                                                                'Accept': 'application/json',
-                                                                'Content-Type': 'application/json',
-                                                                'X-CSRF-TOKEN': token
-                                                            },
-                                                            credentials: 'same-origin',
-                                                            body: JSON.stringify({ mac })
-                                                        });
-
-                                                        if (resp.ok) {
-                                                            const data = await resp.json().catch(() => ({}));
-
-                                                            // Refresh the Livewire component so the dashboard reflects the new state
-                                                            Livewire.emit('refreshDashboard');
-
-                                                            if (data?.logout_url) {
-                                                                // Navigate the browser to login.wifi/logout so the captive
-                                                                // portal session is also closed on this device.
-                                                                // The router will redirect back after logout; we catch that
-                                                                // by setting the current page URL as the fallback destination.
-                                                                window.location.href = data.logout_url;
-                                                            }
-                                                        } else {
-                                                            disconnectForm.submit();
-                                                        }
-                                                    } catch (err) {
-                                                        disconnectForm.submit();
-                                                    } finally {
-                                                        disconnectBtn.disabled = false;
-                                                        disconnectBtn.innerHTML = originalText;
-                                                    }
-                                                });
-                                            })();
-                                        </script>
                                     @else
                                         <!-- Connect button (shown if subscription is active and device limit not reached) -->
                                         @if($subscriptionStatus === 'active')
@@ -891,3 +831,68 @@
 
         </div>
     </div>
+
+@once
+<script>
+    // Use event delegation on the document so this survives Livewire wire:poll re-renders.
+    // This is intentionally outside the Livewire poll wrapper — it only runs once on page load.
+    document.addEventListener('submit', async function (e) {
+        const form = e.target.closest('#disconnect-form');
+        if (!form) return;
+
+        e.preventDefault();
+
+        if (!confirm('Disconnect this device from the network?')) return;
+
+        const btn = form.querySelector('#disconnect-btn');
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const mac   = form.querySelector('input[name="mac"]')?.value || null;
+
+        if (btn) {
+            btn.disabled = true;
+            btn._origHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Disconnecting...';
+        }
+
+        try {
+            const resp = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ mac }),
+            });
+
+            if (resp.ok) {
+                const data = await resp.json().catch(() => ({}));
+
+                // Livewire v4 uses $dispatch; fall back to v3 emit
+                if (window.Livewire) {
+                    if (typeof Livewire.dispatch === 'function') {
+                        Livewire.dispatch('refreshDashboard');
+                    } else if (typeof Livewire.emit === 'function') {
+                        Livewire.emit('refreshDashboard');
+                    }
+                }
+
+                // Navigate to the router logout URL to also close the captive portal session
+                if (data?.logout_url) {
+                    window.location.href = data.logout_url;
+                }
+            } else {
+                form.submit();
+            }
+        } catch (err) {
+            form.submit();
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = btn._origHtml || '<i class="fa-solid fa-power-off mr-1"></i>Disconnect';
+            }
+        }
+    });
+</script>
+@endonce
