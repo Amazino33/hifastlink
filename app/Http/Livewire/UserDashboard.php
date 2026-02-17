@@ -669,17 +669,33 @@ class UserDashboard extends Component
         $newLimit = is_null($planBytes) ? null : ($planBytes + ($rolloverBytes ?? 0));
 
         // Activate
-        $user->update([
+        $update = [
             'plan_id' => $plan->id,
             'data_limit' => $newLimit,
             'data_used' => 0,
             'plan_expiry' => now()->addDays($plan->validity_days),
-        ]);
+            'family_limit' => $plan->family_limit,
+        ];
+
+        if ($plan->is_family) {
+            $update['is_family_admin'] = true;
+            $update['parent_id'] = null;
+        } else {
+            $update['is_family_admin'] = false;
+            $update['family_limit'] = null;
+        }
+
+        $user->update($update);
+
+        // If the plan is a family plan, unlink any users that were previously marked as this user's children
+        if ($plan->is_family) {
+            \App\Models\User::where('parent_id', $user->id)->update(['parent_id' => null]);
+        }
 
         // Delete the processed subscription
         $subscription->delete();
 
-        // Force Radius Sync
+        // Force Radius Sync (observer will handle most sync tasks)
         $user->save();
 
         session()->flash('success', 'Plan activated! ' . Number::fileSize($rolloverBytes) . ' rolled over.');

@@ -8,6 +8,7 @@ use App\Models\RadReply;
 use App\Models\RadUserGroup;
 use Illuminate\Support\Facades\Log;
 use App\Services\RadiusService;
+use Illuminate\Support\Facades\Artisan;
 
 class SubscriptionService
 {
@@ -53,7 +54,7 @@ class SubscriptionService
                 $radius = new RadiusService();
                 $radius->disconnectUser($user);
                 // Also update devices table immediately
-                \Artisan::call('radius:sync-devices');
+                Artisan::call('radius:sync-devices');
             } catch (\Exception $e) {
                 Log::warning('Failed to force-disconnect user after expiry: ' . $e->getMessage());
             }
@@ -127,7 +128,7 @@ class SubscriptionService
      * @param  \App\Models\User  $user
      * @return bool
      */
-    public function canConnectToHotspot(\App\Models\User $user): bool
+    public function canConnectToHotspot(User $user): bool
     {
         $masterId = $user->parent_id ?? $user->id;
 
