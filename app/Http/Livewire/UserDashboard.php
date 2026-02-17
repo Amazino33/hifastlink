@@ -230,6 +230,13 @@ class UserDashboard extends Component
         // Active RADIUS session (acctstoptime NULL - no time restriction)
         $radiusReachable = true;
         try {
+            $devices = Device::where('user_id', $user->id)->get();
+            $activeSession_ = RadAcct::forUser($user->username)
+                ->whereNull('acctstoptime')
+                ->get()
+                ->keyBy(function ($session) {
+                    return strtolower($session->callingstationid); // MAC address as key
+                });
             $activeSession = RadAcct::forUser($user->username)
                 ->whereNull('acctstoptime')
                 ->latest('acctstarttime')
@@ -631,7 +638,8 @@ class UserDashboard extends Component
             'currentRouter' => $currentRouter,
             'isDeviceOnline' => $isDeviceOnline,
             'showDisconnectButton' => $isDeviceOnline,
-            'devices' => \App\Models\Device::where('user_id', $user->id)->orderBy('last_seen', 'desc')->get(),
+            'devices' => $devices ?? [],
+            'activeSession_' => $activeSession_ ?? collect(),
         ]);
     }
 

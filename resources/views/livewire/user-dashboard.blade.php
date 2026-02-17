@@ -15,7 +15,13 @@
                         </span>
                         <p class="text-sm font-semibold">
                             <span class="text-green-600 dark:text-green-400">Online now (This Device)</span>
-                            <span class="ml-2 text-green-600 dark:text-green-400">IP: {{ $currentIp === 'Connected' ? 'Connected' : $currentIp }}</span>
+                            @foreach ($devices as $device)
+                                @php
+                                    $mac = strtolower($device->mac);
+                                    $session = $activeSession->get($mac);
+                                @endphp
+                                <span class="ml-2 text-green-600 dark:text-green-400">IP: {{ $session ? $session->framedipaddress : 'Offline' }}</span>
+                            @endforeach
                         </p>
                     </div>
                     <div class="flex items-center space-x-2 mt-1">
