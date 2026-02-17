@@ -18,7 +18,7 @@
                             @foreach ($devices as $device)
                                 @php
                                     $mac = strtolower($device->mac);
-                                    $session = $activeSession->get($mac);
+                                    $session = $activeSession_->get($mac);
                                 @endphp
                                 <span class="ml-2 text-green-600 dark:text-green-400">IP: {{ $session ? $session->framedipaddress : 'Offline' }}</span>
                             @endforeach
