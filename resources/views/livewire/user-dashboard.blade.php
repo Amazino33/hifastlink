@@ -20,7 +20,9 @@
                                     $mac = strtolower($device->mac);
                                     $session = $activeSession_->get($mac);
                                 @endphp
-                                <span class="ml-2 text-green-600 dark:text-green-400">IP: {{ $session ? $session->framedipaddress : 'Offline' }}</span>
+                                @if ($session)                                
+                                    <span class="ml-2 text-green-600 dark:text-green-400">IP: {{ $session ? $session->framedipaddress : 'Offline' }}</span>
+                                @endif
                             @endforeach
                         </p>
                     </div>
@@ -464,6 +466,14 @@
                                             </div>
                                             <div class="text-xs text-gray-500">
                                                 {{ $device->router?->name ?? 'Router: ' . ($device->router_id ?? 'N/A') }} · IP: {{ $device->ip ?? 'N/A' }}
+                                                @php
+                                                    $mac = strtolower($device->mac);
+                                                    $deviceSession = $activeSessions->get($mac);
+                                                    $displayIp = $deviceSession ? $deviceSession->framedipaddress : ($device->ip ?? 'N/A');
+                                                @endphp
+                                                <div class="text-xs text-gray-500">
+                                                    {{ $device->router?->name ?? 'Router: ' . ($device->router_id ?? 'N/A') }} · IP: {{ $displayIp }}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
