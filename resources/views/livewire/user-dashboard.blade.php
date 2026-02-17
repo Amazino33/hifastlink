@@ -240,8 +240,6 @@
                                             </button>
                                         </form>
 
-                                        <script>
-                                            // Intercept disconnect form and do AJAX so we can refresh Livewire instantly
                                             (function () {
                                                 const disconnectForm = document.getElementById('disconnect-form');
                                                 const disconnectBtn = document.getElementById('disconnect-btn');
@@ -278,10 +276,16 @@
 
                                                         if (resp.ok) {
                                                             const data = await resp.json().catch(() => ({}));
+
+                                                            // Refresh the Livewire component so the dashboard reflects the new state
                                                             Livewire.emit('refreshDashboard');
 
-                                                            if (data?.status === 'offline') {
-                                                                window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'success', message: 'Disconnected successfully' } }));
+                                                            if (data?.logout_url) {
+                                                                // Navigate the browser to login.wifi/logout so the captive
+                                                                // portal session is also closed on this device.
+                                                                // The router will redirect back after logout; we catch that
+                                                                // by setting the current page URL as the fallback destination.
+                                                                window.location.href = data.logout_url;
                                                             }
                                                         } else {
                                                             disconnectForm.submit();
