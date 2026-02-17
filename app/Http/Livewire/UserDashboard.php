@@ -232,13 +232,13 @@ class UserDashboard extends Component
         try {
             $devices = Device::where('user_id', $user->id)->get();
             $activeSession_ = RadAcct::forUser($user->username)
-                ->whereNull('acctstoptime')
+                ->active()
                 ->get()
                 ->keyBy(function ($session) {
                     return preg_replace('/[^a-f0-9]/', '', strtolower($session->callingstationid)); // MAC address as key
                 });
             $activeSession = RadAcct::forUser($user->username)
-                ->whereNull('acctstoptime')
+                ->active()
                 ->latest('acctstarttime')
                 ->first();
 
@@ -387,8 +387,8 @@ class UserDashboard extends Component
             session(['current_router_nas_identifier' => request('nas_identifier')]);
         }
 
-        $activeSessions = RadAcct::where('username', $user->username)
-            ->whereNull('acctstoptime')
+        $activeSessions = RadAcct::forUser($user->username)
+            ->active()
             ->get();
 
         $connectedDevices = $activeSessions->count();
@@ -396,9 +396,9 @@ class UserDashboard extends Component
 
         $isDeviceOnline = false;
         if ($currentMac) {
-            $isDeviceOnline = RadAcct::where('username', $user->username)
+            $isDeviceOnline = RadAcct::forUser($user->username)
                 ->where('callingstationid', $currentMac)
-                ->whereNull('acctstoptime')
+                ->active()
                 ->exists();
         }
         

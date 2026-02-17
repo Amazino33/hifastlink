@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cookie;
+use GuzzleHttp\Client;
+use App\Models\Router;
 
 class NetworkController extends Controller
 {
@@ -48,6 +50,9 @@ class NetworkController extends Controller
             // Attempt CoA/Disconnect to the router with a short timeout
             $this->sendRadiusDisconnect($username, $timeoutSeconds);
 
+            // Best-effort direct router disconnect using stored API credentials
+            $this->disconnectFromRouter($username, $mac);
+
             // Ensure local cleanup even if router does not write back
             DB::table('radacct')
                 ->where('username', $username)
@@ -60,6 +65,17 @@ class NetworkController extends Controller
                 'mac' => $mac,
                 'error' => $e->getMessage(),
             ]);
+
+            // Still try router-side disconnect before falling back to DB only
+            try {
+                $this->disconnectFromRouter($username, $mac);
+            } catch (\Throwable $inner) {
+                Log::warning('Direct router disconnect failed', [
+                    'user' => $username,
+                    'mac' => $mac,
+                    'error' => $inner->getMessage(),
+                ]);
+            }
 
             DB::table('radacct')
                 ->where('username', $username)
@@ -144,6 +160,82 @@ class NetworkController extends Controller
         } catch (\Exception $e) {
             Log::error('RADIUS disconnect failed', ['user' => $username, 'error' => $e->getMessage()]);
             return false;
+        }
+    }
+
+    /**
+     * Direct MikroTik disconnect using Router REST API (best-effort)
+     */
+    private function disconnectFromRouter(string $username, ?string $mac = null): void
+    {
+        $session = RadAcct::forUser($username)
+            ->active()
+            ->when($mac, fn ($q) => $q->where('callingstationid', $mac))
+            ->latest('acctstarttime')
+            ->first();
+
+        if (! $session) {
+            return;
+        }
+
+        $router = Router::where('ip_address', $session->nasipaddress)
+            ->orWhere('nas_identifier', $session->nas_identifier ?? $session->calledstationid)
+            ->first();
+
+        if (! $router || ! $router->api_user || ! $router->api_password) {
+            Log::info('Router API credentials missing; skipping direct disconnect', [
+                'user' => $username,
+                'router_ip' => $session->nasipaddress,
+                'nas_identifier' => $session->nas_identifier,
+            ]);
+            return;
+        }
+
+        $host = $router->ip_address ?? $router->nas_identifier;
+        $port = $router->api_port ?: 80;
+        $base = "http://{$host}" . ($port && $port !== 80 ? ":{$port}" : '');
+
+        $client = new Client([
+            'timeout' => 5,
+            'verify' => false,
+        ]);
+
+        try {
+            $response = $client->get("{$base}/rest/ip/hotspot/active", [
+                'auth' => [$router->api_user, $router->api_password],
+            ]);
+
+            $sessions = json_decode($response->getBody()->getContents(), true) ?: [];
+
+            foreach ($sessions as $s) {
+                $userMatch = ($s['user'] ?? null) === $username;
+                $macMatch = $mac ? strcasecmp($s['mac-address'] ?? '', $mac) === 0 : true;
+
+                if ($userMatch && $macMatch) {
+                    $id = $s['.id'] ?? null;
+                    if (! $id) {
+                        continue;
+                    }
+
+                    $client->delete("{$base}/rest/ip/hotspot/active/{$id}", [
+                        'auth' => [$router->api_user, $router->api_password],
+                    ]);
+
+                    Log::info('Router REST disconnect sent', [
+                        'user' => $username,
+                        'mac' => $mac,
+                        'router' => $router->id,
+                        'session_id' => $id,
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Router REST disconnect failed', [
+                'user' => $username,
+                'mac' => $mac,
+                'router' => $router->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }
