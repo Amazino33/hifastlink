@@ -231,7 +231,7 @@ class UserDashboard extends Component
         $radiusReachable = true;
         try {
             $activeSession = RadAcct::forUser($user->username)
-                ->active()
+                ->whereNull('acctstoptime')
                 ->latest('acctstarttime')
                 ->first();
 
@@ -606,6 +606,8 @@ class UserDashboard extends Component
             ->with('plan')
             ->latest()
             ->paginate(10);
+
+        dd('Log test', $currentIp, $activeSession, $user->username);
 
         return view('livewire.user-dashboard', [
             'user' => $user,
