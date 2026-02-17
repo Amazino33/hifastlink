@@ -1,7 +1,7 @@
 <div class="px-4 py-6 md:px-6 lg:px-8">
     <div wire:poll.10s class="mb-8">
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-xl rounded-3xl p-8 mb-8">
-            <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center justify-center">
                 <div>
                     <h1 class="text-3xl font-black text-gray-900 dark:text-white mb-2">
                         Hi, {{ $user->name }} 👋
@@ -121,7 +121,7 @@
 
 
                     <!-- Mobile-only controls: show family/bell/gear under the greeting -->
-                    <div class="flex md:hidden items-center justify-between space-x-3 mt-3">
+                    <div class="flex md:hidden items-center justify-evenly space-x-3 mt-6">
                         @if(Auth::user()->is_family_admin)
                             <a href="{{ route('family') }}"
                                 class="p-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-xl transition-all duration-300">
