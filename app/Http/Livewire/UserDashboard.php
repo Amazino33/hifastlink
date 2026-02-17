@@ -235,7 +235,7 @@ class UserDashboard extends Component
                 ->whereNull('acctstoptime')
                 ->get()
                 ->keyBy(function ($session) {
-                    return strtolower($session->callingstationid); // MAC address as key
+                    return preg_replace('/[^a-f0-9]/', '', strtolower($session->callingstationid)); // MAC address as key
                 });
             $activeSession = RadAcct::forUser($user->username)
                 ->whereNull('acctstoptime')

@@ -17,7 +17,7 @@
                             <span class="text-green-600 dark:text-green-400">Online now (This Device)</span>
                             @foreach ($devices as $device)
                                 @php
-                                    $mac = strtolower($device->mac);
+                                    $mac = preg_replace('/[^a-f0-9]/', '', strtolower($device->mac));
                                     $session = $activeSession_->get($mac);
                                 @endphp
                                 @if ($session)                                
@@ -467,7 +467,7 @@
                                             <div class="text-xs text-gray-500">
                                                 {{ $device->router?->name ?? 'Router: ' . ($device->router_id ?? 'N/A') }} · IP: {{ $device->ip ?? 'N/A' }}
                                                 @php
-                                                    $mac = strtolower($device->mac);
+                                                    $mac = preg_replace('/[^a-f0-9]/', '', strtolower($device->mac));
                                                     $deviceSession = $activeSession_->get($mac);
                                                     $displayIp = $deviceSession ? $deviceSession->framedipaddress : ($device->ip ?? 'N/A');
                                                 @endphp
