@@ -607,8 +607,6 @@ class UserDashboard extends Component
             ->latest()
             ->paginate(10);
 
-        dd('Log test', $currentIp, $activeSession, $user->username);
-
         return view('livewire.user-dashboard', [
             'user' => $user,
             'plans' => $plans,
