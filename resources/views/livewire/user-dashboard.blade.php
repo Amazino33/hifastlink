@@ -228,9 +228,12 @@
                                     data-max-devices="{{ $maxDevices }}">
                                     @if($showDisconnectButton)
                                         <!-- Disconnect form posts to backend to avoid router dependency -->
-                                        <form action="{{ route('user.disconnect') }}" method="POST"
+                                        <form id="disconnect-form" action="{{ route('user.disconnect') }}" method="POST"
                                             class="w-full sm:w-auto">
                                             @csrf
+                                            @if(session('current_device_mac'))
+                                                <input type="hidden" name="mac" value="{{ session('current_device_mac') }}">
+                                            @endif
                                             <button type="submit" id="disconnect-btn"
                                                 class="w-full sm:w-auto px-4 py-2 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-blue-600">
                                                 <i class="fa-solid fa-power-off mr-1"></i>Disconnect
@@ -240,15 +243,27 @@
                                         <script>
                                             // Intercept disconnect form and do AJAX so we can refresh Livewire instantly
                                             (function () {
-                                                const disconnectForm = document.querySelector('form[action="{{ route("user.disconnect") }}"]');
-                                                if (!disconnectForm) return;
+                                                const disconnectForm = document.getElementById('disconnect-form');
+                                                const disconnectBtn = document.getElementById('disconnect-btn');
+                                                if (!disconnectForm || !disconnectBtn) return;
 
                                                 disconnectForm.addEventListener('submit', async function (e) {
-                                                    // Allow normal POST if JavaScript disabled
+                                                    // Allow normal POST if Livewire/JS is missing
                                                     if (!window.Livewire) return;
                                                     e.preventDefault();
 
+                                                    if (!confirm('Disconnect this device from the network?')) {
+                                                        return;
+                                                    }
+
                                                     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                                                    const macField = disconnectForm.querySelector('input[name="mac"]');
+                                                    const mac = macField ? macField.value : null;
+
+                                                    disconnectBtn.disabled = true;
+                                                    const originalText = disconnectBtn.innerHTML;
+                                                    disconnectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Disconnecting...';
+
                                                     try {
                                                         const resp = await fetch(disconnectForm.action, {
                                                             method: 'POST',
@@ -257,25 +272,25 @@
                                                                 'Content-Type': 'application/json',
                                                                 'X-CSRF-TOKEN': token
                                                             },
-                                                            body: JSON.stringify({})
+                                                            credentials: 'same-origin',
+                                                            body: JSON.stringify({ mac })
                                                         });
 
                                                         if (resp.ok) {
-                                                            // Refresh Livewire component
+                                                            const data = await resp.json().catch(() => ({}));
                                                             Livewire.emit('refreshDashboard');
 
-                                                            // Optionally show a toast or reload page for full state
-                                                            const data = await resp.json().catch(() => ({}));
-                                                            if (data && data.status === 'offline') {
-                                                                // nothing more to do — UI refreshed
+                                                            if (data?.status === 'offline') {
+                                                                window.dispatchEvent(new CustomEvent('toast', { detail: { type: 'success', message: 'Disconnected successfully' } }));
                                                             }
                                                         } else {
-                                                            // fallback to full form submit
                                                             disconnectForm.submit();
                                                         }
                                                     } catch (err) {
-                                                        // fallback
                                                         disconnectForm.submit();
+                                                    } finally {
+                                                        disconnectBtn.disabled = false;
+                                                        disconnectBtn.innerHTML = originalText;
                                                     }
                                                 });
                                             })();
