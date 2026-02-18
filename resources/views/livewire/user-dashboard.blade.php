@@ -121,7 +121,7 @@
 
 
                     <!-- Mobile-only controls: show family/bell/gear under the greeting -->
-                    <div class="flex md:hidden items-center justify-evenly space-x-3 mt-6">
+                    <div class="flex md:hidden items-center justify-start space-x-3 mt-6 gap-2">
                         @if(Auth::user()->is_family_admin)
                             <a href="{{ route('family') }}"
                                 class="p-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-xl transition-all duration-300">
