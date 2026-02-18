@@ -122,6 +122,17 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     }
 
     /**
+     * Mutator: ensure family_limit is NEVER stored as NULL.
+     * The column is NOT nullable in the DB, so any code path that forgets to set
+     * this field would cause a constraint violation. We coerce null → 0 here as
+     * the final safety net before the value reaches the SQL layer.
+     */
+    public function setFamilyLimitAttribute(?int $value): void
+    {
+        $this->attributes['family_limit'] = $value ?? 0;
+    }
+
+    /**
      * Get the data plan for this user.
      */
     public function dataPlan(): BelongsTo
@@ -471,6 +482,41 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         $remaining = max(0, $limitBytes - $usedBytes);
 
         return Number::fileSize($remaining);
+    }
+
+    /**
+     * Total data available to the user in bytes: plan data_limit + any valid rollover.
+     *
+     * Uses the same MB-vs-bytes heuristic as the rest of the codebase:
+     * values <= 1,048,576 are treated as MB and converted to bytes first.
+     *
+     * Returns null when the plan is unlimited.
+     */
+    public function getTotalAvailableDataAttribute(): ?int
+    {
+        if (is_null($this->data_limit)) {
+            return null; // unlimited
+        }
+
+        $limitVal = (int) $this->data_limit;
+        $planBytes = $limitVal <= 1048576
+            ? $limitVal * 1048576          // stored as MB → bytes
+            : $limitVal;                   // already bytes
+
+        $rolloverBytes = (int) ($this->rollover_available_bytes ?? 0);
+
+        return $planBytes + $rolloverBytes;
+    }
+
+    /**
+     * Human-readable version of total_available_data.
+     * e.g. 5368709120 → "5 GB"
+     */
+    public function getFormattedTotalAvailableDataAttribute(): string
+    {
+        $bytes = $this->total_available_data;
+
+        return $bytes === null ? 'Unlimited' : Number::fileSize($bytes);
     }
 
     /**

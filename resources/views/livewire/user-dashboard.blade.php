@@ -269,11 +269,21 @@
                                 <div class="text-6xl font-black text-white mb-2">{{ $subscriptionDays }}</div>
                                 <div class="text-sm text-white/80 font-semibold mb-3">
                                     {{ $subscriptionDays === 1 ? 'day remaining' : 'days remaining' }}</div>
-                                <div class="text-blue-100 text-lg">{{ $formattedDataLimit }} connection</div>
-                                @if(isset($user) && isset($user->rollover_available_bytes) && $user->rollover_available_bytes > 0 && $user->rollover_validity_days)
-                                    <div class="text-xs text-blue-100 mt-2">Includes
-                                        <strong>{{ $user->formatBytes($user->rollover_available_bytes) }}</strong> rollover
-                                        (valid for {{ $user->rollover_validity_days }} days)</div>
+                                <div class="text-blue-100 text-lg">
+                                    {{ $formattedDataLimit }}
+                                    @if($hasRollover ?? false)
+                                        <span class="text-xs text-blue-200 font-normal ml-1">(Plan + Rollover)</span>
+                                    @endif
+                                </div>
+                                <div class="text-xs text-blue-200 mt-1 font-medium tracking-wide uppercase">
+                                    Total Available Data
+                                </div>
+                                @if($hasRollover ?? false)
+                                    <div class="text-xs text-blue-100 mt-2 flex items-center gap-1">
+                                        <i class="fa-solid fa-rotate text-yellow-300"></i>
+                                        Includes <strong class="ml-0.5">{{ $user->formatBytes($user->rollover_available_bytes) }}</strong>&nbsp;rollover
+                                        (valid for {{ $user->rollover_validity_days }} more days)
+                                    </div>
                                 @endif
                             @elseif($subscriptionStatus === 'exhausted')
                                 <div class="flex items-center space-x-3">

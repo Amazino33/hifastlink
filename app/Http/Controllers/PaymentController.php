@@ -241,9 +241,8 @@ class PaymentController extends Controller
                 \App\Models\User::where('parent_id', $user->id)->update(['parent_id' => null]);
             } else {
                 $user->is_family_admin = false;
-                $user->family_limit = null;
             }
-            $user->family_limit = $plan->family_limit;
+            $user->family_limit = $plan->family_limit ?? 0;
             $user->save(); // triggers observer -> RADIUS sync
 
             // Record the payment

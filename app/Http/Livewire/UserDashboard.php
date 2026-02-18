@@ -131,9 +131,8 @@ class UserDashboard extends Component
             \App\Models\User::where('parent_id', $user->id)->update(['parent_id' => null]);
         } else {
             $user->is_family_admin = false;
-            $user->family_limit = null;
         }
-        $user->family_limit = $plan->family_limit;
+        $user->family_limit = $plan->family_limit ?? 0;
         $user->save(); // triggers observer -> RADIUS sync
 
         Notification::make()
@@ -631,7 +630,10 @@ class UserDashboard extends Component
             'plans' => $plans,
             'totalUsed' => $totalUsed,
             'formattedTotalUsed' => $formattedTotalUsed,
-            'formattedDataLimit' => (isset($effectivePlanBytes) && $effectivePlanBytes !== null) ? Number::fileSize($effectivePlanBytes) : 'Unlimited',
+            'formattedDataLimit' => (isset($effectivePlanBytes) && $effectivePlanBytes !== null)
+                ? Number::fileSize($effectivePlanBytes)   // plan bytes + rollover (computed above)
+                : 'Unlimited',
+            'hasRollover' => isset($masterUser) && ($masterUser->rollover_available_bytes ?? 0) > 0 && ($masterUser->rollover_validity_days ?? 0) > 0,
             'subscriptionStatus' => $subscriptionStatus,
             'connectionStatus' => $connectionStatus,
             'currentIp' => $currentIp,
@@ -776,9 +778,8 @@ class UserDashboard extends Component
             \App\Models\User::where('parent_id', $user->id)->update(['parent_id' => null]);
         } else {
             $user->is_family_admin = false;
-            $user->family_limit = null;
         }
-        $user->family_limit = $newPlan->family_limit;
+        $user->family_limit = $newPlan->family_limit ?? 0;
         $user->save();
 
         // Note: The UserObserver will automatically sync this to Radius/MikroTik
