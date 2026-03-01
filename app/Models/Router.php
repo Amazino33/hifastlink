@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class Router extends Model
 {
@@ -13,15 +14,15 @@ class Router extends Model
     protected $fillable = [
         'name',
         'location',
+        'description',
         'ip_address',
+        'vpn_ip',
         'nas_identifier',
         'secret',
         'api_user',
         'api_password',
         'api_port',
         'is_active',
-        'description',
-        'last_seen_at',
     ];
 
     protected $casts = [
@@ -29,6 +30,53 @@ class Router extends Model
         'api_port' => 'integer',
         'last_seen_at' => 'datetime',
     ];
+
+
+
+    /**
+     * Boot method to auto-assign VPN IP
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($router) {
+            if (empty($router->vpn_ip)) {
+                $router->vpn_ip = self::getNextAvailableVpnIp();
+            }
+        });
+    }
+
+    /**
+     * Get the next available VPN IP in the range
+     */
+    public static function getNextAvailableVpnIp(): string
+    {
+        $startIp = config('services.wireguard.start_ip', 10);
+        $baseNetwork = '192.168.42.';
+
+        // Get the highest assigned IP
+        $lastRouter = self::whereNotNull('vpn_ip')
+            ->orderByRaw('INET_ATON(vpn_ip) DESC')
+            ->first();
+
+        if (!$lastRouter) {
+            // No routers yet, start from beginning
+            return $baseNetwork . $startIp;
+        }
+
+        // Extract last octet and increment
+        $lastIp = $lastRouter->vpn_ip;
+        $lastOctet = (int) substr($lastIp, strrpos($lastIp, '.') + 1);
+        $nextOctet = $lastOctet + 1;
+
+        // Safety check: don't exceed 254
+        if ($nextOctet > 254) {
+            throw new \Exception('VPN IP pool exhausted. Maximum 245 routers supported.');
+        }
+
+        return $baseNetwork . $nextOctet;
+    }
 
     // Virtual attribute: is_online (true if seen within last 5 minutes)
     public function getIsOnlineAttribute(): bool
@@ -80,7 +128,7 @@ class Router extends Model
     {
         return $this->sessions()
             ->whereDate('acctstarttime', today())
-            ->sum(\DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
+            ->sum(DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
     }
 
     /**

@@ -14,23 +14,14 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Schemas\Schema;
 use UnitEnum;
-use Filament\Facades\Filament;
-use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
-use Filament\Panel;
-use Filament\Resources\RelationManagers\RelationGroup;
-use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Resources\RelationManagers\RelationManagerConfiguration;
 use Filament\Schemas\Components\Section as ComponentsSection;
 use Filament\Tables\Columns\BadgeColumn;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Widgets\Widget;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Traits\Macroable;
 
 class RouterResource extends Resource
@@ -40,12 +31,7 @@ class RouterResource extends Resource
     }
 
     protected static bool $isDiscovered = true;
-
-    /**
-     * @var class-string<Model>|null
-     */
     protected static ?string $model = Router::class;
-
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-server-stack';
     protected static ?string $navigationLabel = 'Routers';
     protected static string|UnitEnum|null $navigationGroup = 'Network Management';
@@ -56,12 +42,11 @@ class RouterResource extends Resource
         return $schema
             ->schema([
                 ComponentsSection::make('Router Information')
-                    ->description('Basic identification for this deployment location.')
                     ->schema([
                         TextInput::make('name')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder('e.g., Uyo Hub Main'),
+                            ->placeholder('e.g., Uyo Hub'),
                         
                         TextInput::make('location')
                             ->required()
@@ -73,65 +58,65 @@ class RouterResource extends Resource
                             ->placeholder('Additional details about this router'),
                     ])->columns(1),
 
-                ComponentsSection::make('WireGuard & RADIUS Configuration')
-                    ->description('Configure the secure VPN tunnel and authentication credentials for this specific router.')
+                ComponentsSection::make('Network Configuration')
                     ->schema([
                         TextInput::make('ip_address')
-                            ->label('WireGuard VPN IP Address')
+                            ->label('Router LAN IP')
                             ->required()
                             ->ip()
                             ->unique(ignoreRecord: true)
-                            ->placeholder('e.g., 192.168.42.10')
-                            ->helperText('The private static IP assigned to this router inside the VPN tunnel.'),
+                            ->placeholder('e.g., 192.168.88.1')
+                            ->helperText('The router\'s local network IP address'),
+                        
+                        TextInput::make('vpn_ip')
+                            ->label('VPN IP Address')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->placeholder('Auto-assigned on save')
+                            ->helperText('Automatically assigned from VPN pool')
+                            ->visible(fn ($record) => $record !== null),
                         
                         TextInput::make('nas_identifier')
-                            ->label('NAS Identifier (Identity)')
+                            ->label('NAS Identifier')
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->placeholder('e.g., router_uyo_01')
-                            ->helperText('The unique RouterOS Identity. FreeRADIUS uses this to identify the location.'),
+                            ->helperText('Unique identifier for RADIUS (no spaces)'),
                         
                         TextInput::make('secret')
-                            ->label('Unique RADIUS Secret')
+                            ->label('RADIUS Secret')
                             ->required()
                             ->password()
                             ->revealable()
-                            ->placeholder('Enter a strong, unique secret')
-                            ->helperText('The unique shared secret for this specific router.'),
-                            
-                        Toggle::make('vpn_enabled')
-                            ->label('Enable WireGuard via Script')
-                            ->default(true)
-                            ->helperText('If enabled, the generated setup script will configure the WireGuard tunnel automatically.')
-                            ->columnSpanFull(),
+                            ->placeholder('Shared secret for RADIUS authentication')
+                            ->default(fn () => \Illuminate\Support\Str::random(16)),
                     ])->columns(2),
 
                 ComponentsSection::make('MikroTik API Configuration')
-                    ->description('Credentials for background communication and speed reporting.')
                     ->schema([
                         TextInput::make('api_user')
                             ->label('API Username')
-                            ->placeholder('admin'),
+                            ->placeholder('admin')
+                            ->default('admin'),
                         
                         TextInput::make('api_password')
                             ->label('API Password')
                             ->password()
-                            ->revealable(),
+                            ->revealable()
+                            ->placeholder('Leave empty to use router default'),
                         
                         TextInput::make('api_port')
                             ->label('API Port')
                             ->numeric()
                             ->default(8728)
                             ->placeholder('8728'),
-                    ])->columns(3),
+                    ])->columns(3)
+                    ->collapsible(),
 
-                ComponentsSection::make('Status')
-                    ->schema([
-                        Toggle::make('is_active')
-                            ->label('Active Configuration')
-                            ->default(true)
-                            ->helperText('Disable to stop accepting connections from this router'),
-                    ]),
+                Toggle::make('is_active')
+                    ->label('Active')
+                    ->default(true)
+                    ->helperText('Disable to stop accepting connections from this router'),
             ]);
     }
 
@@ -148,23 +133,30 @@ class RouterResource extends Resource
                     ->searchable()
                     ->limit(30),
                 
-                TextColumn::make('ip_address')
-                    ->label('VPN IP Address')
+                TextColumn::make('vpn_ip')
+                    ->label('VPN IP')
                     ->searchable()
                     ->copyable()
                     ->badge()
-                    ->color('info'),
+                    ->color('primary'),
+                
+                TextColumn::make('ip_address')
+                    ->label('LAN IP')
+                    ->searchable()
+                    ->toggleable(),
                 
                 TextColumn::make('nas_identifier')
                     ->label('NAS ID')
                     ->searchable()
+                    ->copyable()
                     ->toggleable(),
                 
                 TextColumn::make('active_users_count')
                     ->label('Active Users')
                     ->badge()
                     ->color('success')
-                    ->formatStateUsing(fn ($state) => $state ?? 0),
+                    ->formatStateUsing(fn ($state) => $state ?? 0)
+                    ->toggleable(),
                 
                 BadgeColumn::make('status')
                     ->label('Status')
@@ -190,8 +182,9 @@ class RouterResource extends Resource
             ])
             ->actions([
                 Action::make('download_config')
-                    ->label('Download Config (.rsc)')
+                    ->label('Download Config')
                     ->icon('heroicon-m-cloud-arrow-down')
+                    ->color('success')
                     ->url(fn (Router $record) => route('router.download', $record))
                     ->openUrlInNewTab(false),
                 EditAction::make(),

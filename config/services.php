@@ -36,15 +36,25 @@ return [
     ],
 
     'radius' => [
-        'bridge_url' => env('RADIUS_BRIDGE_URL', 'http://your-ubuntu-server-ip/radius_bridge.php'),
-        'secret_key' => env('RADIUS_SECRET_KEY', 'MySecretKey_ChangeThisToSomethingComplex'),
+        'bridge_url' => env('RADIUS_BRIDGE_URL', 'http://142.93.47.189/radius_bridge.php'),
+        'secret_key' => env('RADIUS_SECRET_KEY', 'SimpleTestKey123'),
+    ],
+
+    'wireguard' => [
+        'server_public_key' => env('WG_SERVER_PUBLIC_KEY'),
+        'server_endpoint' => env('WG_SERVER_ENDPOINT', '194.36.184.49'),
+        'server_ip' => env('WG_SERVER_IP', '192.168.42.1'),
+        'server_port' => env('WG_SERVER_PORT', '51820'),
+        'listen_port' => env('WG_LISTEN_PORT', '13231'),
+        'vpn_network' => env('WG_VPN_NETWORK', '192.168.42.0/24'),
+        'start_ip' => env('WG_START_IP', 10), // Start from 192.168.42.10
     ],
 
     'mikrotik' => [
-        'gateway' => env('MIKROTIK_GATEWAY', 'http://login.wifi/login'),
-        'api_host' => env('MIKROTIK_API_HOST'), // e.g., '192.168.88.1'
-        'api_user' => env('MIKROTIK_API_USER'), // e.g., 'admin'
-        'api_password' => env('MIKROTIK_API_PASSWORD'), // MikroTik admin password
+        'gateway' => env('MIKROTIK_GATEWAY', 'login.wifi'),
+        'domain' => env('APP_DOMAIN', 'hifastlink.com'),
+        'dns_name' => env('MIKROTIK_DNS_NAME', 'login.wifi'),
+        'website_ip' => env('WEBSITE_IP', '194.36.184.49'),
     ],
 
 ];
