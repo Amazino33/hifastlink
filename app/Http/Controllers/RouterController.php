@@ -19,7 +19,6 @@ class RouterController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        // [Keep your existing subscription validation logic here]
         $validSubscription = null;
 
         if (class_exists(\App\Models\Subscription::class)) {
@@ -83,330 +82,178 @@ class RouterController extends Controller
     }
 
     /**
-     * Bridge login [Keep your existing implementation]
+     * Bridge login
      */
     public function bridgeLogin(Request $request)
     {
-        // Keep your existing bridge login logic
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        if (!method_exists($user, 'isSubscriptionActive') || !$user->isSubscriptionActive()) {
+            return response()->json(['message' => 'No active subscription. Please renew to connect.'], 422);
+        }
+
+        if (empty($user->username) || empty($user->radius_password)) {
+            Log::error('Router bridge login failed - missing credentials for user id: ' . $user->id);
+            return response()->json(['message' => 'User credentials missing. Please contact support.'], 500);
+        }
+
+        $mac = $request->input('mac');
+        $ip = $request->input('ip');
+        $linkLogin = $request->input('link-login') ?? $request->input('link-login-only') ?? $request->input('link-orig');
+
+        $bridgeUrl = rtrim(config('services.radius.bridge_url') ?? env('RADIUS_BRIDGE_URL', ''), '/');
+        $secret = config('services.radius.secret_key') ?? env('RADIUS_SECRET_KEY', null);
+
+        if ($bridgeUrl && $secret) {
+            try {
+                $resp = \Illuminate\Support\Facades\Http::post($bridgeUrl . '/login', array_filter([
+                    'username' => $user->username,
+                    'password' => $user->radius_password,
+                    'secret' => $secret,
+                    'mac' => $mac,
+                    'ip' => $ip,
+                    'link' => $linkLogin,
+                ]));
+
+                if ($resp->successful()) {
+                    Log::info('Router bridge login successful for user id: ' . $user->id);
+                    return response()->json(['success' => true, 'redirect' => $linkLogin ?? null]);
+                }
+
+                Log::warning('Router bridge login returned non-200 for user id ' . $user->id, ['body' => $resp->body()]);
+            } catch (\Exception $e) {
+                Log::error('Router bridge login error for user id ' . $user->id . ': ' . $e->getMessage());
+            }
+        }
+
+        $fallbackGateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
+        $fallbackLoginUrl = (strpos($fallbackGateway, '://') === false ? 'http://' . $fallbackGateway : $fallbackGateway);
+        if (!preg_match('#/login#', $fallbackLoginUrl)) {
+            $fallbackLoginUrl = rtrim($fallbackLoginUrl, '/') . '/login';
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Bridge unavailable. You will be redirected to router to complete login.',
+            'username' => $user->username,
+            'password' => $user->radius_password,
+            'login_url' => $fallbackLoginUrl,
+            'dashboard_url' => route('dashboard'),
+            'redirect' => $linkLogin ?? null,
+        ]);
     }
 
     /**
-     * Download generated MikroTik configuration (.rsc) for a router with WireGuard + Auto-upgrade
+     * Download optimized MikroTik configuration (.rsc) for a router with WireGuard + Auto-upgrade
      */
     public function downloadConfig(Router $router)
     {
-        // Router-specific values
+        // 1. Gather all variables
         $location = $router->nas_identifier ?: $router->name;
         $secret = $router->secret;
-        $routerVpnIp = $router->vpn_ip;
+        $routerVpnIp = $router->ip_address ?? '192.168.42.10'; 
 
-        // Global WireGuard settings from config
-        $wgServerPublicKey = config('services.wireguard.server_public_key');
-        $wgServerEndpoint = config('services.wireguard.server_endpoint');
-        $wgServerPort = config('services.wireguard.server_port', '51820');
-        $wgListenPort = config('services.wireguard.listen_port', '13231');
-        $wgServerIp = config('services.wireguard.server_ip', '192.168.42.1');
+        $wgServerPublicKey = config('services.wireguard.public_key', env('WG_SERVER_PUBLIC_KEY', 'INSERT_KEY'));
+        $wgServerEndpoint = config('services.wireguard.endpoint', env('WG_SERVER_ENDPOINT', '194.36.184.49'));
+        $wgServerPort = config('services.wireguard.port', env('WG_SERVER_PORT', '51820'));
+        $wgListenPort = config('services.wireguard.listen_port', env('WG_LISTEN_PORT', '13231'));
+        $wgServerIp = config('services.wireguard.server_ip', env('WG_SERVER_IP', '192.168.42.1'));
 
-        // Global Mikrotik settings
-        $domain = config('services.mikrotik.domain', parse_url(config('app.url'), PHP_URL_HOST));
+        $domain = config('services.mikrotik.domain', parse_url(config('app.url', 'https://hifastlink.com'), PHP_URL_HOST));
         $dnsName = config('services.mikrotik.dns_name', 'login.wifi');
         $bridgeName = 'bridge';
-        $websiteIp = config('services.mikrotik.website_ip', '194.36.184.49');
+        $websiteIp = config('services.mikrotik.website_ip', env('WEBSITE_IP', '194.36.184.49'));
+        
+        $radiusIp = $router->vpn_enabled ? $wgServerIp : '142.93.47.189';
 
-        // Escape for script injection
-        $esc = function($val) {
-            return str_replace('"', '\\"', $val);
-        };
+        // 2. Build WireGuard block conditionally in PHP (no RouterOS logic needed)
+        $wgCommands = "";
+        if ($router->vpn_enabled) {
+            $wgCommands = "
+:do { /interface/wireguard remove [find name=\"wg-saas\"] } on-error={}
+/interface/wireguard add name=\"wg-saas\" listen-port={$wgListenPort}
+:do { /ip/address remove [find interface=\"wg-saas\"] } on-error={}
+/ip/address add address=\"{$routerVpnIp}/24\" interface=\"wg-saas\" network=\"192.168.42.0\"
+:do { /interface/wireguard/peers remove [find interface=\"wg-saas\"] } on-error={}
+/interface/wireguard/peers add interface=\"wg-saas\" public-key=\"{$wgServerPublicKey}\" endpoint-address=\"{$wgServerEndpoint}\" endpoint-port={$wgServerPort} allowed-address=\"{$wgServerIp}/32\" persistent-keepalive=25s
+:delay 5s
+";
+        }
 
-        $template = <<<'RSC'
-# ==================================================
-#  HIFASTLINK ROUTER SETUP SCRIPT (v6→v7 AUTO-UPGRADE + WIREGUARD)
-#  Author: Gem (The Developer)
-# ==================================================
-
-# --- 1. CONFIGURATION VARIABLES (EDIT HERE) ---
-:global LocationName "{LOCATION}"
-:global DomainName   "{DOMAIN}"
-:global DNSName      "{DNSNAME}"
-:global BridgeName   "{BRIDGE}"
-:global WebsiteIP    "{WEBSITEIP}"
-
-# WireGuard VPN Configuration
-:global VPNEnabled         true
-:global WGServerPublicKey  "{WG_SERVER_PUBLIC_KEY}"
-:global WGServerEndpoint   "{WG_SERVER_ENDPOINT}"
-:global WGServerPort       "{WG_SERVER_PORT}"
-:global WGListenPort       "{WG_LISTEN_PORT}"
-:global WGRouterIP         "{WG_ROUTER_IP}"
-:global WGServerIP         "{WG_SERVER_IP}"
-
-# RADIUS Configuration
-:global RadiusSecret "{RADIUS_SECRET}"
-
-# --- 2. DETECT ROUTEROS VERSION ---
-:local currentVersion [:pick [/system resource get version] 0 1]
-
-# ==================================================
-#  IF v6: CREATE POST-UPGRADE SCRIPT AND UPGRADE
-# ==================================================
-
-:if ($currentVersion = "6") do={
-    :put "=========================================="
-    :put "   DETECTED: RouterOS v6"
-    :put "   ACTION: Upgrading to v7"
-    :put "=========================================="
-    
-    /system script remove [find name="hifastlink-post-upgrade"]
-    /system script add name="hifastlink-post-upgrade" source="
-:delay 30s
-:put \">> Starting post-upgrade configuration...\"
-
-:global LocationName
-:global DomainName
-:global DNSName
-:global BridgeName
-:global WebsiteIP
-:global VPNEnabled
-:global WGServerPublicKey
-:global WGServerEndpoint
-:global WGServerPort
-:global WGListenPort
-:global WGRouterIP
-:global WGServerIP
-:global RadiusSecret
-
-:put (\">> Configuring: \" . \$LocationName)
-
-/system/identity set name=\$LocationName
-:put \">> Identity set\"
-
-:if (\$VPNEnabled) do={
-    :put \">> Configuring WireGuard VPN...\"
-    :do {/interface/wireguard remove [find name=\"wg-saas\"]} on-error={}
-    /interface/wireguard add name=\"wg-saas\" listen-port=\$WGListenPort
-    :do {/ip/address remove [find interface=\"wg-saas\"]} on-error={}
-    /ip/address add address=(\$WGRouterIP . \"/24\") interface=\"wg-saas\" network=\"192.168.42.0\"
-    :do {/interface/wireguard/peers remove [find interface=\"wg-saas\"]} on-error={}
-    /interface/wireguard/peers add interface=\"wg-saas\" public-key=\$WGServerPublicKey endpoint-address=\$WGServerEndpoint endpoint-port=\$WGServerPort allowed-address=(\$WGServerIP . \"/32\") persistent-keepalive=25s
-    :delay 5s
-    :put \">> WireGuard configured\"
-}
-
-:local RadiusIP
-:if (\$VPNEnabled) do={:set RadiusIP \$WGServerIP} else={:set RadiusIP \"142.93.47.189\"}
+        // 3. Build the flat, base RouterOS configuration
+        $baseCommands = "
+/system/identity set name=\"{$location}\"
+{$wgCommands}
 /radius remove [find]
-/radius add address=\$RadiusIP secret=\$RadiusSecret service=hotspot timeout=3000ms comment=\"HiFastLink RADIUS\"
-:put \">> RADIUS configured\"
-
-/ip/hotspot set [find] interface=\$BridgeName
-:put \">> Hotspot interface set\"
-
-/ip/hotspot/profile set [find] dns-name=\$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
-:put \">> Hotspot profile configured\"
-
+/radius add address=\"{$radiusIp}\" secret=\"{$secret}\" service=hotspot timeout=3000ms comment=\"HiFastLink RADIUS\"
+/ip/hotspot set [find] interface=\"{$bridgeName}\"
+/ip/hotspot/profile set [find] dns-name=\"{$dnsName}\" html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
 /ip/hotspot/user/profile set [find] shared-users=10
-:put \">> User profile configured\"
-
 /ip/hotspot/walled-garden remove [find]
-/ip/hotspot/walled-garden add dst-host=(\"*.\" . \$DomainName) comment=\"Allow Dashboard\"
-/ip/hotspot/walled-garden add dst-host=\$DomainName comment=\"Allow Root\"
+/ip/hotspot/walled-garden add dst-host=\"*.{$domain}\" comment=\"Allow Dashboard\"
+/ip/hotspot/walled-garden add dst-host=\"{$domain}\" comment=\"Allow Root\"
 /ip/hotspot/walled-garden add dst-host=\"*.paystack.com\" comment=\"Paystack\"
 /ip/hotspot/walled-garden add dst-host=\"*.paystack.co\" comment=\"Paystack\"
 /ip/hotspot/walled-garden add dst-host=\"*.sentry.io\" comment=\"Logs\"
-:put \">> Walled Garden (DNS) configured\"
-
 /ip/hotspot/walled-garden/ip remove [find]
-/ip/hotspot/walled-garden/ip add action=accept dst-address=\$WebsiteIP comment=\"Server\"
-/ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=443 dst-address=\$WebsiteIP comment=\"HTTPS\"
-/ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=80 dst-address=\$WebsiteIP comment=\"HTTP\"
+/ip/hotspot/walled-garden/ip add action=accept dst-address=\"{$websiteIp}\" comment=\"Server\"
+/ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=443 dst-address=\"{$websiteIp}\" comment=\"HTTPS\"
+/ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=80 dst-address=\"{$websiteIp}\" comment=\"HTTP\"
 /ip/hotspot/walled-garden/ip add action=accept protocol=udp dst-port=53 comment=\"DNS\"
-:put \">> Walled Garden (IP) configured\"
-
 /ip/dns set servers=8.8.8.8,8.8.4.4 allow-remote-requests=yes
-:put \">> DNS configured\"
-
-:local heartbeatURL (\"https://\" . \$DomainName . \"/api/routers/heartbeat?identity=\" . \$LocationName)
-/system/scheduler remove [find name=\"heartbeat\"]
-/system/scheduler add name=\"heartbeat\" interval=1m on-event=(\"/tool/fetch url=\\\"\" . \$heartbeatURL . \"\\\" mode=https output=none\")
-:put \">> Heartbeat configured\"
-
-/system/scheduler remove [find name=\"realtime-stats\"]
-/system/scheduler add name=\"realtime-stats\" interval=10s on-event={
-    :local identity [/system/identity get name]
-    :local apiURL \"https://{DOMAIN}/api/routers/speed\"
-    :foreach session in=[/ip/hotspot/active find] do={
-        :local user [/ip/hotspot/active get \$session user]
-        :local bytesIn [/ip/hotspot/active get \$session bytes-in]
-        :local bytesOut [/ip/hotspot/active get \$session bytes-out]
-        :local fullURL (\$apiURL . \"?identity=\" . \$identity . \"&user=\" . \$user . \"&bytes_in=\" . \$bytesIn . \"&bytes_out=\" . \$bytesOut)
-        :do {/tool/fetch url=\$fullURL mode=https output=none} on-error={}
-    }
-}
-:put \">> Speed reporter configured\"
-
+/system/scheduler remove [find name=\"heartbeat\"] on-error={}
+/system/scheduler add name=\"heartbeat\" interval=1m on-event=\"/tool/fetch url=\\\"https://{$domain}/api/routers/heartbeat?identity={$location}\\\" mode=https output=none\"
+/system/scheduler remove [find name=\"realtime-stats\"] on-error={}
+/system/scheduler add name=\"realtime-stats\" interval=10s on-event=\":local apiURL \\\"https://{$domain}/api/routers/speed\\\"; :foreach session in=[/ip/hotspot/active find] do={:local user [/ip/hotspot/active get \\\$session user]; :local bytesIn [/ip/hotspot/active get \\\$session bytes-in]; :local bytesOut [/ip/hotspot/active get \\\$session bytes-out]; :do {/tool/fetch url=(\\\$apiURL . \\\"?identity={$location}&user=\\\" . \\\$user . \\\"&bytes_in=\\\" . \\\$bytesIn . \\\"&bytes_out=\\\" . \\\$bytesOut) mode=https output=none} on-error={}}\"
 /system/ntp/client set enabled=yes
 :do {/system/ntp/client/servers remove [find address=162.159.200.1]} on-error={}
 :do {/system/ntp/client/servers remove [find address=162.159.200.123]} on-error={}
 /system/ntp/client/servers add address=162.159.200.1
 /system/ntp/client/servers add address=162.159.200.123
-:put \">> NTP configured\"
-
 /ip/service set api disabled=no port=8728
-:put \">> API enabled\"
+:put \">> SETUP COMPLETE FOR {$location}\"
+";
 
-:put \"===========================================\"
-:put \"   SETUP COMPLETE\"
-:put (\"   Router: \" . \$LocationName)
-:put (\"   Login: http://\" . \$DNSName)
-:put \"   VPN: WireGuard Enabled\"
-:put \"   READY\"
-:put \"===========================================\"
+        // 4. Safely escape the base commands so they can be injected into the v6 'source' parameter
+        $escapedForV6 = addcslashes($baseCommands, '"$\\');
 
-/system/scheduler remove [find name=\"run-post-upgrade\"]
-/system/script remove [find name=\"hifastlink-post-upgrade\"]
-"
+        // 5. Build the final executable script
+        $script = <<<RSC
+# ==================================================
+#  HIFASTLINK ROUTER SETUP SCRIPT
+#  IMPORTANT: Do not paste this into the terminal!
+#  Open Winbox -> Files -> Upload this file.
+#  Then run: /import file-name=router-{$location}.rsc
+# ==================================================
+
+:local currentVersion [:pick [/system resource get version] 0 1]
+
+:if (\$currentVersion = "6") do={
+    :put ">> DETECTED: RouterOS v6"
+    :put ">> ACTION: Scheduling v7 Upgrade and setup..."
     
-    /system scheduler remove [find name="run-post-upgrade"]
+    :do { /system script remove [find name="hifastlink-post-upgrade"] } on-error={}
+    /system script add name="hifastlink-post-upgrade" source=":delay 30s; {$escapedForV6} /system/scheduler remove [find name=\"run-post-upgrade\"] on-error={}; /system/script remove [find name=\"hifastlink-post-upgrade\"] on-error={};"
+    
+    :do { /system scheduler remove [find name="run-post-upgrade"] } on-error={}
     /system scheduler add name="run-post-upgrade" on-event="hifastlink-post-upgrade" start-time=startup interval=0
     
-    :put ">> Upgrading to RouterOS v7..."
-    :put ">> Router will reboot in ~2 minutes"
-    :put ">> Total time: 5-10 minutes"
-    
+    :put ">> Router will reboot in ~2 minutes for upgrade."
     /system package update set channel=stable
     /system package update check-for-updates
     :delay 15s
     /system package update download
     :delay 60s
     /system package update install
-}
-
-# ==================================================
-#  IF v7: RUN SETUP DIRECTLY
-# ==================================================
-
-:if ($currentVersion = "7") do={
-    :put "=========================================="
-    :put "   DETECTED: RouterOS v7"
-    :put "   ACTION: Running setup"
-    :put "=========================================="
-    
-    :put (">> Starting Setup for " . $LocationName . "...")
-    
-    /system/identity set name=$LocationName
-    :put ">> Identity set"
-    
-    :if ($VPNEnabled) do={
-        :put ">> Configuring WireGuard VPN..."
-        :do {/interface/wireguard remove [find name="wg-saas"]} on-error={}
-        /interface/wireguard add name="wg-saas" listen-port=$WGListenPort
-        :do {/ip/address remove [find interface="wg-saas"]} on-error={}
-        /ip/address add address=($WGRouterIP . "/24") interface="wg-saas" network="192.168.42.0"
-        :do {/interface/wireguard/peers remove [find interface="wg-saas"]} on-error={}
-        /interface/wireguard/peers add interface="wg-saas" public-key=$WGServerPublicKey endpoint-address=$WGServerEndpoint endpoint-port=$WGServerPort allowed-address=($WGServerIP . "/32") persistent-keepalive=25s
-        :delay 5s
-        :put ">> WireGuard configured"
-    }
-    
-    :local RadiusIP
-    :if ($VPNEnabled) do={:set RadiusIP $WGServerIP} else={:set RadiusIP "142.93.47.189"}
-    /radius remove [find]
-    /radius add address=$RadiusIP secret=$RadiusSecret service=hotspot timeout=3000ms comment="HiFastLink RADIUS"
-    :put ">> RADIUS configured"
-    
-    /ip/hotspot set [find] interface=$BridgeName
-    :put ">> Hotspot interface set"
-    
-    /ip/hotspot/profile set [find] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
-    :put ">> Hotspot profile configured"
-    
-    /ip/hotspot/user/profile set [find] shared-users=10
-    :put ">> User profile configured"
-    
-    /ip/hotspot/walled-garden remove [find]
-    /ip/hotspot/walled-garden add dst-host=("*." . $DomainName) comment="Allow Dashboard"
-    /ip/hotspot/walled-garden add dst-host=$DomainName comment="Allow Root"
-    /ip/hotspot/walled-garden add dst-host="*.paystack.com" comment="Paystack"
-    /ip/hotspot/walled-garden add dst-host="*.paystack.co" comment="Paystack"
-    /ip/hotspot/walled-garden add dst-host="*.sentry.io" comment="Logs"
-    :put ">> Walled Garden (DNS) configured"
-    
-    /ip/hotspot/walled-garden/ip remove [find]
-    /ip/hotspot/walled-garden/ip add action=accept dst-address=$WebsiteIP comment="Server"
-    /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=443 dst-address=$WebsiteIP comment="HTTPS"
-    /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=80 dst-address=$WebsiteIP comment="HTTP"
-    /ip/hotspot/walled-garden/ip add action=accept protocol=udp dst-port=53 comment="DNS"
-    :put ">> Walled Garden (IP) configured"
-    
-    /ip/dns set servers=8.8.8.8,8.8.4.4 allow-remote-requests=yes
-    :put ">> DNS configured"
-    
-    :local heartbeatURL ("https://" . $DomainName . "/api/routers/heartbeat?identity=" . $LocationName)
-    /system/scheduler remove [find name="heartbeat"]
-    /system/scheduler add name="heartbeat" interval=1m on-event=("/tool/fetch url=\"$heartbeatURL\" mode=https output=none")
-    :put ">> Heartbeat configured"
-    
-    /system/scheduler remove [find name="realtime-stats"]
-    /system/scheduler add name="realtime-stats" interval=10s on-event={
-        :local identity [/system/identity get name]
-        :local apiURL "https://{DOMAIN}/api/routers/speed"
-        :foreach session in=[/ip/hotspot/active find] do={
-            :local user [/ip/hotspot/active get $session user]
-            :local bytesIn [/ip/hotspot/active get $session bytes-in]
-            :local bytesOut [/ip/hotspot/active get $session bytes-out]
-            :local fullURL ($apiURL . "?identity=" . $identity . "&user=" . $user . "&bytes_in=" . $bytesIn . "&bytes_out=" . $bytesOut)
-            :do {/tool/fetch url=$fullURL mode=https output=none} on-error={}
-        }
-    }
-    :put ">> Speed reporter configured"
-    
-    /system/ntp/client set enabled=yes
-    :do {/system/ntp/client/servers remove [find address=162.159.200.1]} on-error={}
-    :do {/system/ntp/client/servers remove [find address=162.159.200.123]} on-error={}
-    /system/ntp/client/servers add address=162.159.200.1
-    /system/ntp/client/servers add address=162.159.200.123
-    :put ">> NTP configured"
-    
-    /ip/service set api disabled=no port=8728
-    :put ">> API enabled"
-    
-    :put "========================================"
-    :put ("   SETUP COMPLETE FOR: " . $LocationName)
-    :put ("   Login Link: http://" . $DNSName)
-    :put ("   VPN IP: " . $WGRouterIP)
-    :put "   VPN: WireGuard Enabled"
-    :put "   READY TO DEPLOY"
-    :put "========================================"
+} else={
+    :put ">> DETECTED: RouterOS v7 - Running setup directly..."
+    {$baseCommands}
 }
 RSC;
-
-        $script = str_replace([
-            '{LOCATION}',
-            '{DOMAIN}',
-            '{DNSNAME}',
-            '{BRIDGE}',
-            '{WEBSITEIP}',
-            '{WG_SERVER_PUBLIC_KEY}',
-            '{WG_SERVER_ENDPOINT}',
-            '{WG_SERVER_PORT}',
-            '{WG_LISTEN_PORT}',
-            '{WG_ROUTER_IP}',
-            '{WG_SERVER_IP}',
-            '{RADIUS_SECRET}',
-        ], [
-            $esc($location),
-            $esc($domain),
-            $esc($dnsName),
-            $esc($bridgeName),
-            $esc($websiteIp),
-            $esc($wgServerPublicKey),
-            $esc($wgServerEndpoint),
-            $esc($wgServerPort),
-            $esc($wgListenPort),
-            $esc($routerVpnIp),
-            $esc($wgServerIp),
-            $esc($secret),
-        ], $template);
 
         $filename = 'router-' . ($router->nas_identifier ?: $router->id) . '.rsc';
 
