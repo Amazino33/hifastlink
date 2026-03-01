@@ -120,7 +120,6 @@
                     @endif
 
 
-                    <!-- Mobile-only controls: show family/bell/gear under the greeting -->
                     <div class="flex md:hidden items-center justify-start space-x-3 mt-6 gap-2">
                         @if(Auth::user()->is_family_admin)
                             <a href="{{ route('family') }}"
@@ -222,12 +221,10 @@
                                     </span>
                                 @endif
 
-                                <!-- Connect/Disconnect Router buttons (authentic server-side rendering) -->
                                 <div id="connection-buttons" class="flex items-center"
                                     data-connected-devices="{{ $connectedDevices }}"
                                     data-max-devices="{{ $maxDevices }}">
                                     @if($showDisconnectButton)
-                                        <!-- Disconnect form posts to backend to avoid router dependency -->
                                         <form id="disconnect-form" action="{{ route('user.disconnect') }}" method="POST"
                                             class="w-full sm:w-auto">
                                             @csrf
@@ -240,7 +237,6 @@
                                             </button>
                                         </form>
                                     @else
-                                        <!-- Connect button (shown if subscription is active and device limit not reached) -->
                                         @if($subscriptionStatus === 'active')
                                             @if($connectedDevices < $maxDevices)
                                                 <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self"
@@ -688,8 +684,19 @@
                                     <div class="text-xs text-gray-500 dark:text-gray-400">Current</div>
                                 </div>
                             </div>
-                            <span
-                                class="text-blue-600 dark:text-blue-400 font-bold">{{ $isDeviceOnline ? $currentSpeed : 'Offline' }}</span>
+                            @php
+                                $liveSpeed = '0 Mbps';
+                                if ($isDeviceOnline) {
+                                    $speedData = \Illuminate\Support\Facades\Cache::get("user_speed_" . Auth::user()->username);
+                                    if ($speedData) {
+                                        $downloadMbps = round($speedData['download_bps'] / 1000000, 2);
+                                        $liveSpeed = $downloadMbps < 1 
+                                            ? round($speedData['download_bps'] / 1000, 0) . ' Kbps' 
+                                            : $downloadMbps . ' Mbps';
+                                    }
+                                }
+                            @endphp
+                            <span class="text-blue-600 dark:text-blue-400 font-bold">{{ $isDeviceOnline ? $liveSpeed : 'Offline' }}</span>
                         </div>
 
                         <div class="flex items-center justify-between p-4 bg-blue-50 dark:bg-gray-700 rounded-xl">
@@ -723,7 +730,6 @@
                 </div>
             </div>
 
-            <!-- Connect to Router Modal -->
             <div id="connect-router-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4"
                 aria-hidden="true" role="dialog" aria-labelledby="connect-router-title">
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" data-close-modal></div>

@@ -15,7 +15,6 @@ use Filament\Actions\EditAction;
 use Filament\Schemas\Schema;
 use UnitEnum;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
@@ -57,11 +56,12 @@ class RouterResource extends Resource
         return $schema
             ->schema([
                 ComponentsSection::make('Router Information')
+                    ->description('Basic identification for this deployment location.')
                     ->schema([
                         TextInput::make('name')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder('e.g., Uyo Hub'),
+                            ->placeholder('e.g., Uyo Hub Main'),
                         
                         TextInput::make('location')
                             ->required()
@@ -73,31 +73,41 @@ class RouterResource extends Resource
                             ->placeholder('Additional details about this router'),
                     ])->columns(1),
 
-            ComponentsSection::make('Network Configuration')
+                ComponentsSection::make('WireGuard & RADIUS Configuration')
+                    ->description('Configure the secure VPN tunnel and authentication credentials for this specific router.')
                     ->schema([
                         TextInput::make('ip_address')
-                            ->label('IP Address')
+                            ->label('WireGuard VPN IP Address')
                             ->required()
                             ->ip()
                             ->unique(ignoreRecord: true)
-                            ->placeholder('e.g., 192.168.1.1'),
+                            ->placeholder('e.g., 192.168.42.10')
+                            ->helperText('The private static IP assigned to this router inside the VPN tunnel.'),
                         
                         TextInput::make('nas_identifier')
-                            ->label('NAS Identifier')
+                            ->label('NAS Identifier (Identity)')
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->placeholder('e.g., router_uyo_01')
-                            ->helperText('Unique identifier for RADIUS'),
+                            ->helperText('The unique RouterOS Identity. FreeRADIUS uses this to identify the location.'),
                         
                         TextInput::make('secret')
-                            ->label('RADIUS Secret')
+                            ->label('Unique RADIUS Secret')
                             ->required()
                             ->password()
                             ->revealable()
-                            ->placeholder('Shared secret for RADIUS auth'),
+                            ->placeholder('Enter a strong, unique secret')
+                            ->helperText('The unique shared secret for this specific router.'),
+                            
+                        Toggle::make('vpn_enabled')
+                            ->label('Enable WireGuard via Script')
+                            ->default(true)
+                            ->helperText('If enabled, the generated setup script will configure the WireGuard tunnel automatically.')
+                            ->columnSpanFull(),
                     ])->columns(2),
 
                 ComponentsSection::make('MikroTik API Configuration')
+                    ->description('Credentials for background communication and speed reporting.')
                     ->schema([
                         TextInput::make('api_user')
                             ->label('API Username')
@@ -115,10 +125,13 @@ class RouterResource extends Resource
                             ->placeholder('8728'),
                     ])->columns(3),
 
-                Toggle::make('is_active')
-                    ->label('Active')
-                    ->default(true)
-                    ->helperText('Disable to stop accepting connections from this router'),
+                ComponentsSection::make('Status')
+                    ->schema([
+                        Toggle::make('is_active')
+                            ->label('Active Configuration')
+                            ->default(true)
+                            ->helperText('Disable to stop accepting connections from this router'),
+                    ]),
             ]);
     }
 
@@ -136,7 +149,7 @@ class RouterResource extends Resource
                     ->limit(30),
                 
                 TextColumn::make('ip_address')
-                    ->label('IP Address')
+                    ->label('VPN IP Address')
                     ->searchable()
                     ->copyable()
                     ->badge()
