@@ -312,10 +312,10 @@ class RouterController extends Controller
 
 # 5. Create or update Hotspot Profile with DNS name
 :if ([:len [/ip/hotspot/profile find name=\"hifastlink\"]] = 0) do={
-    /ip/hotspot/profile add name=\"hifastlink\" dns-name=\$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+    /ip/hotspot/profile add name=\"hifastlink\" dns-name=\$DNSName html-directory=hotspot use-radius=yes login-by=http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
     :put \">> Hotspot profile created\"
 } else={
-    /ip/hotspot/profile set [find name=\"hifastlink\"] dns-name=\$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+    /ip/hotspot/profile set [find name=\"hifastlink\"] dns-name=\$DNSName html-directory=hotspot use-radius=yes login-by=http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
     :put \">> Hotspot profile updated\"
 }
 
@@ -508,10 +508,10 @@ class RouterController extends Controller
     
     # 5. Create or update Hotspot Profile with DNS name
     :if ([:len [/ip/hotspot/profile find name="hifastlink"]] = 0) do={
-        /ip/hotspot/profile add name="hifastlink" dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+        /ip/hotspot/profile add name="hifastlink" dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
         :put ">> Hotspot profile created"
     } else={
-        /ip/hotspot/profile set [find name="hifastlink"] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+        /ip/hotspot/profile set [find name="hifastlink"] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
         :put ">> Hotspot profile updated"
     }
     
