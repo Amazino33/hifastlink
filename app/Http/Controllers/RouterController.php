@@ -280,9 +280,9 @@ class RouterController extends Controller
     } on-error={}
     /ip/address add address=(\$WGRouterIP . \"/24\") interface=\"wg-saas\" network=\"192.168.42.0\"
     
-    # Add server as peer
+    # Remove ALL peers before re-adding to prevent duplicate stacking from prior runs
     :do {
-        /interface/wireguard/peers remove [find interface=\"wg-saas\"]
+        /interface/wireguard/peers remove [find]
     } on-error={}
     /interface/wireguard/peers add interface=\"wg-saas\" public-key=\$WGServerPublicKey endpoint-address=\$WGServerEndpoint endpoint-port=\$WGServerPort allowed-address=(\$WGServerIP . \"/32\") persistent-keepalive=25s
     
@@ -302,19 +302,48 @@ class RouterController extends Controller
 /radius add address=\$RadiusIP secret=\$RadiusSecret service=hotspot timeout=3000ms comment=\"HiFastLink RADIUS\"
 :put \">> RADIUS configured\"
 
-# 4. Hotspot Interface
-/ip/hotspot set [find dynamic=no] interface=\$BridgeName
-:put \">> Hotspot interface set\"
+# 4. IP Pool for Hotspot clients
+:if ([:len [/ip/pool find name=\"hs-pool\"]] = 0) do={
+    /ip/pool add name=\"hs-pool\" ranges=\"192.168.88.10-192.168.88.254\"
+    :put \">> IP pool created\"
+} else={
+    :put \">> IP pool already exists\"
+}
 
-# 5. Hotspot Profile
-/ip/hotspot/profile set [find dynamic=no] dns-name=\$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
-:put \">> Hotspot profile configured\"
+# 5. Create or update Hotspot Profile with DNS name
+:if ([:len [/ip/hotspot/profile find name=\"hifastlink\"]] = 0) do={
+    /ip/hotspot/profile add name=\"hifastlink\" dns-name=\$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+    :put \">> Hotspot profile created\"
+} else={
+    /ip/hotspot/profile set [find name=\"hifastlink\"] dns-name=\$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+    :put \">> Hotspot profile updated\"
+}
 
-# 6. User Profile
-/ip/hotspot/user/profile set [find dynamic=no] shared-users=10
+# 6. Create or update Hotspot Server bound to bridge
+# Check by interface - only one hotspot allowed per interface, regardless of name
+:if ([:len [/ip/hotspot find interface=\$BridgeName]] = 0) do={
+    /ip/hotspot add name=\"hifastlink\" interface=\$BridgeName profile=\"hifastlink\" address-pool=\"hs-pool\" disabled=no
+    :put \">> Hotspot server created\"
+} else={
+    # Update existing server on this interface
+    /ip/hotspot set [find interface=\$BridgeName] profile=\"hifastlink\" address-pool=\"hs-pool\" disabled=no
+    :put \">> Hotspot server updated\"
+}
+
+# Clear all IP bindings - stale bindings intercept clients before the captive portal
+/ip/hotspot/ip-binding remove [find]
+:put \">> IP bindings cleared\"
+
+# 7. User Profile
+# Use dynamic=no filter to avoid cannot-change-dynamic error on the default profile
+:if ([:len [/ip/hotspot/user/profile find name=\"default\" dynamic=no]] = 0) do={
+    :do { /ip/hotspot/user/profile add name=\"default\" shared-users=10 } on-error={ :put \">> User profile add skipped (exists)\" }
+} else={
+    /ip/hotspot/user/profile set [find name=\"default\" dynamic=no] shared-users=10
+}
 :put \">> User profile configured\"
 
-# 7. Walled Garden - DNS
+# 8. Walled Garden - DNS
 /ip/hotspot/walled-garden remove [find dynamic=no]
 /ip/hotspot/walled-garden add dst-host=(\"*.\" . \$DomainName) comment=\"Allow Dashboard Subdomains\"
 /ip/hotspot/walled-garden add dst-host=\$DomainName comment=\"Allow Dashboard Root\"
@@ -323,7 +352,7 @@ class RouterController extends Controller
 /ip/hotspot/walled-garden add dst-host=\"*.sentry.io\" comment=\"Allow Error Logs\"
 :put \">> Walled Garden (DNS) configured\"
 
-# 8. Walled Garden - IP
+# 9. Walled Garden - IP
 /ip/hotspot/walled-garden/ip remove [find dynamic=no]
 /ip/hotspot/walled-garden/ip add action=accept dst-address=\$WebsiteIP comment=\"HiFastLink Server\"
 /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=443 dst-address=\$WebsiteIP comment=\"HTTPS\"
@@ -331,34 +360,24 @@ class RouterController extends Controller
 /ip/hotspot/walled-garden/ip add action=accept protocol=udp dst-port=53 comment=\"DNS\"
 :put \">> Walled Garden (IP) configured\"
 
-# 9. DNS
+# 10. DNS
 /ip/dns set servers=8.8.8.8,8.8.4.4 allow-remote-requests=yes
 :put \">> DNS configured\"
 
-# 10. Heartbeat
+# 11. Heartbeat
 :local heartbeatURL (\"https://\" . \$DomainName . \"/api/routers/heartbeat?identity=\" . \$LocationName)
 /system/scheduler remove [find name=\"heartbeat\"]
 /system/scheduler add name=\"heartbeat\" interval=1m on-event=(\"/tool/fetch url=\\\"\" . \$heartbeatURL . \"\\\" mode=https output=none\")
 :put \">> Heartbeat configured\"
 
-# 11. Realtime Speed Reporter
+# 12. Realtime Speed Reporter
 /system/scheduler remove [find name=\"realtime-stats\"]
-/system/scheduler add name=\"realtime-stats\" interval=10s on-event={
-    :local identity [/system/identity get name]
-    :local apiURL \"https://hifastlink.com/api/routers/speed\"
-    :foreach session in=[/ip/hotspot/active find] do={
-        :local user [/ip/hotspot/active get \$session user]
-        :local bytesIn [/ip/hotspot/active get \$session bytes-in]
-        :local bytesOut [/ip/hotspot/active get \$session bytes-out]
-        :local fullURL (\$apiURL . \"?identity=\" . \$identity . \"&user=\" . \$user . \"&bytes_in=\" . \$bytesIn . \"&bytes_out=\" . \$bytesOut)
-        :do {
-            /tool/fetch url=\$fullURL mode=https output=none
-        } on-error={}
-    }
-}
+:do { /system/script remove [find name=\"realtime-stats-script\"] } on-error={}
+/system/script add name=\"realtime-stats-script\" source=\":local identity [/system/identity get name]; :local apiURL \\\"https://hifastlink.com/api/routers/speed\\\"; :foreach session in=[/ip/hotspot/active find] do={:local user [/ip/hotspot/active get \$session user]; :local bytesIn [/ip/hotspot/active get \$session bytes-in]; :local bytesOut [/ip/hotspot/active get \$session bytes-out]; :local fullURL (\$apiURL . \\\"?identity=\\\" . \$identity . \\\"&user=\\\" . \$user . \\\"&bytes_in=\\\" . \$bytesIn . \\\"&bytes_out=\\\" . \$bytesOut); :do {/tool/fetch url=\$fullURL mode=https output=none} on-error={}}\"
+/system/scheduler add name=\"realtime-stats\" interval=10s on-event=\"/system/script run realtime-stats-script\"
 :put \">> Speed reporter configured\"
 
-# 12. NTP
+# 13. NTP
 /system/ntp/client set enabled=yes
 :do {/system/ntp/client/servers remove [find address=162.159.200.1]} on-error={}
 :do {/system/ntp/client/servers remove [find address=162.159.200.123]} on-error={}
@@ -366,7 +385,7 @@ class RouterController extends Controller
 /system/ntp/client/servers add address=162.159.200.123
 :put \">> NTP configured\"
 
-# 13. API
+# 14. API
 /ip/service set api disabled=no port=8728
 :put \">> API enabled\"
 
@@ -436,9 +455,9 @@ class RouterController extends Controller
         } on-error={}
         /ip/address add address=($WGRouterIP . "/24") interface="wg-saas" network="192.168.42.0"
         
-        # Add server as peer
+        # Remove ALL peers before re-adding to prevent duplicate stacking from prior runs
         :do {
-            /interface/wireguard/peers remove [find interface="wg-saas"]
+            /interface/wireguard/peers remove [find]
         } on-error={}
         /interface/wireguard/peers add interface="wg-saas" \
             public-key=$WGServerPublicKey \
@@ -462,20 +481,49 @@ class RouterController extends Controller
     /radius remove [find dynamic=no]
     /radius add address=$RadiusIP secret=$RadiusSecret service=hotspot timeout=3000ms comment="HiFastLink RADIUS"
     :put ">> RADIUS configured"
+
+    # 4. IP Pool for Hotspot clients
+    :if ([:len [/ip/pool find name="hs-pool"]] = 0) do={
+        /ip/pool add name="hs-pool" ranges="192.168.88.10-192.168.88.254"
+        :put ">> IP pool created"
+    } else={
+        :put ">> IP pool already exists"
+    }
     
-    # 4. Hotspot Interface
-    /ip/hotspot set [find dynamic=no] interface=$BridgeName
-    :put ">> Hotspot interface set"
+    # 5. Create or update Hotspot Profile with DNS name
+    :if ([:len [/ip/hotspot/profile find name="hifastlink"]] = 0) do={
+        /ip/hotspot/profile add name="hifastlink" dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+        :put ">> Hotspot profile created"
+    } else={
+        /ip/hotspot/profile set [find name="hifastlink"] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+        :put ">> Hotspot profile updated"
+    }
     
-    # 5. Hotspot Profile
-    /ip/hotspot/profile set [find dynamic=no] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
-    :put ">> Hotspot profile configured"
+    # 6. Create or update Hotspot Server bound to bridge
+    # Check by interface - only one hotspot allowed per interface, regardless of name
+    :if ([:len [/ip/hotspot find interface=$BridgeName]] = 0) do={
+        /ip/hotspot add name="hifastlink" interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no
+        :put ">> Hotspot server created"
+    } else={
+        # Update existing server on this interface
+        /ip/hotspot set [find interface=$BridgeName] profile="hifastlink" address-pool="hs-pool" disabled=no
+        :put ">> Hotspot server updated"
+    }
     
-    # 6. User Profile
-    /ip/hotspot/user/profile set [find dynamic=no] shared-users=10
+    # Clear all IP bindings - stale bindings intercept clients before the captive portal
+    /ip/hotspot/ip-binding remove [find]
+    :put ">> IP bindings cleared"
+    
+    # 7. User Profile
+    # Use dynamic=no filter to avoid "cannot change dynamic" error on the default profile
+    :if ([:len [/ip/hotspot/user/profile find name="default" dynamic=no]] = 0) do={
+        :do { /ip/hotspot/user/profile add name="default" shared-users=10 } on-error={ :put ">> User profile add skipped (exists)" }
+    } else={
+        /ip/hotspot/user/profile set [find name="default" dynamic=no] shared-users=10
+    }
     :put ">> User profile configured"
     
-    # 7. Walled Garden - DNS
+    # 8. Walled Garden - DNS
     /ip/hotspot/walled-garden remove [find dynamic=no]
     /ip/hotspot/walled-garden add dst-host=("*." . $DomainName) comment="Allow Dashboard Subdomains"
     /ip/hotspot/walled-garden add dst-host=$DomainName comment="Allow Dashboard Root"
@@ -484,7 +532,7 @@ class RouterController extends Controller
     /ip/hotspot/walled-garden add dst-host="*.sentry.io" comment="Allow Error Logs"
     :put ">> Walled Garden (DNS) configured"
     
-    # 8. Walled Garden - IP
+    # 9. Walled Garden - IP
     /ip/hotspot/walled-garden/ip remove [find dynamic=no]
     /ip/hotspot/walled-garden/ip add action=accept dst-address=$WebsiteIP comment="HiFastLink Server"
     /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=443 dst-address=$WebsiteIP comment="HTTPS"
@@ -492,34 +540,24 @@ class RouterController extends Controller
     /ip/hotspot/walled-garden/ip add action=accept protocol=udp dst-port=53 comment="DNS"
     :put ">> Walled Garden (IP) configured"
     
-    # 9. DNS
+    # 10. DNS
     /ip/dns set servers=8.8.8.8,8.8.4.4 allow-remote-requests=yes
     :put ">> DNS configured"
     
-    # 10. Heartbeat
+    # 11. Heartbeat
     :local heartbeatURL ("https://" . $DomainName . "/api/routers/heartbeat?identity=" . $LocationName)
     /system/scheduler remove [find name="heartbeat"]
     /system/scheduler add name="heartbeat" interval=1m on-event=("/tool/fetch url=\"$heartbeatURL\" mode=https output=none")
     :put ">> Heartbeat configured"
     
-    # 11. Realtime Speed Reporter
+    # 12. Realtime Speed Reporter
     /system/scheduler remove [find name="realtime-stats"]
-    /system/scheduler add name="realtime-stats" interval=10s on-event={
-        :local identity [/system/identity get name]
-        :local apiURL "https://hifastlink.com/api/routers/speed"
-        :foreach session in=[/ip/hotspot/active find] do={
-            :local user [/ip/hotspot/active get $session user]
-            :local bytesIn [/ip/hotspot/active get $session bytes-in]
-            :local bytesOut [/ip/hotspot/active get $session bytes-out]
-            :local fullURL ($apiURL . "?identity=" . $identity . "&user=" . $user . "&bytes_in=" . $bytesIn . "&bytes_out=" . $bytesOut)
-            :do {
-                /tool/fetch url=$fullURL mode=https output=none
-            } on-error={}
-        }
-    }
+    :do { /system/script remove [find name="realtime-stats-script"] } on-error={}
+    /system/script add name="realtime-stats-script" source=":local identity [/system/identity get name]; :local apiURL \"https://hifastlink.com/api/routers/speed\"; :foreach session in=[/ip/hotspot/active find] do={:local user [/ip/hotspot/active get \$session user]; :local bytesIn [/ip/hotspot/active get \$session bytes-in]; :local bytesOut [/ip/hotspot/active get \$session bytes-out]; :local fullURL (\$apiURL . \"?identity=\" . \$identity . \"&user=\" . \$user . \"&bytes_in=\" . \$bytesIn . \"&bytes_out=\" . \$bytesOut); :do {/tool/fetch url=\$fullURL mode=https output=none} on-error={}}"
+    /system/scheduler add name="realtime-stats" interval=10s on-event="/system/script run realtime-stats-script"
     :put ">> Speed reporter configured"
     
-    # 12. NTP
+    # 13. NTP
     /system/ntp/client set enabled=yes
     :do {/system/ntp/client/servers remove [find address=162.159.200.1]} on-error={}
     :do {/system/ntp/client/servers remove [find address=162.159.200.123]} on-error={}
@@ -527,7 +565,7 @@ class RouterController extends Controller
     /system/ntp/client/servers add address=162.159.200.123
     :put ">> NTP configured"
     
-    # 13. API
+    # 14. API
     /ip/service set api disabled=no port=8728
     :put ">> API enabled"
     
