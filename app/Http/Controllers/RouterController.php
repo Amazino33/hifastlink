@@ -362,6 +362,22 @@ class RouterController extends Controller
 
 # 10. DNS
 /ip/dns set servers=8.8.8.8,8.8.4.4 allow-remote-requests=yes
+
+# Static DNS entry so login.wifi resolves to this router
+# Dynamically read the bridge IP and strip the /prefix (e.g. 192.168.88.1/24 -> 192.168.88.1)
+:local bridgeAddrFull [/ip/address get [find interface=\$BridgeName] address]
+:local bridgeIP [:pick \$bridgeAddrFull 0 [:find \$bridgeAddrFull \"/\"]]
+:if ([:len [/ip/dns/static find name=\$DNSName dynamic=no]] > 0) do={
+    /ip/dns/static set [find name=\$DNSName dynamic=no] address=\$bridgeIP ttl=1m
+    :put (\">> Static DNS updated: \" . \$DNSName . \" -> \" . \$bridgeIP)
+} else={
+    :do {
+        /ip/dns/static add name=\$DNSName address=\$bridgeIP ttl=1m
+        :put (\">> Static DNS created: \" . \$DNSName . \" -> \" . \$bridgeIP)
+    } on-error={
+        :put (\">> DNS for \" . \$DNSName . \" managed by hotspot dynamically, skipping\")
+    }
+}
 :put \">> DNS configured\"
 
 # 11. Heartbeat
@@ -542,6 +558,22 @@ class RouterController extends Controller
     
     # 10. DNS
     /ip/dns set servers=8.8.8.8,8.8.4.4 allow-remote-requests=yes
+
+    # Static DNS entry so login.wifi resolves to this router
+    # Dynamically read the bridge IP and strip the /prefix (e.g. 192.168.88.1/24 -> 192.168.88.1)
+    :local bridgeAddrFull [/ip/address get [find interface=$BridgeName] address]
+    :local bridgeIP [:pick $bridgeAddrFull 0 [:find $bridgeAddrFull "/"]]
+    :if ([:len [/ip/dns/static find name=$DNSName dynamic=no]] > 0) do={
+        /ip/dns/static set [find name=$DNSName dynamic=no] address=$bridgeIP ttl=1m
+        :put (">> Static DNS updated: " . $DNSName . " -> " . $bridgeIP)
+    } else={
+        :do {
+            /ip/dns/static add name=$DNSName address=$bridgeIP ttl=1m
+            :put (">> Static DNS created: " . $DNSName . " -> " . $bridgeIP)
+        } on-error={
+            :put (">> DNS for " . $DNSName . " managed by hotspot dynamically, skipping")
+        }
+    }
     :put ">> DNS configured"
     
     # 11. Heartbeat
