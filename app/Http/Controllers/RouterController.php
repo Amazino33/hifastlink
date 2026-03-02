@@ -179,7 +179,7 @@ class RouterController extends Controller
         $wgListenPort = env('WG_LISTEN_PORT', '13231');
         
         // We use the IP from your Filament form as the internal Router VPN IP
-        $wgRouterIp = $router->ip_address ?? '192.168.42.10'; 
+        $wgRouterIp = $router->vpn_ip ?? '192.168.42.10'; 
         $wgServerIp = env('WG_SERVER_IP', '192.168.42.1');
 
         // Escape double quotes to prevent syntax breaking
