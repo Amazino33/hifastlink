@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use phpseclib3\Net\SSH2;
 
 class Router extends Model
 {
@@ -57,19 +58,26 @@ class Router extends Model
             // Only attempt to remove if the router actually had a WireGuard key
             if (!empty($router->wireguard_public_key)) {
                 
-                // 1. Instantly sever the connection in live memory (No downtime for others)
-                $removePeer = Process::run("sudo wg set wg0 peer '{$router->wireguard_public_key}' remove");
-                
-                if ($removePeer->successful()) {
+                try {
+                    // 1. Establish the secure SSH connection to DigitalOcean
+                    $ssh = new SSH2(env('DO_VPS_IP'));
                     
-                    // 2. Save the new state permanently so it doesn't return on reboot
-                    Process::run("sudo wg-quick save wg0");
+                    if (!$ssh->login(env('DO_VPS_USER'), env('DO_VPS_PASS'))) {
+                        throw new \Exception('Failed to authenticate with DigitalOcean via SSH.');
+                    }
+
+                    // 2. Surgically remove the peer from the live WireGuard interface
+                    $removeCmd = "sudo wg set wg0 peer '{$router->wireguard_public_key}' remove";
+                    $ssh->exec($removeCmd);
                     
-                    Log::info("Successfully removed WireGuard peer for deleted router: {$router->name}");
+                    // 3. Save the configuration so the router doesn't return if DO reboots
+                    $ssh->exec("sudo wg-quick save wg0");
                     
-                } else {
-                    // Log the Linux error if something goes wrong
-                    Log::error("Failed to remove WireGuard peer for {$router->name}: " . $removePeer->errorOutput());
+                    Log::info("Successfully removed remote WireGuard peer for deleted router: {$router->name}");
+
+                } catch (\Exception $e) {
+                    // Log the error so you can debug it in storage/logs/laravel.log
+                    Log::error("Remote WireGuard deletion failed for {$router->name}: " . $e->getMessage());
                 }
             }
         });
