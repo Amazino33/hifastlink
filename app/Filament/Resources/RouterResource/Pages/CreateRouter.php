@@ -4,9 +4,9 @@ namespace App\Filament\Resources\RouterResource\Pages;
 
 use App\Filament\Resources\RouterResource;
 use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Log;
 use Filament\Notifications\Notification;
+use phpseclib3\Net\SSH2;
 
 class CreateRouter extends CreateRecord
 {
@@ -23,30 +23,35 @@ class CreateRouter extends CreateRecord
             return;
         }
 
-        // 1. Inject the new router into the live WireGuard memory (Zero Downtime)
-        $addPeer = Process::run("sudo wg set wg0 peer '{$router->wireguard_public_key}' allowed-ips '{$router->vpn_ip}/32'");
+        try {
+            // 1. Connect across the internet to DigitalOcean
+            $ssh = new SSH2(env('VPS_IP'));
+            
+            // Log in using the credentials from .env
+            if (!$ssh->login(env('VPS_USERNAME'), env('VPS_PASSWORD'))) {
+                throw new \Exception('Failed to authenticate with DigitalOcean via SSH.');
+            }
 
-        if ($addPeer->successful()) {
+            // 2. Execute the commands remotely on the DO VPS
+            $addPeerCmd = "sudo wg set wg0 peer '{$router->wireguard_public_key}' allowed-ips '{$router->vpn_ip}/32'";
+            $ssh->exec($addPeerCmd);
             
-            // 2. Save the live memory to the wg0.conf file permanently
-            Process::run("sudo wg-quick save wg0");
+            $ssh->exec("sudo wg-quick save wg0");
+
+            Log::info("Successfully deployed remote WireGuard peer for: {$router->name}");
             
-            Log::info("Successfully deployed WireGuard peer for: {$router->name}");
-            
-            // Show a nice green success toast in the Filament dashboard
             Notification::make()
                 ->title('VPN Tunnel Configured')
-                ->body('The router was successfully added to the live WireGuard network.')
+                ->body('The router was successfully added to the DigitalOcean WireGuard network.')
                 ->success()
                 ->send();
 
-        } else {
-            // If it fails, log the exact Ubuntu error so you can debug it
-            Log::error("WireGuard deployment failed for {$router->name}: " . $addPeer->errorOutput());
+        } catch (\Exception $e) {
+            Log::error("Remote WireGuard deployment failed for {$router->name}: " . $e->getMessage());
             
             Notification::make()
                 ->title('VPN Tunnel Failed')
-                ->body('Could not add the router to WireGuard. Check system logs.')
+                ->body('Could not connect to DigitalOcean. Check system logs.')
                 ->danger()
                 ->send();
         }
