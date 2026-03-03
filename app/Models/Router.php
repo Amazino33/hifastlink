@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
@@ -17,6 +19,7 @@ class Router extends Model
         'description',
         'ip_address',
         'vpn_ip',
+        'wireguard_public_key',
         'nas_identifier',
         'secret',
         'api_user',
@@ -43,6 +46,31 @@ class Router extends Model
         static::creating(function ($router) {
             if (empty($router->vpn_ip)) {
                 $router->vpn_ip = self::getNextAvailableVpnIp();
+            }
+        });
+    }
+
+    protected static function booted()
+    {
+        static::deleted(function (Router $router) {
+            
+            // Only attempt to remove if the router actually had a WireGuard key
+            if (!empty($router->wireguard_public_key)) {
+                
+                // 1. Instantly sever the connection in live memory (No downtime for others)
+                $removePeer = Process::run("sudo wg set wg0 peer '{$router->wireguard_public_key}' remove");
+                
+                if ($removePeer->successful()) {
+                    
+                    // 2. Save the new state permanently so it doesn't return on reboot
+                    Process::run("sudo wg-quick save wg0");
+                    
+                    Log::info("Successfully removed WireGuard peer for deleted router: {$router->name}");
+                    
+                } else {
+                    // Log the Linux error if something goes wrong
+                    Log::error("Failed to remove WireGuard peer for {$router->name}: " . $removePeer->errorOutput());
+                }
             }
         });
     }

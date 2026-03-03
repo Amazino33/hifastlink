@@ -75,6 +75,12 @@ class RouterResource extends Resource
                             ->placeholder('Auto-assigned on save')
                             ->helperText('Automatically assigned from VPN pool')
                             ->visible(fn ($record) => $record !== null),
+
+                        TextInput::make('wireguard_public_key')
+                        ->label('Router Public Key')
+                        ->placeholder('Paste the MikroTik base64 public key here')
+                        ->maxLength(44)
+                        ->required(),
                         
                         TextInput::make('nas_identifier')
                             ->label('NAS Identifier')
