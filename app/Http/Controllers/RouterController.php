@@ -361,7 +361,7 @@ class RouterController extends Controller
 :put \">> Walled Garden (IP) configured\"
 
 # 10. DNS
-/ip/dns set servers=8.8.8.8,8.8.4.4 allow-remote-requests=yes
+/ip/dns set servers=192.168.88.1 allow-remote-requests=yes
 
 # Static DNS entry so login.wifi resolves to this router
 # Dynamically read the bridge IP and strip the /prefix (e.g. 192.168.88.1/24 -> 192.168.88.1)
