@@ -24,18 +24,23 @@ class CreateRouter extends CreateRecord
         }
 
         try {
-            // 1. Connect across the internet to DigitalOcean
-            $ssh = new SSH2(env('VPS_IP'));
+            // 1. Establish the secure SSH connection
+            $ssh = new SSH2(config('services.digitalocean.ip'));
             
-            // Log in using the credentials from .env
-            if (!$ssh->login(env('VPS_USERNAME'), env('VPS_PASSWORD'))) {
+            if (!$ssh->login(config('services.digitalocean.user'), config('services.digitalocean.pass'))) {
                 throw new \Exception('Failed to authenticate with DigitalOcean via SSH.');
             }
 
-            // 2. Execute the commands remotely on the DO VPS
+            // 2. Execute the command and capture the output
             $addPeerCmd = "sudo wg set wg0 peer '{$router->wireguard_public_key}' allowed-ips '{$router->vpn_ip}/32'";
-            $ssh->exec($addPeerCmd);
+            $output = $ssh->exec($addPeerCmd);
             
+            // If WireGuard returns any text, it means it rejected the key
+            if (!empty(trim($output))) {
+                throw new \Exception("Ubuntu rejected the command: " . trim($output));
+            }
+            
+            // 3. Save if successful
             $ssh->exec("sudo wg-quick save wg0");
 
             Log::info("Successfully deployed remote WireGuard peer for: {$router->name}");
@@ -47,11 +52,12 @@ class CreateRouter extends CreateRecord
                 ->send();
 
         } catch (\Exception $e) {
+            // This will now catch the silent terminal errors!
             Log::error("Remote WireGuard deployment failed for {$router->name}: " . $e->getMessage());
             
             Notification::make()
                 ->title('VPN Tunnel Failed')
-                ->body('Could not connect to DigitalOcean. Check system logs.')
+                ->body('Could not configure WireGuard. Check system logs.')
                 ->danger()
                 ->send();
         }

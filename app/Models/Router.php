@@ -60,9 +60,9 @@ class Router extends Model
                 
                 try {
                     // 1. Establish the secure SSH connection to DigitalOcean
-                    $ssh = new SSH2(env('DO_VPS_IP'));
+                    $ssh = new SSH2(env('VPS_IP'));
                     
-                    if (!$ssh->login(env('DO_VPS_USER'), env('DO_VPS_PASS'))) {
+                    if (!$ssh->login(env('VPS_USERNAME'), env('VPS_PASSWORD'))) {
                         throw new \Exception('Failed to authenticate with DigitalOcean via SSH.');
                     }
 

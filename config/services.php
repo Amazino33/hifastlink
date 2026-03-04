@@ -57,4 +57,10 @@ return [
         'website_ip' => env('WEBSITE_IP', '194.36.184.49'),
     ],
 
+    'digitalocean' => [
+        'ip' => env('VPS_IP'),
+        'user' => env('VPS_USERNAME'),
+        'pass' => env('VPS_PASSWORD'),
+    ],
+
 ];
