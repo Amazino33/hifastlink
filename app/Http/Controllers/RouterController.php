@@ -181,8 +181,10 @@ class RouterController extends Controller
         // We use the IP from your Filament form as the internal Router VPN IP
         $wgRouterIp = $router->vpn_ip ?? '192.168.42.10'; 
         $wgServerIp = env('WG_SERVER_IP', '192.168.42.1');
+        $wgRouterPrivKey = $router->wireguard_private_key ?? '';
 
         // Escape double quotes to prevent syntax breaking
+        $escWgRouterPrivKey = str_replace('"', '\\"', $wgRouterPrivKey);
         $escLocation = str_replace('"', '\\"', $location);
         $escSecret = str_replace('"', '\\"', $secret);
         $escDomain = str_replace('"', '\\"', $domain);
@@ -214,6 +216,7 @@ class RouterController extends Controller
 # WireGuard VPN Configuration
 :global VPNEnabled         true
 :global WGServerPublicKey  "{WG_SERVER_PUB_KEY}"
+:global WGRouterPrivateKey "{WG_ROUTER_PRIV_KEY}"
 :global WGServerEndpoint   "{WG_SERVER_ENDPOINT}"
 :global WGServerPort       "{WG_SERVER_PORT}"
 :global WGListenPort       "{WG_LISTEN_PORT}"
@@ -272,8 +275,7 @@ class RouterController extends Controller
     :do {
         /interface/wireguard remove [find name=\"wg-saas\"]
     } on-error={}
-    /interface/wireguard add name=\"wg-saas\" listen-port=\$WGListenPort
-    
+        /interface/wireguard add name=\"wg-saas\" listen-port=\$WGListenPort private-key=\$WGRouterPrivateKey    
     # Assign VPN IP to router
     :do {
         /ip/address remove [find interface=\"wg-saas\"]
@@ -463,7 +465,7 @@ class RouterController extends Controller
         :do {
             /interface/wireguard remove [find name="wg-saas"]
         } on-error={}
-        /interface/wireguard add name="wg-saas" listen-port=$WGListenPort
+        /interface/wireguard add name="wg-saas" listen-port=$WGListenPort private-key=$WGRouterPrivateKey
         
         # Assign VPN IP to router
         :do {
@@ -617,11 +619,13 @@ RSC;
         $script = str_replace([
             '{LOCATION}', '{DOMAIN}', '{DNSNAME}', '{BRIDGE}', '{WEBSITEIP}',
             '{WG_SERVER_PUB_KEY}', '{WG_SERVER_ENDPOINT}', '{WG_SERVER_PORT}', 
-            '{WG_LISTEN_PORT}', '{WG_ROUTER_IP}', '{WG_SERVER_IP}', '{SECRET}'
+            '{WG_LISTEN_PORT}', '{WG_ROUTER_IP}', '{WG_SERVER_IP}', '{SECRET}',
+            '{WG_ROUTER_PRIV_KEY}'
         ], [
             $escLocation, $escDomain, $escDns, $escBridge, $escWebsiteIp,
             $escWgServerPubKey, $escWgServerEndpoint, $escWgServerPort, 
-            $escWgListenPort, $escWgRouterIp, $escWgServerIp, $escSecret
+            $escWgListenPort, $escWgRouterIp, $escWgServerIp, $escSecret,
+            $escWgRouterPrivKey
         ], $template);
 
         $filename = 'router-' . ($router->nas_identifier ?: $router->id) . '.rsc';

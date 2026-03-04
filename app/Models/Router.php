@@ -21,6 +21,7 @@ class Router extends Model
         'ip_address',
         'vpn_ip',
         'wireguard_public_key',
+        'wireguard_private_key',
         'nas_identifier',
         'secret',
         'api_user',

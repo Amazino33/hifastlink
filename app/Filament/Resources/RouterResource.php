@@ -77,10 +77,18 @@ class RouterResource extends Resource
                             ->visible(fn ($record) => $record !== null),
 
                         TextInput::make('wireguard_public_key')
-                        ->label('Router Public Key')
-                        ->placeholder('Paste the MikroTik base64 public key here')
-                        ->maxLength(44)
-                        ->required(),
+                            ->label('Router Public Key')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->placeholder('Paste the MikroTik base64 public key here')
+                            ->visible(fn ($record) => $record !== null),
+
+                        TextInput::make('wireguard_private_key')
+                            ->label('Router Private Key')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->placeholder('Private key is auto-generated and stored securely')
+                            ->visible(fn ($record) => $record !== null),
                         
                         TextInput::make('nas_identifier')
                             ->label('NAS Identifier')
