@@ -303,6 +303,26 @@ class RouterController extends Controller
 }
 :put \">> Bridge setup complete\"
 
+# 0b. Enable WiFi interface
+:local wifiIface \"\"
+:if ([:len [/interface/wifi find]] > 0) do={
+    :set wifiIface [/interface/wifi get [find] name]
+    :if ([:len [/interface/wifi/security find name=\"hifastlink-sec\"]] = 0) do={
+        /interface/wifi/security add name=\"hifastlink-sec\" authentication-types=wpa2-psk passphrase=\"12345678\"
+    }
+    :if ([:len [/interface/wifi/configuration find name=\"hifastlink-wifi\"]] = 0) do={
+        /interface/wifi/configuration add name=\"hifastlink-wifi\" ssid=\"HiFastLink\" security=\"hifastlink-sec\" mode=ap
+    }
+    /interface/wifi set [find] configuration=\"hifastlink-wifi\" disabled=no
+    :put (\">> WiFi enabled: \" . \$wifiIface)
+} else={
+    :if ([:len [/interface/wireless find]] > 0) do={
+        :set wifiIface [/interface/wireless get [find] name]
+        /interface/wireless set [find] disabled=no mode=ap-bridge ssid=\"HiFastLink\" band=2ghz-b/g/n
+        :put (\">> Wireless enabled: \" . \$wifiIface)
+    }
+}
+
 # 1. Set Identity
 /system/identity set name=\$LocationName
 :put \">> Identity set\"
@@ -536,6 +556,30 @@ class RouterController extends Controller
         :put ">> DHCP pool fixed to hs-pool"
     }
     :put ">> Bridge setup complete"
+
+    # 0b. Enable WiFi interface
+    :local wifiIface ""
+    :if ([:len [/interface/wifi find]] > 0) do={
+        :set wifiIface [/interface/wifi get [find] name]
+        # Create security profile if missing
+        :if ([:len [/interface/wifi/security find name="hifastlink-sec"]] = 0) do={
+            /interface/wifi/security add name="hifastlink-sec" authentication-types=wpa2-psk passphrase="12345678"
+        }
+        # Create wifi configuration if missing
+        :if ([:len [/interface/wifi/configuration find name="hifastlink-wifi"]] = 0) do={
+            /interface/wifi/configuration add name="hifastlink-wifi" ssid="HiFastLink" security="hifastlink-sec" mode=ap
+        }
+        # Apply config and enable
+        /interface/wifi set [find] configuration="hifastlink-wifi" disabled=no
+        :put (">> WiFi enabled: " . $wifiIface)
+    } else={
+        # v6 fallback - wlan
+        :if ([:len [/interface/wireless find]] > 0) do={
+            :set wifiIface [/interface/wireless get [find] name]
+            /interface/wireless set [find] disabled=no mode=ap-bridge ssid="HiFastLink" band=2ghz-b/g/n
+            :put (">> Wireless enabled: " . $wifiIface)
+        }
+    }
     
     # 1. Set Identity
     /system/identity set name=$LocationName
