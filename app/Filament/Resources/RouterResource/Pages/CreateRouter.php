@@ -63,17 +63,24 @@ class CreateRouter extends CreateRecord
                 throw new \Exception('Failed to authenticate with DigitalOcean via SSH.');
             }
 
+            // Register router IP in FreeRADIUS clients.d
+            $vpnIp = $router->vpn_ip;
+            $pubKey = $router->wireguard_public_key;
+            $secret = $router->secret;
+            $name = $router->nas_identifier ?: $router->name;
+
             // 2. Execute the command and capture the output
-            $addPeerCmd = "sudo wg set wg0 peer '{$router->wireguard_public_key}' allowed-ips '{$router->vpn_ip}/32'";
-            $output = $ssh->exec($addPeerCmd);
+            $peerBlock = "\n# {$name}\n[Peer]\nPublicKey = {$pubKey}\nAllowedIPs = {$vpnIp}/32\n";
 
-            // If WireGuard returns any text, it means it rejected the key
-            if (! empty(trim($output))) {
-                throw new \Exception('Ubuntu rejected the command: '.trim($output));
-            }
+            // Append peer to wg0.conf
+            $ssh->exec("echo '{$peerBlock}' | sudo tee -a /etc/wireguard/wg0.conf > /dev/null");
 
-            // 3. Save if successful
-            $ssh->exec('sudo wg-quick save wg0');
+            // Hot-add the peer to the live interface (no restart needed)
+            $ssh->exec("sudo wg set wg0 peer '{$pubKey}' allowed-ips '{$vpnIp}/32'");
+
+            $clientConf = "client {$name} {\n    ipaddr = {$vpnIp}\n    secret = {$secret}\n    nas_type = other\n}\n";
+            $ssh->exec("echo '{$clientConf}' | sudo tee /etc/freeradius/3.0/clients.d/{$name}.conf > /dev/null");
+            $ssh->exec("sudo systemctl reload freeradius");
 
             Log::info("Successfully deployed remote WireGuard peer for: {$router->name}");
 
