@@ -104,6 +104,21 @@ class RouterResource extends Resource
                             ->revealable()
                             ->placeholder('Shared secret for RADIUS authentication')
                             ->default(fn () => \Illuminate\Support\Str::random(16)),
+
+                        TextInput::make('wifi_ssid')
+                            ->label('WiFi SSID')
+                            ->required()
+                            ->default('HiFastLink')
+                            ->placeholder('e.g., HiFastLink')
+                            ->helperText('The name of the WiFi network'),
+
+                        TextInput::make('wifi_password')
+                            ->label('WiFi Password')
+                            ->password()
+                            ->revealable()
+                            ->nullable()
+                            ->placeholder('Leave empty for open network')
+                            ->helperText('Minimum 8 characters, or empty for no password'),
                     ])->columns(2),
 
                 ComponentsSection::make('MikroTik API Configuration')

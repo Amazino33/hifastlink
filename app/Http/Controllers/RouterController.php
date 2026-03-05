@@ -183,6 +183,10 @@ class RouterController extends Controller
         $wgServerIp = env('WG_SERVER_IP', '192.168.42.1');
         $wgRouterPrivKey = $router->wireguard_private_key ?? '';
 
+        // Hotspot Variables
+        $wifiSsid     = $router->wifi_ssid ?? 'HiFastLink';
+        $wifiPassword = $router->wifi_password ?? '';
+
         // Escape double quotes to prevent syntax breaking
         $escWgRouterPrivKey = str_replace('"', '\\"', $wgRouterPrivKey);
         $escLocation = str_replace('"', '\\"', $location);
@@ -197,6 +201,9 @@ class RouterController extends Controller
         $escWgListenPort = str_replace('"', '\\"', $wgListenPort);
         $escWgRouterIp = str_replace('"', '\\"', $wgRouterIp);
         $escWgServerIp = str_replace('"', '\\"', $wgServerIp);
+
+        $escWifiSsid     = str_replace('"', '\\"', $wifiSsid);
+        $escWifiPassword = str_replace('"', '\\"', $wifiPassword);
 
         // Using Nowdoc (<<<'RSC') so we don't have to escape standard PHP variables 
         // inside the massive router string. It perfectly preserves the user's \$ formatting.
@@ -222,6 +229,8 @@ class RouterController extends Controller
 :global WGListenPort       "{WG_LISTEN_PORT}"
 :global WGRouterIP         "{WG_ROUTER_IP}"
 :global WGServerIP         "{WG_SERVER_IP}"
+:global WifiSSID           "{WIFI_SSID}"
+:global WifiPass           "{WIFI_PASS}"
 
 # RADIUS Configuration
 :global RadiusSecret "{SECRET}"
@@ -305,20 +314,40 @@ class RouterController extends Controller
 
 # 0b. Enable WiFi interface
 :local wifiIface \"\"
-:if ([:len [/interface/wifi find]] > 0) do={
-    :set wifiIface [/interface/wifi get [find] name]
-    :if ([:len [/interface/wifi/security find name=\"hifastlink-sec\"]] = 0) do={
-        /interface/wifi/security add name=\"hifastlink-sec\" authentication-types=wpa2-psk passphrase=\"12345678\"
-    }
-    :if ([:len [/interface/wifi/configuration find name=\"hifastlink-wifi\"]] = 0) do={
-        /interface/wifi/configuration add name=\"hifastlink-wifi\" ssid=\"HiFastLink\" security=\"hifastlink-sec\" mode=ap
+:local wifiList [/interface/wifi find]
+:if ([:len \$wifiList] > 0) do={
+    :set wifiIface [/interface/wifi get (\$wifiList->0) name]
+    :if (\$WifiPass != \"\") do={
+        :if ([:len [/interface/wifi/security find name=\"hifastlink-sec\"]] = 0) do={
+            /interface/wifi/security add name=\"hifastlink-sec\" authentication-types=wpa2-psk passphrase=\$WifiPass
+        } else={
+            /interface/wifi/security set [find name=\"hifastlink-sec\"] authentication-types=wpa2-psk passphrase=\$WifiPass
+        }
+        :if ([:len [/interface/wifi/configuration find name=\"hifastlink-wifi\"]] = 0) do={
+            /interface/wifi/configuration add name=\"hifastlink-wifi\" ssid=\$WifiSSID security=\"hifastlink-sec\" mode=ap
+        } else={
+            /interface/wifi/configuration set [find name=\"hifastlink-wifi\"] ssid=\$WifiSSID security=\"hifastlink-sec\"
+        }
+    } else={
+        :if ([:len [/interface/wifi/configuration find name=\"hifastlink-wifi\"]] = 0) do={
+            /interface/wifi/configuration add name=\"hifastlink-wifi\" ssid=\$WifiSSID mode=ap
+        } else={
+            /interface/wifi/configuration set [find name=\"hifastlink-wifi\"] ssid=\$WifiSSID
+        }
     }
     /interface/wifi set [find] configuration=\"hifastlink-wifi\" disabled=no
     :put (\">> WiFi enabled: \" . \$wifiIface)
 } else={
-    :if ([:len [/interface/wireless find]] > 0) do={
-        :set wifiIface [/interface/wireless get [find] name]
-        /interface/wireless set [find] disabled=no mode=ap-bridge ssid=\"HiFastLink\" band=2ghz-b/g/n
+    :local wlanList [/interface/wireless find]
+    :if ([:len \$wlanList] > 0) do={
+        :set wifiIface [/interface/wireless get (\$wlanList->0) name]
+        :if (\$WifiPass != \"\") do={
+            /interface/wireless set [find] disabled=no mode=ap-bridge ssid=\$WifiSSID security-profile=default
+            /interface/wireless/security-profiles set [find name=default] mode=dynamic-keys authentication-types=wpa2-psk wpa2-pre-shared-key=\$WifiPass
+        } else={
+            /interface/wireless set [find] disabled=no mode=ap-bridge ssid=\$WifiSSID security-profile=default
+            /interface/wireless/security-profiles set [find name=default] mode=none
+        }
         :put (\">> Wireless enabled: \" . \$wifiIface)
     }
 }
@@ -559,24 +588,40 @@ class RouterController extends Controller
 
     # 0b. Enable WiFi interface
     :local wifiIface ""
-    :if ([:len [/interface/wifi find]] > 0) do={
-        :set wifiIface [/interface/wifi get [find] name]
-        # Create security profile if missing
-        :if ([:len [/interface/wifi/security find name="hifastlink-sec"]] = 0) do={
-            /interface/wifi/security add name="hifastlink-sec" authentication-types=wpa2-psk passphrase="12345678"
+    :local wifiList [/interface/wifi find]
+    :if ([:len $wifiList] > 0) do={
+        :set wifiIface [/interface/wifi get ($wifiList->0) name]
+        :if ($WifiPass != "") do={
+            :if ([:len [/interface/wifi/security find name="hifastlink-sec"]] = 0) do={
+                /interface/wifi/security add name="hifastlink-sec" authentication-types=wpa2-psk passphrase=$WifiPass
+            } else={
+                /interface/wifi/security set [find name="hifastlink-sec"] authentication-types=wpa2-psk passphrase=$WifiPass
+            }
+            :if ([:len [/interface/wifi/configuration find name="hifastlink-wifi"]] = 0) do={
+                /interface/wifi/configuration add name="hifastlink-wifi" ssid=$WifiSSID security="hifastlink-sec" mode=ap
+            } else={
+                /interface/wifi/configuration set [find name="hifastlink-wifi"] ssid=$WifiSSID security="hifastlink-sec"
+            }
+        } else={
+            :if ([:len [/interface/wifi/configuration find name="hifastlink-wifi"]] = 0) do={
+                /interface/wifi/configuration add name="hifastlink-wifi" ssid=$WifiSSID mode=ap
+            } else={
+                /interface/wifi/configuration set [find name="hifastlink-wifi"] ssid=$WifiSSID
+            }
         }
-        # Create wifi configuration if missing
-        :if ([:len [/interface/wifi/configuration find name="hifastlink-wifi"]] = 0) do={
-            /interface/wifi/configuration add name="hifastlink-wifi" ssid="HiFastLink" security="hifastlink-sec" mode=ap
-        }
-        # Apply config and enable
         /interface/wifi set [find] configuration="hifastlink-wifi" disabled=no
         :put (">> WiFi enabled: " . $wifiIface)
     } else={
-        # v6 fallback - wlan
-        :if ([:len [/interface/wireless find]] > 0) do={
-            :set wifiIface [/interface/wireless get [find] name]
-            /interface/wireless set [find] disabled=no mode=ap-bridge ssid="HiFastLink" band=2ghz-b/g/n
+        :local wlanList [/interface/wireless find]
+        :if ([:len $wlanList] > 0) do={
+            :set wifiIface [/interface/wireless get ($wlanList->0) name]
+            :if ($WifiPass != "") do={
+                /interface/wireless set [find] disabled=no mode=ap-bridge ssid=$WifiSSID security-profile=default
+                /interface/wireless/security-profiles set [find name=default] mode=dynamic-keys authentication-types=wpa2-psk wpa2-pre-shared-key=$WifiPass
+            } else={
+                /interface/wireless set [find] disabled=no mode=ap-bridge ssid=$WifiSSID security-profile=default
+                /interface/wireless/security-profiles set [find name=default] mode=none
+            }
             :put (">> Wireless enabled: " . $wifiIface)
         }
     }
@@ -752,12 +797,12 @@ RSC;
             '{LOCATION}', '{DOMAIN}', '{DNSNAME}', '{BRIDGE}', '{WEBSITEIP}',
             '{WG_SERVER_PUB_KEY}', '{WG_SERVER_ENDPOINT}', '{WG_SERVER_PORT}', 
             '{WG_LISTEN_PORT}', '{WG_ROUTER_IP}', '{WG_SERVER_IP}', '{SECRET}',
-            '{WG_ROUTER_PRIV_KEY}'
+            '{WG_ROUTER_PRIV_KEY}','{WIFI_SSID}', '{WIFI_PASS}',
         ], [
             $escLocation, $escDomain, $escDns, $escBridge, $escWebsiteIp,
             $escWgServerPubKey, $escWgServerEndpoint, $escWgServerPort, 
             $escWgListenPort, $escWgRouterIp, $escWgServerIp, $escSecret,
-            $escWgRouterPrivKey
+            $escWgRouterPrivKey,$escWifiSsid, $escWifiPassword,
         ], $template);
 
         $filename = 'router-' . ($router->nas_identifier ?: $router->id) . '.rsc';
