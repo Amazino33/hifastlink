@@ -352,6 +352,15 @@ class RouterController extends Controller
     }
 }
 
+# 0c. NAT Masquerade (required for client internet access)
+:if ([:len [/ip/dhcp-client find interface=\"ether1\"]] = 0) do={
+    /ip/dhcp-client add interface=ether1 disabled=no
+    :put \">> DHCP client added on ether1\"
+} else={
+    /ip/dhcp-client set [find interface=\"ether1\"] disabled=no
+    :put \">> DHCP client enabled on ether1\"
+}
+
 # 1. Set Identity
 /system/identity set name=\$LocationName
 :put \">> Identity set\"
@@ -624,6 +633,15 @@ class RouterController extends Controller
             }
             :put (">> Wireless enabled: " . $wifiIface)
         }
+    }
+
+    # 0c. NAT Masquerade (required for client internet access)
+    :if ([:len [/ip/dhcp-client find interface="ether1"]] = 0) do={
+        /ip/dhcp-client add interface=ether1 disabled=no
+        :put ">> DHCP client added on ether1"
+    } else={
+        /ip/dhcp-client set [find interface="ether1"] disabled=no
+        :put ">> DHCP client enabled on ether1"
     }
     
     # 1. Set Identity
