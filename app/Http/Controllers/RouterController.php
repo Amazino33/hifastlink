@@ -263,6 +263,46 @@ class RouterController extends Controller
 
 :put (\">> Configuring: \" . \$LocationName)
 
+# 0. Ensure bridge exists (required after full reset)
+:if ([:len [/interface/bridge find name=\$BridgeName]] = 0) do={
+    /interface/bridge add name=\$BridgeName protocol-mode=rstp
+    :put \">> Bridge created\"
+} else={
+    :put \">> Bridge already exists\"
+}
+:foreach port in={\"ether2\";\"ether3\";\"ether4\";\"ether5\"} do={
+    :if ([:len [/interface find name=\$port]] > 0) do={
+        :if ([:len [/interface/bridge/port find interface=\$port bridge=\$BridgeName]] = 0) do={
+            /interface/bridge/port add interface=\$port bridge=\$BridgeName
+        }
+    }
+}
+:local wifiIface \"\"
+:if ([:len [/interface find name=\"wifi1\"]] > 0) do={ :set wifiIface \"wifi1\" }
+:if ([:len [/interface find name=\"wlan1\"]] > 0) do={ :set wifiIface \"wlan1\" }
+:if (\$wifiIface != \"\") do={
+    :if ([:len [/interface/bridge/port find interface=\$wifiIface bridge=\$BridgeName]] = 0) do={
+        /interface/bridge/port add interface=\$wifiIface bridge=\$BridgeName
+    }
+    :put (\">> WiFi \" . \$wifiIface . \" added to bridge\")
+}
+:if ([:len [/ip/address find interface=\$BridgeName]] = 0) do={
+    /ip/address add address=\"192.168.88.1/24\" interface=\$BridgeName
+    :put \">> Bridge IP set to 192.168.88.1\"
+}
+:if ([:len [/ip/dhcp-server find interface=\$BridgeName]] = 0) do={
+    :if ([:len [/ip/pool find name=\"hs-pool\"]] = 0) do={
+        /ip/pool add name=\"hs-pool\" ranges=\"192.168.88.10-192.168.88.254\"
+    }
+    /ip/dhcp-server add name=\"defconf\" interface=\$BridgeName address-pool=\"hs-pool\" disabled=no
+    /ip/dhcp-server/network add address=\"192.168.88.0/24\" gateway=\"192.168.88.1\" dns-server=\"192.168.88.1\"
+    :put \">> DHCP server created\"
+} else={
+    /ip/dhcp-server set [find interface=\$BridgeName] address-pool=hs-pool
+    :put \">> DHCP pool fixed to hs-pool\"
+}
+:put \">> Bridge setup complete\"
+
 # 1. Set Identity
 /system/identity set name=\$LocationName
 :put \">> Identity set\"
@@ -456,6 +496,46 @@ class RouterController extends Controller
     :put "=========================================="
     
     :put (">> Starting Setup for " . $LocationName . "...")
+
+        # 0. Ensure bridge exists (required after full reset)
+    :if ([:len [/interface/bridge find name=$BridgeName]] = 0) do={
+        /interface/bridge add name=$BridgeName protocol-mode=rstp
+        :put ">> Bridge created"
+    } else={
+        :put ">> Bridge already exists"
+    }
+    :foreach port in={"ether2";"ether3";"ether4";"ether5"} do={
+        :if ([:len [/interface find name=$port]] > 0) do={
+            :if ([:len [/interface/bridge/port find interface=$port bridge=$BridgeName]] = 0) do={
+                /interface/bridge/port add interface=$port bridge=$BridgeName
+            }
+        }
+    }
+    :local wifiIface ""
+    :if ([:len [/interface find name="wifi1"]] > 0) do={ :set wifiIface "wifi1" }
+    :if ([:len [/interface find name="wlan1"]] > 0) do={ :set wifiIface "wlan1" }
+    :if ($wifiIface != "") do={
+        :if ([:len [/interface/bridge/port find interface=$wifiIface bridge=$BridgeName]] = 0) do={
+            /interface/bridge/port add interface=$wifiIface bridge=$BridgeName
+        }
+        :put (">> WiFi " . $wifiIface . " added to bridge")
+    }
+    :if ([:len [/ip/address find interface=$BridgeName]] = 0) do={
+        /ip/address add address="192.168.88.1/24" interface=$BridgeName
+        :put ">> Bridge IP set to 192.168.88.1"
+    }
+    :if ([:len [/ip/dhcp-server find interface=$BridgeName]] = 0) do={
+        :if ([:len [/ip/pool find name="hs-pool"]] = 0) do={
+            /ip/pool add name="hs-pool" ranges="192.168.88.10-192.168.88.254"
+        }
+        /ip/dhcp-server add name="defconf" interface=$BridgeName address-pool="hs-pool" disabled=no
+        /ip/dhcp-server/network add address="192.168.88.0/24" gateway="192.168.88.1" dns-server="192.168.88.1"
+        :put ">> DHCP server created"
+    } else={
+        /ip/dhcp-server set [find interface=$BridgeName] address-pool=hs-pool
+        :put ">> DHCP pool fixed to hs-pool"
+    }
+    :put ">> Bridge setup complete"
     
     # 1. Set Identity
     /system/identity set name=$LocationName
