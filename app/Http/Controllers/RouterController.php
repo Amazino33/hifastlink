@@ -352,13 +352,7 @@ class RouterController extends Controller
     }
 }
 
-# 0c. NAT Masquerade (required for client internet access)
-:if ([:len [/ip/firewall/nat find chain=srcnat action=masquerade]] = 0) do={
-    /ip/firewall/nat add chain=srcnat action=masquerade out-interface-list=WAN comment=\"HiFastLink NAT\"
-    :put \">> NAT masquerade added\"
-} else={
-    :put \">> NAT masquerade already exists\"
-}
+# 0c. NAT + WAN setup
 :if ([:len [/interface/list find name=\"WAN\"]] = 0) do={
     /interface/list add name=\"WAN\"
     :put \">> WAN interface list created\"
@@ -366,6 +360,12 @@ class RouterController extends Controller
 :if ([:len [/interface/list/member find list=\"WAN\" interface=\"ether1\"]] = 0) do={
     /interface/list/member add list=\"WAN\" interface=\"ether1\"
     :put \">> ether1 added to WAN list\"
+}
+:if ([:len [/ip/firewall/nat find chain=srcnat action=masquerade]] = 0) do={
+    /ip/firewall/nat add chain=srcnat action=masquerade out-interface-list=WAN comment=\"HiFastLink NAT\"
+    :put \">> NAT masquerade added\"
+} else={
+    :put \">> NAT masquerade already exists\"
 }
 :if ([:len [/ip/dhcp-client find interface=\"ether1\"]] = 0) do={
     /ip/dhcp-client add interface=ether1 disabled=no
@@ -569,7 +569,7 @@ class RouterController extends Controller
     
     :put (">> Starting Setup for " . $LocationName . "...")
 
-        # 0. Ensure bridge exists (required after full reset)
+    # 0. Ensure bridge exists (required after full reset)
     :if ([:len [/interface/bridge find name=$BridgeName]] = 0) do={
         /interface/bridge add name=$BridgeName protocol-mode=rstp
         :put ">> Bridge created"
@@ -649,15 +649,8 @@ class RouterController extends Controller
         }
     }
 
-    # 0c. NAT Masquerade (required for client internet access)
-    :if ([:len [/ip/firewall/nat find chain=srcnat action=masquerade]] = 0) do={
-        /ip/firewall/nat add chain=srcnat action=masquerade out-interface-list=WAN comment="HiFastLink NAT"
-        :put ">> NAT masquerade added"
-    } else={
-        :put ">> NAT masquerade already exists"
-    }
-
-    # Ensure WAN interface list exists and ether1 is in it
+    # 0c. NAT + WAN setup
+    # Create WAN list first before NAT rule references it
     :if ([:len [/interface/list find name="WAN"]] = 0) do={
         /interface/list add name="WAN"
         :put ">> WAN interface list created"
@@ -666,6 +659,16 @@ class RouterController extends Controller
         /interface/list/member add list="WAN" interface="ether1"
         :put ">> ether1 added to WAN list"
     }
+
+    # Now safe to add NAT rule
+    :if ([:len [/ip/firewall/nat find chain=srcnat action=masquerade]] = 0) do={
+        /ip/firewall/nat add chain=srcnat action=masquerade out-interface-list=WAN comment="HiFastLink NAT"
+        :put ">> NAT masquerade added"
+    } else={
+        :put ">> NAT masquerade already exists"
+    }
+
+    # Ensure ether1 gets WAN IP via DHCP
     :if ([:len [/ip/dhcp-client find interface="ether1"]] = 0) do={
         /ip/dhcp-client add interface=ether1 disabled=no
         :put ">> DHCP client added on ether1"
