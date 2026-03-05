@@ -354,7 +354,7 @@ class RouterController extends Controller
 
 # 4b. Fix DHCP server to use hotspot pool
 /ip/dhcp-server set [find interface=$BridgeName] address-pool=hs-pool
-:put ">> DHCP server pool updated to hs-pool"
+:put \">> DHCP server pool updated to hs-pool\"
 
 # 5. Create or update Hotspot Profile with DNS name
 :if ([:len [/ip/hotspot/profile find name=\"hifastlink\"]] = 0) do={
