@@ -434,7 +434,7 @@ class RouterController extends Controller
 :put \">> System config ready\"
 
 :put \"===========================================\"
-:put \"   SETUP COMPLETE: \" . \$LocationName
+:put (\"   SETUP COMPLETE: \" . \$LocationName)
 :put \"   Login: http://\" . \$DNSName
 :put \"===========================================\"
 
@@ -457,7 +457,7 @@ class RouterController extends Controller
 # ==================================================
 
 :if ($currentVersion = "7") do={
-    :put ">> Detected v7 - running setup for " . $LocationName . "..."
+    :put (">> Detected v7 - running setup for " . $LocationName . "...")
 
     # -------------------------------------------------------
     # STEP 0 - NUCLEAR FIREWALL CLEANUP
@@ -621,12 +621,7 @@ class RouterController extends Controller
         :do { /ip/address remove [find interface="wg-saas"] } on-error={}
         /ip/address add address=($WGRouterIP . "/24") interface="wg-saas" network="192.168.42.0"
         :do { /interface/wireguard/peers remove [find] } on-error={}
-        /interface/wireguard/peers add interface="wg-saas" \
-            public-key=$WGServerPublicKey \
-            endpoint-address=$WGServerEndpoint \
-            endpoint-port=$WGServerPort \
-            allowed-address=($WGServerIP . "/32") \
-            persistent-keepalive=25s
+        /interface/wireguard/peers add interface="wg-saas" public-key=$WGServerPublicKey endpoint-address=$WGServerEndpoint endpoint-port=$WGServerPort allowed-address=($WGServerIP . "/32") persistent-keepalive=25s
         :delay 5s
         :put ">> WireGuard ready"
     }
