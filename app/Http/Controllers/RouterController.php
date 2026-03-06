@@ -829,14 +829,14 @@ class RouterController extends Controller
     :put ">> Walled Garden (DNS) configured"
 
     # 9. Walled Garden - IP
-    # Open port 80/443 to ALL destinations - DNS walled garden controls which hosts
-    # are allowed by name. Locking by IP breaks sites on CDN/shared IPs.
-    # Do NOT add a NAT redirect for port 443 -> 80 here; that breaks real HTTPS.
+    # DNS walled garden above handles domain-based pass-through.
+    # IP rules only need to cover the server IP directly.
+    # Do NOT open port 80/443 globally - that bypasses the captive portal entirely.
     /ip/hotspot/walled-garden/ip remove [find dynamic=no]
     /ip/hotspot/walled-garden/ip add action=accept protocol=udp dst-port=53 comment="DNS"
-    /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=80 comment="HTTP All"
-    /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=443 comment="HTTPS All"
     /ip/hotspot/walled-garden/ip add action=accept dst-address=$WebsiteIP comment="HiFastLink Server"
+    /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=443 dst-address=$WebsiteIP comment="HTTPS HiFastLink"
+    /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=80 dst-address=$WebsiteIP comment="HTTP HiFastLink"
     :put ">> Walled Garden (IP) configured"
 
     # 10. DNS
