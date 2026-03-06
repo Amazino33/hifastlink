@@ -28,6 +28,8 @@ class Router extends Model
         'api_password',
         'api_port',
         'is_active',
+        'wifi_ssid',
+        'wifi_password',
     ];
 
     protected $casts = [
