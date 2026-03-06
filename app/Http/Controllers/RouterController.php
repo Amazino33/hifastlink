@@ -20,7 +20,6 @@ class RouterController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        // Determine if user has an active subscription.
         $validSubscription = null;
 
         if (class_exists(\App\Models\Subscription::class)) {
@@ -34,12 +33,12 @@ class RouterController extends Controller
                 ->orderBy('expires_at', 'desc')
                 ->first();
         } else {
-            $hasExpiry = $user->plan_expiry && $user->plan_expiry->isFuture();
+            $hasExpiry    = $user->plan_expiry && $user->plan_expiry->isFuture();
             $dataRemaining = is_null($user->data_limit) ? null : max(0, ($user->data_limit ?? 0) - ($user->data_used ?? 0));
 
             if ($hasExpiry && (is_null($user->data_limit) || $dataRemaining > 0)) {
                 $validSubscription = (object) [
-                    'plan_id' => $user->plan_id,
+                    'plan_id'    => $user->plan_id,
                     'expires_at' => $user->plan_expiry,
                 ];
             }
@@ -69,7 +68,7 @@ class RouterController extends Controller
             return response()->json(['message' => 'User credentials missing. Please contact support.'], 500);
         }
 
-        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
+        $gateway  = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
         $loginUrl = (strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway);
         if (!preg_match('#/login#', $loginUrl)) {
             $loginUrl = rtrim($loginUrl, '/') . '/login';
@@ -139,13 +138,13 @@ class RouterController extends Controller
         }
 
         return response()->json([
-            'success'      => false,
-            'message'      => 'Bridge unavailable. You will be redirected to router to complete login.',
-            'username'     => $user->username,
-            'password'     => $user->radius_password,
-            'login_url'    => $fallbackLoginUrl,
-            'dashboard_url'=> route('dashboard'),
-            'redirect'     => $linkLogin ?? null,
+            'success'       => false,
+            'message'       => 'Bridge unavailable. You will be redirected to router to complete login.',
+            'username'      => $user->username,
+            'password'      => $user->radius_password,
+            'login_url'     => $fallbackLoginUrl,
+            'dashboard_url' => route('dashboard'),
+            'redirect'      => $linkLogin ?? null,
         ]);
     }
 
@@ -154,17 +153,14 @@ class RouterController extends Controller
      */
     public function downloadConfig(Router $router)
     {
-        // General Variables
         $location   = $router->nas_identifier ?: $router->name;
         $secret     = $router->secret;
-
         $appUrl     = rtrim(config('app.url', env('APP_URL', 'https://hifastlink.com')), '/');
         $domain     = parse_url($appUrl, PHP_URL_HOST) ?: preg_replace('#https?://#', '', $appUrl);
         $dnsName    = 'login.wifi';
         $bridgeName = 'bridge';
         $websiteIp  = env('WEBSITE_IP', '194.36.184.49');
 
-        // WireGuard Variables
         $wgServerPubKey   = env('WG_SERVER_PUBLIC_KEY', 'INSERT_SERVER_PUBLIC_KEY_HERE');
         $wgServerEndpoint = env('WG_SERVER_ENDPOINT', env('RADIUS_PUBLIC_IP', 'INSERT_LINUX_SERVER_PUBLIC_IP_HERE'));
         $wgServerPort     = env('WG_SERVER_PORT', '51820');
@@ -172,12 +168,9 @@ class RouterController extends Controller
         $wgRouterIp       = $router->vpn_ip ?? '192.168.42.10';
         $wgServerIp       = env('WG_SERVER_IP', '192.168.42.1');
         $wgRouterPrivKey  = $router->wireguard_private_key ?? '';
+        $wifiSsid         = $router->wifi_ssid ?? 'HiFastLink';
+        $wifiPassword     = $router->wifi_password ?? '';
 
-        // Hotspot Variables
-        $wifiSsid     = $router->wifi_ssid ?? 'HiFastLink';
-        $wifiPassword = $router->wifi_password ?? '';
-
-        // Escape double quotes to prevent syntax breaking
         $escWgRouterPrivKey  = str_replace('"', '\\"', $wgRouterPrivKey);
         $escLocation         = str_replace('"', '\\"', $location);
         $escSecret           = str_replace('"', '\\"', $secret);
@@ -369,17 +362,20 @@ class RouterController extends Controller
 }
 
 # Reset NAT masquerade to ensure correct interface
-# NOTE: Do NOT add a broad forward filter rule (bridge->ether1) here.
-# The hotspot daemon manages per-client forwarding dynamically.
-# A broad forward accept rule bypasses the captive portal entirely.
 /ip/firewall/nat remove [find chain=srcnat action=masquerade]
 /ip/firewall/nat add chain=srcnat action=masquerade out-interface-list=WAN comment=\"HiFastLink NAT\"
 :put \">> NAT masquerade reset\"
 
-# Clean up any previously added forward rules that break the captive portal
-:do { /ip/firewall/filter remove [find comment=\"HiFastLink Forward\"] } on-error={}
+# Firewall forward rules
+# hotspot=auth passes only clients authenticated by the hotspot daemon.
+# This preserves the captive portal - unauthenticated clients are still blocked.
+# Do NOT use in-interface=bridge accept - that bypasses the captive portal entirely.
+:do { /ip/firewall/filter remove [find comment=\"HiFastLink Hotspot Auth\"] } on-error={}
 :do { /ip/firewall/filter remove [find comment=\"HiFastLink Established\"] } on-error={}
-:put \">> Cleared any stale forward filter rules\"
+:do { /ip/firewall/filter remove [find comment=\"HiFastLink Forward\"] } on-error={}
+/ip/firewall/filter add chain=forward action=accept hotspot=auth comment=\"HiFastLink Hotspot Auth\"
+/ip/firewall/filter add chain=forward action=accept connection-state=established,related comment=\"HiFastLink Established\"
+:put \">> Firewall forward rules set\"
 
 # Allow DNS and DHCP input from hotspot clients
 :if ([:len [/ip/firewall/filter find comment=\"HiFastLink Input\"]] = 0) do={
@@ -486,9 +482,9 @@ class RouterController extends Controller
 :put \">> Walled Garden (DNS) configured\"
 
 # 9. Walled Garden - IP
-# Rules are locked to WebsiteIP only. Do NOT open port 80/443 to all destinations
-# as that bypasses the captive portal entirely. Do NOT add a 443->80 NAT redirect
-# as that causes ERR_SSL_PROTOCOL_ERROR on real HTTPS sites.
+# Locked to WebsiteIP only. Do NOT open port 80/443 to all destinations
+# as that bypasses the captive portal. Do NOT add a 443->80 NAT redirect
+# as that causes ERR_SSL_PROTOCOL_ERROR.
 /ip/hotspot/walled-garden/ip remove [find dynamic=no]
 /ip/hotspot/walled-garden/ip add action=accept protocol=udp dst-port=53 comment=\"DNS\"
 /ip/hotspot/walled-garden/ip add action=accept dst-address=\$WebsiteIP comment=\"HiFastLink Server\"
@@ -692,17 +688,20 @@ class RouterController extends Controller
     }
 
     # Reset NAT masquerade to ensure correct interface
-    # NOTE: Do NOT add a broad forward filter rule (bridge->ether1) here.
-    # The hotspot daemon manages per-client forwarding dynamically.
-    # A broad forward accept rule bypasses the captive portal entirely.
     /ip/firewall/nat remove [find chain=srcnat action=masquerade]
     /ip/firewall/nat add chain=srcnat action=masquerade out-interface-list=WAN comment="HiFastLink NAT"
     :put ">> NAT masquerade reset"
 
-    # Clean up any previously added forward rules that break the captive portal
-    :do { /ip/firewall/filter remove [find comment="HiFastLink Forward"] } on-error={}
+    # Firewall forward rules
+    # hotspot=auth passes only clients authenticated by the hotspot daemon.
+    # This preserves the captive portal - unauthenticated clients are still blocked.
+    # Do NOT use in-interface=bridge accept - that bypasses the captive portal entirely.
+    :do { /ip/firewall/filter remove [find comment="HiFastLink Hotspot Auth"] } on-error={}
     :do { /ip/firewall/filter remove [find comment="HiFastLink Established"] } on-error={}
-    :put ">> Cleared any stale forward filter rules"
+    :do { /ip/firewall/filter remove [find comment="HiFastLink Forward"] } on-error={}
+    /ip/firewall/filter add chain=forward action=accept hotspot=auth comment="HiFastLink Hotspot Auth"
+    /ip/firewall/filter add chain=forward action=accept connection-state=established,related comment="HiFastLink Established"
+    :put ">> Firewall forward rules set"
 
     # Allow DNS and DHCP input from hotspot clients
     :if ([:len [/ip/firewall/filter find comment="HiFastLink Input"]] = 0) do={
@@ -801,7 +800,6 @@ class RouterController extends Controller
     } else={
         /ip/hotspot/user/profile set [find name="default" dynamic=no] shared-users=10
     }
-    # Remove default local admin user to prevent RADIUS bypass
     :do { /ip/hotspot/user remove [find name="admin"] } on-error={}
     :put ">> User profile configured"
 
@@ -815,9 +813,9 @@ class RouterController extends Controller
     :put ">> Walled Garden (DNS) configured"
 
     # 9. Walled Garden - IP
-    # Rules locked to WebsiteIP only. Do NOT open port 80/443 to all destinations
-    # as that bypasses the captive portal entirely. Do NOT add a 443->80 NAT redirect
-    # as that causes ERR_SSL_PROTOCOL_ERROR on real HTTPS sites.
+    # Locked to WebsiteIP only. Do NOT open port 80/443 to all destinations
+    # as that bypasses the captive portal. Do NOT add a 443->80 NAT redirect
+    # as that causes ERR_SSL_PROTOCOL_ERROR.
     /ip/hotspot/walled-garden/ip remove [find dynamic=no]
     /ip/hotspot/walled-garden/ip add action=accept protocol=udp dst-port=53 comment="DNS"
     /ip/hotspot/walled-garden/ip add action=accept dst-address=$WebsiteIP comment="HiFastLink Server"
