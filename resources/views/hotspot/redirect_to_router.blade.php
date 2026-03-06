@@ -53,7 +53,7 @@
             }
         @endphp
 
-        <form id="mikrotik-login-form" action="{{ preg_replace('#^https://#', 'http://', $link_login) }}" method="POST">
+        <form id="mikrotik-login-form" action="{{ preg_replace('#^https://#', 'http://', $link_login) }}" method="GET">
             <input type="hidden" name="username" value="{{ $username }}">
             <input type="hidden" name="password" value="{{ $password }}">
             <input type="hidden" name="dst" value="{{ $dstWithParams }}">
