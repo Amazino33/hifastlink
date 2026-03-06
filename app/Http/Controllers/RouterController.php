@@ -8,10 +8,6 @@ use App\Models\Router;
 
 class RouterController extends Controller
 {
-
-    /**
-     * Return router login credentials for the authenticated user.
-     */
     public function credentials(Request $request)
     {
         $user = $request->user();
@@ -27,48 +23,27 @@ class RouterController extends Controller
                 ->where('status', 'ACTIVE')
                 ->where('expires_at', '>', now())
                 ->where(function ($q) {
-                    $q->where('data_remaining', '>', 0)
-                      ->orWhereNull('data_limit');
+                    $q->where('data_remaining', '>', 0)->orWhereNull('data_limit');
                 })
                 ->orderBy('expires_at', 'desc')
                 ->first();
         } else {
-            $hasExpiry    = $user->plan_expiry && $user->plan_expiry->isFuture();
+            $hasExpiry     = $user->plan_expiry && $user->plan_expiry->isFuture();
             $dataRemaining = is_null($user->data_limit) ? null : max(0, ($user->data_limit ?? 0) - ($user->data_used ?? 0));
-
             if ($hasExpiry && (is_null($user->data_limit) || $dataRemaining > 0)) {
-                $validSubscription = (object) [
-                    'plan_id'    => $user->plan_id,
-                    'expires_at' => $user->plan_expiry,
-                ];
+                $validSubscription = (object)['plan_id' => $user->plan_id, 'expires_at' => $user->plan_expiry];
             }
         }
 
-        if (! $validSubscription) {
+        if (!$validSubscription) {
             return response()->json(['message' => 'No active subscription. Please renew to connect.'], 422);
         }
 
-        $remainingSeconds = $user->plan_expiry ? now()->diffInSeconds($user->plan_expiry, false) : null;
-        if (!is_null($remainingSeconds) && $remainingSeconds <= 0) {
-            return response()->json(['message' => 'Your plan has expired.'], 422);
-        }
-
-        if (isset($validSubscription->plan_id) && empty($user->plan_id) && $validSubscription->plan_id) {
-            try {
-                $user->plan_id = $validSubscription->plan_id;
-                $user->save();
-                Log::info('Repaired missing plan_id for user '.$user->id.' using subscription.'.($validSubscription->id ?? ''));
-            } catch (\Exception $e) {
-                Log::warning('Failed to repair user.plan_id for user '.$user->id.': '.$e->getMessage());
-            }
-        }
-
         if (empty($user->username) || empty($user->radius_password)) {
-            Log::error('Router credentials missing for user id: ' . $user->id);
             return response()->json(['message' => 'User credentials missing. Please contact support.'], 500);
         }
 
-        $gateway  = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
+        $gateway  = env('MIKROTIK_GATEWAY', 'http://login.wifi/login');
         $loginUrl = (strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway);
         if (!preg_match('#/login#', $loginUrl)) {
             $loginUrl = rtrim($loginUrl, '/') . '/login';
@@ -82,32 +57,20 @@ class RouterController extends Controller
         ]);
     }
 
-    /**
-     * Attempt a server-side login via the RADIUS bridge.
-     */
     public function bridgeLogin(Request $request)
     {
         $user = $request->user();
-
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
-        }
-
-        if (!method_exists($user, 'isSubscriptionActive') || !$user->isSubscriptionActive()) {
-            return response()->json(['message' => 'No active subscription. Please renew to connect.'], 422);
-        }
+        if (!$user) return response()->json(['message' => 'Unauthenticated'], 401);
 
         if (empty($user->username) || empty($user->radius_password)) {
-            Log::error('Router bridge login failed - missing credentials for user id: ' . $user->id);
-            return response()->json(['message' => 'User credentials missing. Please contact support.'], 500);
+            return response()->json(['message' => 'User credentials missing.'], 500);
         }
 
         $mac       = $request->input('mac');
         $ip        = $request->input('ip');
         $linkLogin = $request->input('link-login') ?? $request->input('link-login-only') ?? $request->input('link-orig');
-
-        $bridgeUrl = rtrim(config('services.radius.bridge_url') ?? env('RADIUS_BRIDGE_URL', ''), '/');
-        $secret    = config('services.radius.secret_key') ?? env('RADIUS_SECRET_KEY', null);
+        $bridgeUrl = rtrim(env('RADIUS_BRIDGE_URL', ''), '/');
+        $secret    = env('RADIUS_SECRET_KEY');
 
         if ($bridgeUrl && $secret) {
             try {
@@ -119,38 +82,28 @@ class RouterController extends Controller
                     'ip'       => $ip,
                     'link'     => $linkLogin,
                 ]));
-
                 if ($resp->successful()) {
-                    Log::info('Router bridge login successful for user id: ' . $user->id);
                     return response()->json(['success' => true, 'redirect' => $linkLogin ?? null]);
                 }
-
-                Log::warning('Router bridge login returned non-200 for user id ' . $user->id, ['body' => $resp->body()]);
             } catch (\Exception $e) {
-                Log::error('Router bridge login error for user id ' . $user->id . ': ' . $e->getMessage());
+                Log::error('Bridge login error: ' . $e->getMessage());
             }
         }
 
-        $fallbackGateway  = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
-        $fallbackLoginUrl = (strpos($fallbackGateway, '://') === false ? 'http://' . $fallbackGateway : $fallbackGateway);
-        if (!preg_match('#/login#', $fallbackLoginUrl)) {
-            $fallbackLoginUrl = rtrim($fallbackLoginUrl, '/') . '/login';
-        }
+        $fallbackUrl = env('MIKROTIK_GATEWAY', 'http://login.wifi/login');
+        if (strpos($fallbackUrl, '://') === false) $fallbackUrl = 'http://' . $fallbackUrl;
+        if (!preg_match('#/login#', $fallbackUrl)) $fallbackUrl = rtrim($fallbackUrl, '/') . '/login';
 
         return response()->json([
             'success'       => false,
-            'message'       => 'Bridge unavailable. You will be redirected to router to complete login.',
             'username'      => $user->username,
             'password'      => $user->radius_password,
-            'login_url'     => $fallbackLoginUrl,
+            'login_url'     => $fallbackUrl,
             'dashboard_url' => route('dashboard'),
             'redirect'      => $linkLogin ?? null,
         ]);
     }
 
-    /**
-     * Download generated MikroTik configuration (.rsc) for a router.
-     */
     public function downloadConfig(Router $router)
     {
         $location   = $router->nas_identifier ?: $router->name;
@@ -171,36 +124,19 @@ class RouterController extends Controller
         $wifiSsid         = $router->wifi_ssid ?? 'HiFastLink';
         $wifiPassword     = $router->wifi_password ?? '';
 
-        $escWgRouterPrivKey  = str_replace('"', '\\"', $wgRouterPrivKey);
-        $escLocation         = str_replace('"', '\\"', $location);
-        $escSecret           = str_replace('"', '\\"', $secret);
-        $escDomain           = str_replace('"', '\\"', $domain);
-        $escDns              = str_replace('"', '\\"', $dnsName);
-        $escBridge           = str_replace('"', '\\"', $bridgeName);
-        $escWebsiteIp        = str_replace('"', '\\"', $websiteIp);
-        $escWgServerPubKey   = str_replace('"', '\\"', $wgServerPubKey);
-        $escWgServerEndpoint = str_replace('"', '\\"', $wgServerEndpoint);
-        $escWgServerPort     = str_replace('"', '\\"', $wgServerPort);
-        $escWgListenPort     = str_replace('"', '\\"', $wgListenPort);
-        $escWgRouterIp       = str_replace('"', '\\"', $wgRouterIp);
-        $escWgServerIp       = str_replace('"', '\\"', $wgServerIp);
-        $escWifiSsid         = str_replace('"', '\\"', $wifiSsid);
-        $escWifiPassword     = str_replace('"', '\\"', $wifiPassword);
+        $esc = fn($v) => str_replace('"', '\\"', $v);
 
         $template = <<<'RSC'
 # ==================================================
-#  HIFASTLINK ROUTER SETUP SCRIPT (v6->v7 AUTO-UPGRADE + WIREGUARD)
+#  HIFASTLINK ROUTER SETUP SCRIPT
 #  Author: Gem (The Developer)
 # ==================================================
 
-# --- 1. CONFIGURATION VARIABLES ---
 :global LocationName "{LOCATION}"
 :global DomainName   "{DOMAIN}"
 :global DNSName      "{DNSNAME}"
 :global BridgeName   "{BRIDGE}"
 :global WebsiteIP    "{WEBSITEIP}"
-
-# WireGuard VPN Configuration
 :global VPNEnabled         true
 :global WGServerPublicKey  "{WG_SERVER_PUB_KEY}"
 :global WGRouterPrivateKey "{WG_ROUTER_PRIV_KEY}"
@@ -211,27 +147,23 @@ class RouterController extends Controller
 :global WGServerIP         "{WG_SERVER_IP}"
 :global WifiSSID           "{WIFI_SSID}"
 :global WifiPass           "{WIFI_PASS}"
+:global RadiusSecret       "{SECRET}"
 
-# RADIUS Configuration
-:global RadiusSecret "{SECRET}"
-
-# --- 2. DETECT ROUTEROS VERSION ---
 :local currentVersion [:pick [/system resource get version] 0 1]
 
-# ==================================================
-#  IF v6: CREATE POST-UPGRADE SCRIPT AND UPGRADE
-# ==================================================
+# ==============================================================
+# SHARED SETUP PROCEDURE (used by both v6 post-upgrade and v7)
+# ==============================================================
+# This is inlined separately in each branch because RouterOS
+# does not support reusable procedures across script contexts.
 
 :if ($currentVersion = "6") do={
-    :put "=========================================="
-    :put "   DETECTED: RouterOS v6"
-    :put "   ACTION: Upgrading to v7"
-    :put "=========================================="
+    :put ">> Detected v6 - preparing upgrade to v7..."
 
     /system script remove [find name="hifastlink-post-upgrade"]
     /system script add name="hifastlink-post-upgrade" source="
 :delay 30s
-:put \">> Starting post-upgrade configuration...\"
+:put \">> Post-upgrade config starting...\"
 
 :global LocationName
 :global DomainName
@@ -250,17 +182,23 @@ class RouterController extends Controller
 :global WifiPass
 :global RadiusSecret
 
-:put (\">> Configuring: \" . \$LocationName)
+# -------------------------------------------------------
+# STEP 0 - NUCLEAR FIREWALL CLEANUP
+# Remove ALL existing non-dynamic rules so nothing
+# conflicts with or takes priority over our new rules.
+# -------------------------------------------------------
+:put \">> Wiping all existing firewall rules...\"
+/ip/firewall/filter remove [find dynamic=no]
+/ip/firewall/nat    remove [find dynamic=no]
+/ip/firewall/mangle remove [find dynamic=no]
+:put \">> Firewall wiped\"
 
-# 0. Ensure bridge exists
+# -------------------------------------------------------
+# STEP 1 - BRIDGE
+# -------------------------------------------------------
 :if ([:len [/interface/bridge find name=\$BridgeName]] = 0) do={
     /interface/bridge add name=\$BridgeName protocol-mode=rstp
-    :put \">> Bridge created\"
-} else={
-    :put \">> Bridge already exists\"
 }
-
-# Add ethernet ports - evict from other bridges first
 :foreach port in={\"ether2\";\"ether3\";\"ether4\";\"ether5\"} do={
     :if ([:len [/interface find name=\$port]] > 0) do={
         :foreach bp in=[/interface/bridge/port find interface=\$port] do={
@@ -273,8 +211,6 @@ class RouterController extends Controller
         }
     }
 }
-
-# Add WiFi to bridge - evict from other bridges first
 :local wifiIface \"\"
 :if ([:len [/interface find name=\"wifi1\"]] > 0) do={ :set wifiIface \"wifi1\" }
 :if ([:len [/interface find name=\"wlan1\"]] > 0) do={ :set wifiIface \"wlan1\" }
@@ -287,16 +223,10 @@ class RouterController extends Controller
     :if ([:len [/interface/bridge/port find interface=\$wifiIface bridge=\$BridgeName]] = 0) do={
         /interface/bridge/port add interface=\$wifiIface bridge=\$BridgeName
     }
-    :put (\">> WiFi \" . \$wifiIface . \" added to bridge\")
 }
-
-# Bridge IP
 :if ([:len [/ip/address find interface=\$BridgeName]] = 0) do={
     /ip/address add address=\"192.168.88.1/24\" interface=\$BridgeName
-    :put \">> Bridge IP set to 192.168.88.1\"
 }
-
-# DHCP Server
 :if ([:len [/ip/dhcp-server find interface=\$BridgeName]] = 0) do={
     :if ([:len [/ip/pool find name=\"hs-pool\"]] = 0) do={
         /ip/pool add name=\"hs-pool\" ranges=\"192.168.88.10-192.168.88.254\"
@@ -304,23 +234,21 @@ class RouterController extends Controller
     /ip/dhcp-server add name=\"defconf\" interface=\$BridgeName address-pool=\"hs-pool\" disabled=no
     :do { /ip/dhcp-server/network remove [find address=\"192.168.88.0/24\"] } on-error={}
     /ip/dhcp-server/network add address=\"192.168.88.0/24\" gateway=\"192.168.88.1\" dns-server=\"192.168.88.1\"
-    :put \">> DHCP server created\"
 } else={
     /ip/dhcp-server set [find interface=\$BridgeName] address-pool=hs-pool
-    :put \">> DHCP pool fixed to hs-pool\"
 }
-:put \">> Bridge setup complete\"
+:put \">> Bridge ready\"
 
-# 0b. Enable WiFi
-:local wifiIface \"\"
+# -------------------------------------------------------
+# STEP 2 - WIFI
+# -------------------------------------------------------
 :local wifiList [/interface/wifi find]
 :if ([:len \$wifiList] > 0) do={
-    :set wifiIface [/interface/wifi get (\$wifiList->0) name]
     :if (\$WifiPass != \"\") do={
         :if ([:len [/interface/wifi/security find name=\"hifastlink-sec\"]] = 0) do={
             /interface/wifi/security add name=\"hifastlink-sec\" authentication-types=wpa2-psk passphrase=\$WifiPass
         } else={
-            /interface/wifi/security set [find name=\"hifastlink-sec\"] authentication-types=wpa2-psk passphrase=\$WifiPass
+            /interface/wifi/security set [find name=\"hifastlink-sec\"] passphrase=\$WifiPass
         }
         :if ([:len [/interface/wifi/configuration find name=\"hifastlink-wifi\"]] = 0) do={
             /interface/wifi/configuration add name=\"hifastlink-wifi\" ssid=\$WifiSSID security=\"hifastlink-sec\" mode=ap
@@ -335,11 +263,9 @@ class RouterController extends Controller
         }
     }
     /interface/wifi set [find] configuration=\"hifastlink-wifi\" disabled=no
-    :put (\">> WiFi enabled: \" . \$wifiIface)
 } else={
     :local wlanList [/interface/wireless find]
     :if ([:len \$wlanList] > 0) do={
-        :set wifiIface [/interface/wireless get (\$wlanList->0) name]
         :if (\$WifiPass != \"\") do={
             /interface/wireless set [find] disabled=no mode=ap-bridge ssid=\$WifiSSID security-profile=default
             /interface/wireless/security-profiles set [find name=default] mode=dynamic-keys authentication-types=wpa2-psk wpa2-pre-shared-key=\$WifiPass
@@ -347,63 +273,69 @@ class RouterController extends Controller
             /interface/wireless set [find] disabled=no mode=ap-bridge ssid=\$WifiSSID security-profile=default
             /interface/wireless/security-profiles set [find name=default] mode=none
         }
-        :put (\">> Wireless enabled: \" . \$wifiIface)
     }
 }
+:put \">> WiFi ready\"
 
-# 0c. WAN list
+# -------------------------------------------------------
+# STEP 3 - WAN + ether1 DHCP
+# -------------------------------------------------------
 :if ([:len [/interface/list find name=\"WAN\"]] = 0) do={
     /interface/list add name=\"WAN\"
-    :put \">> WAN interface list created\"
 }
 :if ([:len [/interface/list/member find list=\"WAN\" interface=\"ether1\"]] = 0) do={
     /interface/list/member add list=\"WAN\" interface=\"ether1\"
-    :put \">> ether1 added to WAN list\"
 }
-
-# Reset NAT masquerade to ensure correct interface
-/ip/firewall/nat remove [find chain=srcnat action=masquerade]
-/ip/firewall/nat add chain=srcnat action=masquerade out-interface-list=WAN comment=\"HiFastLink NAT\"
-:put \">> NAT masquerade reset\"
-
-# Firewall forward rules
-# hotspot=auth passes only clients authenticated by the hotspot daemon.
-# This preserves the captive portal - unauthenticated clients are still blocked.
-# Do NOT use in-interface=bridge accept - that bypasses the captive portal entirely.
-:do { /ip/firewall/filter remove [find comment=\"HiFastLink Hotspot Auth\"] } on-error={}
-:do { /ip/firewall/filter remove [find comment=\"HiFastLink Established\"] } on-error={}
-:do { /ip/firewall/filter remove [find comment=\"HiFastLink Forward\"] } on-error={}
-/ip/firewall/filter add chain=forward action=accept hotspot=auth comment=\"HiFastLink Hotspot Auth\"
-/ip/firewall/filter add chain=forward action=accept connection-state=established,related comment=\"HiFastLink Established\"
-:put \">> Firewall forward rules set\"
-
-# Allow DNS and DHCP input from hotspot clients
-:if ([:len [/ip/firewall/filter find comment=\"HiFastLink Input\"]] = 0) do={
-    /ip/firewall/filter add chain=input action=accept in-interface=\$BridgeName protocol=udp dst-port=53 comment=\"HiFastLink Input\"
-    /ip/firewall/filter add chain=input action=accept in-interface=\$BridgeName protocol=tcp dst-port=53 comment=\"HiFastLink Input DNS TCP\"
-    /ip/firewall/filter add chain=input action=accept in-interface=\$BridgeName protocol=udp dst-port=67 comment=\"HiFastLink Input DHCP\"
-    :put \">> Firewall input rules added\"
-} else={
-    :put \">> Firewall input rules already exist\"
-}
-
-# ether1 DHCP client - remove static IP first
 :do { /ip/address remove [find interface=\"ether1\"] } on-error={}
 :if ([:len [/ip/dhcp-client find interface=\"ether1\"]] = 0) do={
     /ip/dhcp-client add interface=ether1 disabled=no
-    :put \">> DHCP client added on ether1\"
 } else={
     /ip/dhcp-client set [find interface=\"ether1\"] disabled=no
-    :put \">> DHCP client enabled on ether1\"
 }
+:put \">> WAN ready\"
 
-# 1. Identity
-/system/identity set name=\$LocationName
-:put \">> Identity set\"
+# -------------------------------------------------------
+# STEP 4 - REBUILD FIREWALL FROM SCRATCH
+# All rules go in at position 0 in reverse-final order so
+# the resulting chain top-to-bottom reads correctly.
+# -------------------------------------------------------
 
-# 2. WireGuard VPN
+# --- NAT ---
+/ip/firewall/nat add chain=srcnat action=masquerade out-interface-list=WAN comment=\"HiFastLink NAT\"
+:put \">> NAT masquerade added\"
+
+# --- INPUT chain (router self) ---
+# Allow established/related first
+/ip/firewall/filter add chain=input action=accept connection-state=established,related comment=\"HiFastLink Input Established\"
+# Allow DNS + DHCP from bridge clients
+/ip/firewall/filter add chain=input action=accept in-interface=\$BridgeName protocol=udp dst-port=53 comment=\"HiFastLink Input DNS UDP\"
+/ip/firewall/filter add chain=input action=accept in-interface=\$BridgeName protocol=tcp dst-port=53 comment=\"HiFastLink Input DNS TCP\"
+/ip/firewall/filter add chain=input action=accept in-interface=\$BridgeName protocol=udp dst-port=67 comment=\"HiFastLink Input DHCP\"
+# Allow hotspot ports (8080 login, 2258 proxy)
+/ip/firewall/filter add chain=input action=accept in-interface=\$BridgeName protocol=tcp dst-port=8080 comment=\"HiFastLink Input Hotspot HTTP\"
+/ip/firewall/filter add chain=input action=accept in-interface=\$BridgeName protocol=tcp dst-port=2258 comment=\"HiFastLink Input Hotspot Proxy\"
+# Drop invalid
+/ip/firewall/filter add chain=input action=drop connection-state=invalid comment=\"HiFastLink Input Drop Invalid\"
+:put \">> INPUT rules added\"
+
+# --- FORWARD chain ---
+# Drop invalid first
+/ip/firewall/filter add chain=forward action=drop connection-state=invalid comment=\"HiFastLink Forward Drop Invalid\"
+# Accept return traffic for established sessions
+/ip/firewall/filter add chain=forward action=accept connection-state=established,related comment=\"HiFastLink Forward Established\"
+# Accept traffic from hotspot-authenticated clients ONLY
+# This is the critical rule - hotspot=auth is set per-client by the
+# hotspot daemon AFTER successful login. Unauthenticated clients do
+# NOT have this flag, so they still get redirected to the portal.
+/ip/firewall/filter add chain=forward action=accept hotspot=auth comment=\"HiFastLink Forward Auth\"
+:put \">> FORWARD rules added\"
+
+:put \">> Firewall rebuilt successfully\"
+
+# -------------------------------------------------------
+# STEP 5 - WIREGUARD VPN
+# -------------------------------------------------------
 :if (\$VPNEnabled) do={
-    :put \">> Configuring WireGuard VPN...\"
     :do { /interface/wireguard remove [find name=\"wg-saas\"] } on-error={}
     /interface/wireguard add name=\"wg-saas\" listen-port=\$WGListenPort private-key=\$WGRouterPrivateKey
     :do { /ip/address remove [find interface=\"wg-saas\"] } on-error={}
@@ -411,153 +343,107 @@ class RouterController extends Controller
     :do { /interface/wireguard/peers remove [find] } on-error={}
     /interface/wireguard/peers add interface=\"wg-saas\" public-key=\$WGServerPublicKey endpoint-address=\$WGServerEndpoint endpoint-port=\$WGServerPort allowed-address=(\$WGServerIP . \"/32\") persistent-keepalive=25s
     :delay 5s
-    :put \">> WireGuard VPN configured\"
+    :put \">> WireGuard ready\"
 }
 
-# 3. RADIUS
+# -------------------------------------------------------
+# STEP 6 - RADIUS
+# -------------------------------------------------------
 :local RadiusIP
-:if (\$VPNEnabled) do={
-    :set RadiusIP \$WGServerIP
-} else={
-    :set RadiusIP \"142.93.47.189\"
-}
+:if (\$VPNEnabled) do={ :set RadiusIP \$WGServerIP } else={ :set RadiusIP \"142.93.47.189\" }
 /radius remove [find dynamic=no]
 /radius add address=\$RadiusIP secret=\$RadiusSecret service=hotspot timeout=3000ms comment=\"HiFastLink RADIUS\"
-:put \">> RADIUS configured\"
+:put \">> RADIUS ready\"
 
-# 4. IP Pool
+# -------------------------------------------------------
+# STEP 7 - HOTSPOT
+# -------------------------------------------------------
 :if ([:len [/ip/pool find name=\"hs-pool\"]] = 0) do={
     /ip/pool add name=\"hs-pool\" ranges=\"192.168.88.10-192.168.88.254\"
-    :put \">> IP pool created\"
-} else={
-    :put \">> IP pool already exists\"
 }
 /ip/dhcp-server set [find interface=\$BridgeName] address-pool=hs-pool
-:put \">> DHCP server pool updated to hs-pool\"
-
-# 5. Hotspot Profile
 :if ([:len [/ip/hotspot/profile find name=\"hifastlink\"]] = 0) do={
     /ip/hotspot/profile add name=\"hifastlink\" dns-name=\$DNSName html-directory=hotspot use-radius=yes login-by=http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
-    :put \">> Hotspot profile created\"
 } else={
     /ip/hotspot/profile set [find name=\"hifastlink\"] dns-name=\$DNSName html-directory=hotspot use-radius=yes login-by=http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
-    :put \">> Hotspot profile updated\"
 }
-
-# Remove conflicting hotspot servers on other interfaces
 :foreach hs in=[/ip/hotspot find] do={
-    :if ([/ip/hotspot get \$hs interface] != \$BridgeName) do={
-        /ip/hotspot remove \$hs
-        :put \">> Removed conflicting hotspot on other interface\"
-    }
+    :if ([/ip/hotspot get \$hs interface] != \$BridgeName) do={ /ip/hotspot remove \$hs }
 }
-
-# 6. Hotspot Server
 :if ([:len [/ip/hotspot find interface=\$BridgeName]] = 0) do={
     /ip/hotspot add name=\"hifastlink\" interface=\$BridgeName profile=\"hifastlink\" address-pool=\"hs-pool\" disabled=no
-    :put \">> Hotspot server created\"
 } else={
     /ip/hotspot set [find interface=\$BridgeName] profile=\"hifastlink\" address-pool=\"hs-pool\" disabled=no
-    :put \">> Hotspot server updated\"
 }
 /ip/hotspot/ip-binding remove [find]
-:put \">> IP bindings cleared\"
-
-# 7. User Profile
 :if ([:len [/ip/hotspot/user/profile find name=\"default\" dynamic=no]] = 0) do={
-    :do { /ip/hotspot/user/profile add name=\"default\" shared-users=10 } on-error={ :put \">> User profile add skipped (exists)\" }
+    :do { /ip/hotspot/user/profile add name=\"default\" shared-users=10 } on-error={}
 } else={
     /ip/hotspot/user/profile set [find name=\"default\" dynamic=no] shared-users=10
 }
 :do { /ip/hotspot/user remove [find name=\"admin\"] } on-error={}
-:put \">> User profile configured\"
+:put \">> Hotspot ready\"
 
-# 8. Walled Garden - DNS
+# -------------------------------------------------------
+# STEP 8 - WALLED GARDEN
+# -------------------------------------------------------
 /ip/hotspot/walled-garden remove [find dynamic=no]
 /ip/hotspot/walled-garden add dst-host=(\"*.\" . \$DomainName) comment=\"Allow Dashboard Subdomains\"
 /ip/hotspot/walled-garden add dst-host=\$DomainName comment=\"Allow Dashboard Root\"
 /ip/hotspot/walled-garden add dst-host=\"*.paystack.com\" comment=\"Allow Paystack\"
 /ip/hotspot/walled-garden add dst-host=\"*.paystack.co\" comment=\"Allow Paystack Alt\"
 /ip/hotspot/walled-garden add dst-host=\"*.sentry.io\" comment=\"Allow Error Logs\"
-:put \">> Walled Garden (DNS) configured\"
-
-# 9. Walled Garden - IP
-# Locked to WebsiteIP only. Do NOT open port 80/443 to all destinations
-# as that bypasses the captive portal. Do NOT add a 443->80 NAT redirect
-# as that causes ERR_SSL_PROTOCOL_ERROR.
 /ip/hotspot/walled-garden/ip remove [find dynamic=no]
 /ip/hotspot/walled-garden/ip add action=accept protocol=udp dst-port=53 comment=\"DNS\"
 /ip/hotspot/walled-garden/ip add action=accept dst-address=\$WebsiteIP comment=\"HiFastLink Server\"
 /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=443 dst-address=\$WebsiteIP comment=\"HTTPS HiFastLink\"
 /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=80 dst-address=\$WebsiteIP comment=\"HTTP HiFastLink\"
-:put \">> Walled Garden (IP) configured\"
+:put \">> Walled Garden ready\"
 
-# 10. DNS
+# -------------------------------------------------------
+# STEP 9 - DNS
+# -------------------------------------------------------
 /ip/dns set servers=192.168.88.1 allow-remote-requests=yes
 :local bridgeAddrFull [/ip/address get [find interface=\$BridgeName] address]
 :local bridgeIP [:pick \$bridgeAddrFull 0 [:find \$bridgeAddrFull \"/\"]]
 :if ([:len [/ip/dns/static find name=\$DNSName dynamic=no]] > 0) do={
     /ip/dns/static set [find name=\$DNSName dynamic=no] address=\$bridgeIP ttl=1m
-    :put (\">> Static DNS updated: \" . \$DNSName . \" -> \" . \$bridgeIP)
 } else={
-    :do {
-        /ip/dns/static add name=\$DNSName address=\$bridgeIP ttl=1m
-        :put (\">> Static DNS created: \" . \$DNSName . \" -> \" . \$bridgeIP)
-    } on-error={
-        :put (\">> DNS for \" . \$DNSName . \" managed by hotspot dynamically, skipping\")
-    }
+    :do { /ip/dns/static add name=\$DNSName address=\$bridgeIP ttl=1m } on-error={}
 }
-:put \">> DNS configured\"
+:put \">> DNS ready\"
 
-# 11. Heartbeat
+# -------------------------------------------------------
+# STEP 10 - IDENTITY, HEARTBEAT, STATS, NTP, SERVICES
+# -------------------------------------------------------
+/system/identity set name=\$LocationName
 :local heartbeatURL (\"https://\" . \$DomainName . \"/api/routers/heartbeat?identity=\" . \$LocationName)
 /system/scheduler remove [find name=\"heartbeat\"]
 /system/scheduler add name=\"heartbeat\" interval=1m on-event=(\"/tool/fetch url=\\\"\" . \$heartbeatURL . \"\\\" mode=https output=none\")
-:put \">> Heartbeat configured\"
-
-# 12. Realtime Speed Reporter
 /system/scheduler remove [find name=\"realtime-stats\"]
 :do { /system/script remove [find name=\"realtime-stats-script\"] } on-error={}
 /system/script add name=\"realtime-stats-script\" source=\":local identity [/system/identity get name]; :local apiURL \\\"https://hifastlink.com/api/routers/speed\\\"; :foreach session in=[/ip/hotspot/active find] do={:local user [/ip/hotspot/active get \$session user]; :local bytesIn [/ip/hotspot/active get \$session bytes-in]; :local bytesOut [/ip/hotspot/active get \$session bytes-out]; :local fullURL (\$apiURL . \\\"?identity=\\\" . \$identity . \\\"&user=\\\" . \$user . \\\"&bytes_in=\\\" . \$bytesIn . \\\"&bytes_out=\\\" . \$bytesOut); :do {/tool/fetch url=\$fullURL mode=https output=none} on-error={}}\"
 /system/scheduler add name=\"realtime-stats\" interval=10s on-event=\"/system/script run realtime-stats-script\"
-:put \">> Speed reporter configured\"
-
-# 13. NTP
 /system/ntp/client set enabled=yes
 :do {/system/ntp/client/servers remove [find address=162.159.200.1]} on-error={}
 :do {/system/ntp/client/servers remove [find address=162.159.200.123]} on-error={}
 /system/ntp/client/servers add address=162.159.200.1
 /system/ntp/client/servers add address=162.159.200.123
-:put \">> NTP configured\"
-
-# 14. Services
 /ip/service set api disabled=no port=8728
 /ip/service set www-ssl disabled=yes
-:put \">> Services configured\"
+:put \">> System config ready\"
 
 :put \"===========================================\"
-:put \"   POST-UPGRADE SETUP COMPLETE\"
-:put (\"   Router: \" . \$LocationName)
-:put (\"   Login: http://\" . \$DNSName)
-:if (\$VPNEnabled) do={
-    :put \"   VPN: WireGuard Enabled\"
-}
-:put \"   READY TO USE\"
+:put \"   SETUP COMPLETE: \" . \$LocationName
+:put \"   Login: http://\" . \$DNSName
 :put \"===========================================\"
 
 /system/scheduler remove [find name=\"run-post-upgrade\"]
 /system/script remove [find name=\"hifastlink-post-upgrade\"]
 "
-
     /system scheduler remove [find name="run-post-upgrade"]
     /system scheduler add name="run-post-upgrade" on-event="hifastlink-post-upgrade" start-time=startup interval=0
-
-    :put ">> Post-upgrade script created"
-    :put ">> Starting upgrade to RouterOS v7..."
-    :put ">> Router will reboot in ~2 minutes"
-    :put ">> Setup will complete automatically after reboot"
-    :put ">> Total time: 5-10 minutes"
-
+    :put ">> Upgrade scheduled. Router upgrading to v7 now..."
     /system package update set channel=stable
     /system package update check-for-updates
     :delay 15s
@@ -567,26 +453,30 @@ class RouterController extends Controller
 }
 
 # ==================================================
-#  IF v7: RUN SETUP DIRECTLY
+# v7 DIRECT SETUP
 # ==================================================
 
 :if ($currentVersion = "7") do={
-    :put "=========================================="
-    :put "   DETECTED: RouterOS v7"
-    :put "   ACTION: Running setup"
-    :put "=========================================="
+    :put ">> Detected v7 - running setup for " . $LocationName . "..."
 
-    :put (">> Starting Setup for " . $LocationName . "...")
+    # -------------------------------------------------------
+    # STEP 0 - NUCLEAR FIREWALL CLEANUP
+    # Remove ALL existing non-dynamic rules. This guarantees
+    # no stale rules from previous runs or factory defaults
+    # can block or take priority over our new ruleset.
+    # -------------------------------------------------------
+    :put ">> Wiping all existing firewall rules..."
+    /ip/firewall/filter remove [find dynamic=no]
+    /ip/firewall/nat    remove [find dynamic=no]
+    /ip/firewall/mangle remove [find dynamic=no]
+    :put ">> Firewall wiped"
 
-    # 0. Ensure bridge exists
+    # -------------------------------------------------------
+    # STEP 1 - BRIDGE
+    # -------------------------------------------------------
     :if ([:len [/interface/bridge find name=$BridgeName]] = 0) do={
         /interface/bridge add name=$BridgeName protocol-mode=rstp
-        :put ">> Bridge created"
-    } else={
-        :put ">> Bridge already exists"
     }
-
-    # Add ethernet ports - evict from other bridges first
     :foreach port in={"ether2";"ether3";"ether4";"ether5"} do={
         :if ([:len [/interface find name=$port]] > 0) do={
             :foreach bp in=[/interface/bridge/port find interface=$port] do={
@@ -599,8 +489,6 @@ class RouterController extends Controller
             }
         }
     }
-
-    # Add WiFi to bridge - evict from other bridges first
     :local wifiIface ""
     :if ([:len [/interface find name="wifi1"]] > 0) do={ :set wifiIface "wifi1" }
     :if ([:len [/interface find name="wlan1"]] > 0) do={ :set wifiIface "wlan1" }
@@ -613,16 +501,10 @@ class RouterController extends Controller
         :if ([:len [/interface/bridge/port find interface=$wifiIface bridge=$BridgeName]] = 0) do={
             /interface/bridge/port add interface=$wifiIface bridge=$BridgeName
         }
-        :put (">> WiFi " . $wifiIface . " added to bridge")
     }
-
-    # Bridge IP
     :if ([:len [/ip/address find interface=$BridgeName]] = 0) do={
         /ip/address add address="192.168.88.1/24" interface=$BridgeName
-        :put ">> Bridge IP set to 192.168.88.1"
     }
-
-    # DHCP Server
     :if ([:len [/ip/dhcp-server find interface=$BridgeName]] = 0) do={
         :if ([:len [/ip/pool find name="hs-pool"]] = 0) do={
             /ip/pool add name="hs-pool" ranges="192.168.88.10-192.168.88.254"
@@ -630,23 +512,21 @@ class RouterController extends Controller
         /ip/dhcp-server add name="defconf" interface=$BridgeName address-pool="hs-pool" disabled=no
         :do { /ip/dhcp-server/network remove [find address="192.168.88.0/24"] } on-error={}
         /ip/dhcp-server/network add address="192.168.88.0/24" gateway="192.168.88.1" dns-server="192.168.88.1"
-        :put ">> DHCP server created"
     } else={
         /ip/dhcp-server set [find interface=$BridgeName] address-pool=hs-pool
-        :put ">> DHCP pool fixed to hs-pool"
     }
-    :put ">> Bridge setup complete"
+    :put ">> Bridge ready"
 
-    # 0b. Enable WiFi
-    :local wifiIface ""
+    # -------------------------------------------------------
+    # STEP 2 - WIFI
+    # -------------------------------------------------------
     :local wifiList [/interface/wifi find]
     :if ([:len $wifiList] > 0) do={
-        :set wifiIface [/interface/wifi get ($wifiList->0) name]
         :if ($WifiPass != "") do={
             :if ([:len [/interface/wifi/security find name="hifastlink-sec"]] = 0) do={
                 /interface/wifi/security add name="hifastlink-sec" authentication-types=wpa2-psk passphrase=$WifiPass
             } else={
-                /interface/wifi/security set [find name="hifastlink-sec"] authentication-types=wpa2-psk passphrase=$WifiPass
+                /interface/wifi/security set [find name="hifastlink-sec"] passphrase=$WifiPass
             }
             :if ([:len [/interface/wifi/configuration find name="hifastlink-wifi"]] = 0) do={
                 /interface/wifi/configuration add name="hifastlink-wifi" ssid=$WifiSSID security="hifastlink-sec" mode=ap
@@ -661,11 +541,9 @@ class RouterController extends Controller
             }
         }
         /interface/wifi set [find] configuration="hifastlink-wifi" disabled=no
-        :put (">> WiFi enabled: " . $wifiIface)
     } else={
         :local wlanList [/interface/wireless find]
         :if ([:len $wlanList] > 0) do={
-            :set wifiIface [/interface/wireless get ($wlanList->0) name]
             :if ($WifiPass != "") do={
                 /interface/wireless set [find] disabled=no mode=ap-bridge ssid=$WifiSSID security-profile=default
                 /interface/wireless/security-profiles set [find name=default] mode=dynamic-keys authentication-types=wpa2-psk wpa2-pre-shared-key=$WifiPass
@@ -673,63 +551,71 @@ class RouterController extends Controller
                 /interface/wireless set [find] disabled=no mode=ap-bridge ssid=$WifiSSID security-profile=default
                 /interface/wireless/security-profiles set [find name=default] mode=none
             }
-            :put (">> Wireless enabled: " . $wifiIface)
         }
     }
+    :put ">> WiFi ready"
 
-    # 0c. WAN list
+    # -------------------------------------------------------
+    # STEP 3 - WAN + ether1 DHCP
+    # -------------------------------------------------------
     :if ([:len [/interface/list find name="WAN"]] = 0) do={
         /interface/list add name="WAN"
-        :put ">> WAN interface list created"
     }
     :if ([:len [/interface/list/member find list="WAN" interface="ether1"]] = 0) do={
         /interface/list/member add list="WAN" interface="ether1"
-        :put ">> ether1 added to WAN list"
     }
-
-    # Reset NAT masquerade to ensure correct interface
-    /ip/firewall/nat remove [find chain=srcnat action=masquerade]
-    /ip/firewall/nat add chain=srcnat action=masquerade out-interface-list=WAN comment="HiFastLink NAT"
-    :put ">> NAT masquerade reset"
-
-    # Firewall forward rules
-    # hotspot=auth passes only clients authenticated by the hotspot daemon.
-    # This preserves the captive portal - unauthenticated clients are still blocked.
-    # Do NOT use in-interface=bridge accept - that bypasses the captive portal entirely.
-    :do { /ip/firewall/filter remove [find comment="HiFastLink Hotspot Auth"] } on-error={}
-    :do { /ip/firewall/filter remove [find comment="HiFastLink Established"] } on-error={}
-    :do { /ip/firewall/filter remove [find comment="HiFastLink Forward"] } on-error={}
-    /ip/firewall/filter add chain=forward action=accept hotspot=auth comment="HiFastLink Hotspot Auth"
-    /ip/firewall/filter add chain=forward action=accept connection-state=established,related comment="HiFastLink Established"
-    :put ">> Firewall forward rules set"
-
-    # Allow DNS and DHCP input from hotspot clients
-    :if ([:len [/ip/firewall/filter find comment="HiFastLink Input"]] = 0) do={
-        /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=udp dst-port=53 comment="HiFastLink Input"
-        /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=tcp dst-port=53 comment="HiFastLink Input DNS TCP"
-        /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=udp dst-port=67 comment="HiFastLink Input DHCP"
-        :put ">> Firewall input rules added"
-    } else={
-        :put ">> Firewall input rules already exist"
-    }
-
-    # ether1 DHCP client - remove static IP first
     :do { /ip/address remove [find interface="ether1"] } on-error={}
     :if ([:len [/ip/dhcp-client find interface="ether1"]] = 0) do={
         /ip/dhcp-client add interface=ether1 disabled=no
-        :put ">> DHCP client added on ether1"
     } else={
         /ip/dhcp-client set [find interface="ether1"] disabled=no
-        :put ">> DHCP client enabled on ether1"
     }
+    :put ">> WAN ready"
 
-    # 1. Identity
-    /system/identity set name=$LocationName
-    :put ">> Identity set"
+    # -------------------------------------------------------
+    # STEP 4 - REBUILD FIREWALL FROM SCRATCH
+    #
+    # Since we wiped everything above, we simply add rules
+    # in the order we want them to appear top-to-bottom.
+    # No stale rules can interfere.
+    #
+    # INPUT chain  - protects the router itself
+    # FORWARD chain - controls client internet access
+    # -------------------------------------------------------
 
-    # 2. WireGuard VPN
+    # NAT
+    /ip/firewall/nat add chain=srcnat action=masquerade out-interface-list=WAN comment="HiFastLink NAT"
+    :put ">> NAT added"
+
+    # INPUT - allow established/related (keeps SSH etc working)
+    /ip/firewall/filter add chain=input action=accept connection-state=established,related comment="HiFastLink Input Established"
+    # INPUT - allow DHCP, DNS, hotspot ports from bridge clients
+    /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=udp dst-port=53  comment="HiFastLink Input DNS UDP"
+    /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=tcp dst-port=53  comment="HiFastLink Input DNS TCP"
+    /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=udp dst-port=67  comment="HiFastLink Input DHCP"
+    /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=tcp dst-port=8080 comment="HiFastLink Input Hotspot HTTP"
+    /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=tcp dst-port=2258 comment="HiFastLink Input Hotspot Proxy"
+    # INPUT - drop invalid
+    /ip/firewall/filter add chain=input action=drop connection-state=invalid comment="HiFastLink Input Drop Invalid"
+    :put ">> INPUT rules added"
+
+    # FORWARD - drop invalid
+    /ip/firewall/filter add chain=forward action=drop connection-state=invalid comment="HiFastLink Forward Drop Invalid"
+    # FORWARD - allow return traffic for active sessions
+    /ip/firewall/filter add chain=forward action=accept connection-state=established,related comment="HiFastLink Forward Established"
+    # FORWARD - allow ONLY hotspot-authenticated clients
+    # hotspot=auth is a per-client flag set by the MikroTik hotspot daemon
+    # only AFTER successful RADIUS login. Unauthenticated clients never
+    # receive this flag so they are still redirected to the login page.
+    # DO NOT replace this with in-interface=bridge - that bypasses the portal.
+    /ip/firewall/filter add chain=forward action=accept hotspot=auth comment="HiFastLink Forward Auth"
+    :put ">> FORWARD rules added"
+    :put ">> Firewall rebuilt - clean state confirmed"
+
+    # -------------------------------------------------------
+    # STEP 5 - WIREGUARD VPN
+    # -------------------------------------------------------
     :if ($VPNEnabled) do={
-        :put ">> Configuring WireGuard VPN..."
         :do { /interface/wireguard remove [find name="wg-saas"] } on-error={}
         /interface/wireguard add name="wg-saas" listen-port=$WGListenPort private-key=$WGRouterPrivateKey
         :do { /ip/address remove [find interface="wg-saas"] } on-error={}
@@ -742,139 +628,102 @@ class RouterController extends Controller
             allowed-address=($WGServerIP . "/32") \
             persistent-keepalive=25s
         :delay 5s
-        :put ">> WireGuard VPN configured"
+        :put ">> WireGuard ready"
     }
 
-    # 3. RADIUS
+    # -------------------------------------------------------
+    # STEP 6 - RADIUS
+    # -------------------------------------------------------
     :local RadiusIP
-    :if ($VPNEnabled) do={
-        :set RadiusIP $WGServerIP
-    } else={
-        :set RadiusIP "142.93.47.189"
-    }
+    :if ($VPNEnabled) do={ :set RadiusIP $WGServerIP } else={ :set RadiusIP "142.93.47.189" }
     /radius remove [find dynamic=no]
     /radius add address=$RadiusIP secret=$RadiusSecret service=hotspot timeout=3000ms comment="HiFastLink RADIUS"
-    :put ">> RADIUS configured"
+    :put ">> RADIUS ready"
 
-    # 4. IP Pool
+    # -------------------------------------------------------
+    # STEP 7 - HOTSPOT
+    # -------------------------------------------------------
     :if ([:len [/ip/pool find name="hs-pool"]] = 0) do={
         /ip/pool add name="hs-pool" ranges="192.168.88.10-192.168.88.254"
-        :put ">> IP pool created"
-    } else={
-        :put ">> IP pool already exists"
     }
     /ip/dhcp-server set [find interface=$BridgeName] address-pool=hs-pool
-    :put ">> DHCP server pool updated to hs-pool"
-
-    # 5. Hotspot Profile
     :if ([:len [/ip/hotspot/profile find name="hifastlink"]] = 0) do={
         /ip/hotspot/profile add name="hifastlink" dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
-        :put ">> Hotspot profile created"
     } else={
         /ip/hotspot/profile set [find name="hifastlink"] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
-        :put ">> Hotspot profile updated"
     }
-
-    # Remove conflicting hotspot servers on other interfaces
     :foreach hs in=[/ip/hotspot find] do={
-        :if ([/ip/hotspot get $hs interface] != $BridgeName) do={
-            /ip/hotspot remove $hs
-            :put ">> Removed conflicting hotspot on other interface"
-        }
+        :if ([/ip/hotspot get $hs interface] != $BridgeName) do={ /ip/hotspot remove $hs }
     }
-
-    # 6. Hotspot Server
     :if ([:len [/ip/hotspot find interface=$BridgeName]] = 0) do={
         /ip/hotspot add name="hifastlink" interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no
-        :put ">> Hotspot server created"
     } else={
         /ip/hotspot set [find interface=$BridgeName] profile="hifastlink" address-pool="hs-pool" disabled=no
-        :put ">> Hotspot server updated"
     }
     /ip/hotspot/ip-binding remove [find]
-    :put ">> IP bindings cleared"
-
-    # 7. User Profile
     :if ([:len [/ip/hotspot/user/profile find name="default" dynamic=no]] = 0) do={
-        :do { /ip/hotspot/user/profile add name="default" shared-users=10 } on-error={ :put ">> User profile add skipped (exists)" }
+        :do { /ip/hotspot/user/profile add name="default" shared-users=10 } on-error={}
     } else={
         /ip/hotspot/user/profile set [find name="default" dynamic=no] shared-users=10
     }
     :do { /ip/hotspot/user remove [find name="admin"] } on-error={}
-    :put ">> User profile configured"
+    :put ">> Hotspot ready"
 
-    # 8. Walled Garden - DNS
+    # -------------------------------------------------------
+    # STEP 8 - WALLED GARDEN
+    # -------------------------------------------------------
     /ip/hotspot/walled-garden remove [find dynamic=no]
     /ip/hotspot/walled-garden add dst-host=("*." . $DomainName) comment="Allow Dashboard Subdomains"
     /ip/hotspot/walled-garden add dst-host=$DomainName comment="Allow Dashboard Root"
     /ip/hotspot/walled-garden add dst-host="*.paystack.com" comment="Allow Paystack"
-    /ip/hotspot/walled-garden add dst-host="*.paystack.co" comment="Allow Paystack Alt"
-    /ip/hotspot/walled-garden add dst-host="*.sentry.io" comment="Allow Error Logs"
-    :put ">> Walled Garden (DNS) configured"
-
-    # 9. Walled Garden - IP
-    # Locked to WebsiteIP only. Do NOT open port 80/443 to all destinations
-    # as that bypasses the captive portal. Do NOT add a 443->80 NAT redirect
-    # as that causes ERR_SSL_PROTOCOL_ERROR.
+    /ip/hotspot/walled-garden add dst-host="*.paystack.co"  comment="Allow Paystack Alt"
+    /ip/hotspot/walled-garden add dst-host="*.sentry.io"    comment="Allow Error Logs"
     /ip/hotspot/walled-garden/ip remove [find dynamic=no]
     /ip/hotspot/walled-garden/ip add action=accept protocol=udp dst-port=53 comment="DNS"
     /ip/hotspot/walled-garden/ip add action=accept dst-address=$WebsiteIP comment="HiFastLink Server"
     /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=443 dst-address=$WebsiteIP comment="HTTPS HiFastLink"
-    /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=80 dst-address=$WebsiteIP comment="HTTP HiFastLink"
-    :put ">> Walled Garden (IP) configured"
+    /ip/hotspot/walled-garden/ip add action=accept protocol=tcp dst-port=80  dst-address=$WebsiteIP comment="HTTP HiFastLink"
+    :put ">> Walled Garden ready"
 
-    # 10. DNS
+    # -------------------------------------------------------
+    # STEP 9 - DNS
+    # -------------------------------------------------------
     /ip/dns set servers=192.168.88.1 allow-remote-requests=yes
     :local bridgeAddrFull [/ip/address get [find interface=$BridgeName] address]
     :local bridgeIP [:pick $bridgeAddrFull 0 [:find $bridgeAddrFull "/"]]
     :if ([:len [/ip/dns/static find name=$DNSName dynamic=no]] > 0) do={
         /ip/dns/static set [find name=$DNSName dynamic=no] address=$bridgeIP ttl=1m
-        :put (">> Static DNS updated: " . $DNSName . " -> " . $bridgeIP)
     } else={
-        :do {
-            /ip/dns/static add name=$DNSName address=$bridgeIP ttl=1m
-            :put (">> Static DNS created: " . $DNSName . " -> " . $bridgeIP)
-        } on-error={
-            :put (">> DNS for " . $DNSName . " managed by hotspot dynamically, skipping")
-        }
+        :do { /ip/dns/static add name=$DNSName address=$bridgeIP ttl=1m } on-error={}
     }
-    :put ">> DNS configured"
+    :put ">> DNS ready"
 
-    # 11. Heartbeat
+    # -------------------------------------------------------
+    # STEP 10 - IDENTITY, HEARTBEAT, STATS, NTP, SERVICES
+    # -------------------------------------------------------
+    /system/identity set name=$LocationName
     :local heartbeatURL ("https://" . $DomainName . "/api/routers/heartbeat?identity=" . $LocationName)
     /system/scheduler remove [find name="heartbeat"]
     /system/scheduler add name="heartbeat" interval=1m on-event=("/tool/fetch url=\"$heartbeatURL\" mode=https output=none")
-    :put ">> Heartbeat configured"
-
-    # 12. Realtime Speed Reporter
     /system/scheduler remove [find name="realtime-stats"]
     :do { /system/script remove [find name="realtime-stats-script"] } on-error={}
     /system/script add name="realtime-stats-script" source=":local identity [/system/identity get name]; :local apiURL \"https://hifastlink.com/api/routers/speed\"; :foreach session in=[/ip/hotspot/active find] do={:local user [/ip/hotspot/active get \$session user]; :local bytesIn [/ip/hotspot/active get \$session bytes-in]; :local bytesOut [/ip/hotspot/active get \$session bytes-out]; :local fullURL (\$apiURL . \"?identity=\" . \$identity . \"&user=\" . \$user . \"&bytes_in=\" . \$bytesIn . \"&bytes_out=\" . \$bytesOut); :do {/tool/fetch url=\$fullURL mode=https output=none} on-error={}}"
     /system/scheduler add name="realtime-stats" interval=10s on-event="/system/script run realtime-stats-script"
-    :put ">> Speed reporter configured"
-
-    # 13. NTP
     /system/ntp/client set enabled=yes
-    :do {/system/ntp/client/servers remove [find address=162.159.200.1]} on-error={}
+    :do {/system/ntp/client/servers remove [find address=162.159.200.1]}   on-error={}
     :do {/system/ntp/client/servers remove [find address=162.159.200.123]} on-error={}
     /system/ntp/client/servers add address=162.159.200.1
     /system/ntp/client/servers add address=162.159.200.123
-    :put ">> NTP configured"
-
-    # 14. Services
     /ip/service set api disabled=no port=8728
     /ip/service set www-ssl disabled=yes
-    :put ">> Services configured"
+    :put ">> System config ready"
 
     :put "========================================"
-    :put ("   SETUP COMPLETE FOR: " . $LocationName)
-    :put ("   Login Link: http://" . $DNSName)
-    :put ("   Hotspot Interface: " . $BridgeName)
+    :put ("   COMPLETE: " . $LocationName)
+    :put ("   Login:    http://" . $DNSName)
     :if ($VPNEnabled) do={
-        :put "   VPN: WireGuard Enabled"
-        :put ("   VPN IP: " . $WGRouterIP)
+        :put ("   VPN IP:   " . $WGRouterIP)
     }
-    :put "   READY TO DEPLOY"
     :put "========================================"
 }
 RSC;
@@ -885,10 +734,10 @@ RSC;
             '{WG_LISTEN_PORT}', '{WG_ROUTER_IP}', '{WG_SERVER_IP}', '{SECRET}',
             '{WG_ROUTER_PRIV_KEY}', '{WIFI_SSID}', '{WIFI_PASS}',
         ], [
-            $escLocation, $escDomain, $escDns, $escBridge, $escWebsiteIp,
-            $escWgServerPubKey, $escWgServerEndpoint, $escWgServerPort,
-            $escWgListenPort, $escWgRouterIp, $escWgServerIp, $escSecret,
-            $escWgRouterPrivKey, $escWifiSsid, $escWifiPassword,
+            $esc($location), $esc($domain), $esc($dnsName), $esc($bridgeName), $esc($websiteIp),
+            $esc($wgServerPubKey), $esc($wgServerEndpoint), $esc($wgServerPort),
+            $esc($wgListenPort), $esc($wgRouterIp), $esc($wgServerIp), $esc($secret),
+            $esc($wgRouterPrivKey), $esc($wifiSsid), $esc($wifiPassword),
         ], $template);
 
         $filename = 'router-' . ($router->nas_identifier ?: $router->id) . '.rsc';
