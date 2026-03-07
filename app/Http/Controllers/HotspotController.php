@@ -142,7 +142,13 @@ class HotspotController extends Controller
         session()->forget(['last_connect_claimed_at', 'last_connect_username']);
 
         // Use login.wifi (DNS name) instead of IP address - same as connect logic
-        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
+        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'login.wifi/login';
+
+        // Force HTTP
+        $loginUrl = 'http://' . ltrim($gateway, 'http://https://');
+        if (!str_ends_with($loginUrl, '/login')) {
+            $loginUrl = rtrim($loginUrl, '/') . '/login';
+        }
         
         // Ensure gateway has a protocol
         if (strpos($gateway, '://') === false) {
