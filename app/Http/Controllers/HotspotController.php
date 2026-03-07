@@ -32,13 +32,13 @@ class HotspotController extends Controller
             return redirect()->route('dashboard')->with('error', 'Router not found.');
         }
 
-        // Block early if subscription rules deny hotspot access (centralized check)
+        // Block early if subscription rules deny hotspot access
         $subscriptionService = new \App\Services\SubscriptionService();
         if (! $subscriptionService->canConnectToHotspot($user)) {
             return redirect()->route('dashboard')->with('error', 'Please buy a plan.');
         }
 
-        // Determine if user has an active subscription using Subscription model when available
+        // Determine if user has an active subscription
         $validSubscription = null;
         if (class_exists(\App\Models\Subscription::class)) {
             $validSubscription = \App\Models\Subscription::where('user_id', $user->id)
@@ -62,10 +62,6 @@ class HotspotController extends Controller
             return redirect()->route('dashboard')->with('error', 'Please buy a plan.');
         }
 
-        // Device limit is now enforced by RADIUS via Simultaneous-Use attribute
-        // Let RADIUS handle rejecting connections if limit is reached
-        // This allows proper multi-device support without false positives
-
         // Self-repair plan_id if missing
         if (isset($validSubscription->plan_id) && empty($user->plan_id) && $validSubscription->plan_id) {
             try {
@@ -84,18 +80,23 @@ class HotspotController extends Controller
             return redirect()->route('dashboard')->with('error', 'Missing router password. Please contact support.');
         }
 
-        // Use login.wifi (DNS name) instead of IP address to avoid MikroTik redirect loops
-        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
-        $loginUrl = (strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway);
-        if (! preg_match('#/login#', $loginUrl)) {
-            $loginUrl = rtrim($loginUrl, '/') . '/login';
+        // ────────────────────────────────────────────────
+        // FORCE HTTP for MikroTik hotspot login endpoint
+        // ────────────────────────────────────────────────
+        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'login.wifi';
+
+        // Strip any existing protocol and trailing /login
+        $cleanHost = preg_replace('#^https?://#i', '', $gateway);
+        $cleanHost = preg_replace('#/login$#', '', rtrim($cleanHost, '/'));
+
+        $link_login = 'http://' . $cleanHost;
+        if (!str_ends_with($link_login, '/login')) {
+            $link_login .= '/login';
         }
 
-        // link_login is what the bridge/portal uses
-        $link_login = $loginUrl;
         $link_orig = route('dashboard', ['router' => $routerIdentifier]);
 
-        // Mark this browser session as having initiated a connection (used for device detection)
+        // Mark this browser session as having initiated a connection
         $claimAt = now()->timestamp;
         session(['last_connect_claimed_at' => $claimAt]);
         session(['last_connect_username' => $user->username]);
@@ -108,7 +109,7 @@ class HotspotController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        // Upsert device record if a MAC is available (persist device for Option B)
+        // Upsert device record if MAC available
         $macToUse = session('current_device_mac') ?? $request->input('mac');
         if ($macToUse) {
             try {

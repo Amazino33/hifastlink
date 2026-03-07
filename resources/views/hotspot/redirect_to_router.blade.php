@@ -1,6 +1,5 @@
 <!doctype html>
 <html>
-
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -15,7 +14,6 @@
             height: 100vh;
             background: #f7fafc
         }
-
         .card {
             background: white;
             padding: 24px;
@@ -23,7 +21,6 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, .08);
             text-align: center
         }
-
         .btn {
             margin-top: 12px;
             padding: 8px 12px;
@@ -35,7 +32,6 @@
         }
     </style>
 </head>
-
 <body>
     <div class="card">
         <p class="mb-4"><strong class="text-lg font-bold">Logging you in...</strong></p>
@@ -92,7 +88,7 @@
                 console.error('localStorage not available:', e);
             }
 
-            // Automatically submit the POST form
+            // Automatically submit the form
             setTimeout(function () {
                 try {
                     document.getElementById('mikrotik-login-form').submit();
@@ -103,5 +99,4 @@
         })();
     </script>
 </body>
-
 </html>
