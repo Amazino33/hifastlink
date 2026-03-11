@@ -283,31 +283,36 @@ class RouterController extends Controller
 /ip/firewall/nat add chain=srcnat action=masquerade out-interface-list=WAN comment="HiFastLink NAT"
 :put ">> NAT added"
 
-# INPUT - allow established/related (keeps SSH etc working)
-/ip/firewall/filter add chain=input action=accept connection-state=established,related comment="HiFastLink Input Established"
-# INPUT - allow DHCP, DNS, hotspot ports from bridge clients
+# INPUT chain
+# CRITICAL ORDER: established,related,untracked MUST come before drop invalid.
+# RouterOS conntrack can briefly mark valid return packets as invalid under load
+# or after a reset. Accepting established first prevents them being wrongly dropped.
+/ip/firewall/filter add chain=input action=accept connection-state=established,related,untracked comment="HiFastLink Input Established"
+/ip/firewall/filter add chain=input action=drop   connection-state=invalid comment="HiFastLink Input Drop Invalid"
+# Allow DHCP, DNS, hotspot ports from bridge clients
 /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=udp dst-port=53  comment="HiFastLink Input DNS UDP"
 /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=tcp dst-port=53  comment="HiFastLink Input DNS TCP"
 /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=udp dst-port=67  comment="HiFastLink Input DHCP"
+/ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=tcp dst-port=80  comment="HiFastLink Input Hotspot Login"
 /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=tcp dst-port=8080 comment="HiFastLink Input Hotspot HTTP"
 /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=tcp dst-port=2258 comment="HiFastLink Input Hotspot Proxy"
-# INPUT - drop invalid
-/ip/firewall/filter add chain=input action=drop connection-state=invalid comment="HiFastLink Input Drop Invalid"
 :put ">> INPUT rules added"
 
-# FORWARD - drop invalid
-/ip/firewall/filter add chain=forward action=drop connection-state=invalid comment="HiFastLink Forward Drop Invalid"
-# FORWARD - allow return traffic for active sessions
-/ip/firewall/filter add chain=forward action=accept connection-state=established,related comment="HiFastLink Forward Established"
-# FORWARD - allow ONLY hotspot-authenticated clients
-# hotspot=auth is a per-client flag set by the MikroTik hotspot daemon
-# only AFTER successful RADIUS login. Unauthenticated clients never
-# receive this flag so they are still redirected to the login page.
-# DO NOT replace this with in-interface=bridge - that bypasses the portal.
+# FORWARD chain
+# CRITICAL ORDER:
+#   1. established,related,untracked - return traffic for active sessions (MUST be first)
+#   2. drop invalid                  - drop bad packets AFTER accepting valid returns
+#   3. hotspot=auth                  - new outbound traffic from authenticated clients only
+#   4. drop (default)                - block everyone else, enforcing the captive portal
+#
+# Why established before invalid?
+#   Conntrack can mark a legitimate return packet as "invalid" if the session
+#   table is under pressure or was recently reset. If we drop invalid first,
+#   authenticated users lose internet mid-session. Accepting established first
+#   guarantees in-progress sessions are never interrupted.
+/ip/firewall/filter add chain=forward action=accept connection-state=established,related,untracked comment="HiFastLink Forward Established"
+/ip/firewall/filter add chain=forward action=drop   connection-state=invalid comment="HiFastLink Forward Drop Invalid"
 /ip/firewall/filter add chain=forward action=accept hotspot=auth comment="HiFastLink Forward Auth"
-# DEFAULT DROP - without this, RouterOS passes all unmatched traffic (policy=accept)
-# This is what enforces the captive portal. Unauthenticated clients have no
-# hotspot=auth flag, don't match established/related, and are dropped here.
 /ip/firewall/filter add chain=forward action=drop comment="HiFastLink Forward Drop Default"
 :put ">> FORWARD rules added"
 :put ">> Firewall rebuilt - clean state confirmed"
