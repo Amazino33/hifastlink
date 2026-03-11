@@ -289,6 +289,8 @@ class RouterController extends Controller
 # or after a reset. Accepting established first prevents them being wrongly dropped.
 /ip/firewall/filter add chain=input action=accept connection-state=established,related,untracked comment="HiFastLink Input Established"
 /ip/firewall/filter add chain=input action=drop   connection-state=invalid comment="HiFastLink Input Drop Invalid"
+# Allow WireGuard VPN from WAN (needed for RADIUS auth)
+/ip/firewall/filter add chain=input action=accept in-interface-list=WAN protocol=udp dst-port=$WGListenPort comment="HiFastLink Input WireGuard"
 # Allow DHCP, DNS, hotspot ports from bridge clients
 /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=udp dst-port=53  comment="HiFastLink Input DNS UDP"
 /ip/firewall/filter add chain=input action=accept in-interface=$BridgeName protocol=tcp dst-port=53  comment="HiFastLink Input DNS TCP"
@@ -388,9 +390,14 @@ class RouterController extends Controller
 # -------------------------------------------------------
 # STEP 9 - DNS
 # -------------------------------------------------------
-/ip/dns set servers=192.168.88.1 allow-remote-requests=yes
+# IMPORTANT: servers must be public upstream resolvers, NOT the router's own IP.
+# Setting servers=192.168.88.1 (self) causes an infinite DNS loop - the router
+# asks itself, which asks itself, and all DNS queries fail. Clients then cannot
+# resolve login.wifi so the captive portal never appears.
+/ip/dns set servers=8.8.8.8,1.1.1.1 allow-remote-requests=yes
 :local bridgeAddrFull [/ip/address get [find interface=$BridgeName] address]
 :local bridgeIP [:pick $bridgeAddrFull 0 [:find $bridgeAddrFull "/"]]
+# Static entry so login.wifi resolves to this router's bridge IP for the captive portal
 :if ([:len [/ip/dns/static find name=$DNSName dynamic=no]] > 0) do={
     /ip/dns/static set [find name=$DNSName dynamic=no] address=$bridgeIP ttl=1m
 } else={
