@@ -327,14 +327,22 @@ class RouterController extends Controller
 # 2. Safely wipe old configs now that the profile is unlocked
 :do { /ip/hotspot remove [find dynamic=no] } on-error={}
 :do { /ip/hotspot/profile remove [find name!="default" dynamic=no] } on-error={}
-/ip/hotspot/user remove [find dynamic=no name!="default-trial"]
-/ip/hotspot/ip-binding remove [find]
+:do { /ip/hotspot/user remove [find dynamic=no name!="default-trial"] } on-error={}
+:do { /ip/hotspot/ip-binding remove [find] } on-error={}
 
-# 3. Create profile
-/ip/hotspot/profile add name="hifastlink" dns-name=$DNSName use-radius=yes login-by=cookie,http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+# 3. Create or update profile (Fixed)
+:if ([:len [/ip/hotspot/profile find name="hifastlink"]] = 0) do={
+    /ip/hotspot/profile add name="hifastlink" dns-name=$DNSName use-radius=yes login-by=cookie,http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+} else={
+    /ip/hotspot/profile set [find name="hifastlink"] dns-name=$DNSName use-radius=yes login-by=cookie,http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+}
 
-# 4. Create hotspot server on bridge
-/ip/hotspot add name="hifastlink" interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no
+# 4. Create or update hotspot server on bridge (Fixed)
+:if ([:len [/ip/hotspot find name="hifastlink"]] = 0) do={
+    /ip/hotspot add name="hifastlink" interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no
+} else={
+    /ip/hotspot set [find name="hifastlink"] interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no
+}
 
 # 5. Hotspot user profile
 :if ([:len [/ip/hotspot/user/profile find name="default" dynamic=no]] = 0) do={
