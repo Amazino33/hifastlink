@@ -325,7 +325,7 @@ class RouterController extends Controller
 # Wipe all hotspot servers, profiles, users (except dynamic)
 /ip/hotspot        remove [find dynamic=no]
 /ip/hotspot/profile remove [find name!="default" dynamic=no]
-/ip/hotspot/user    remove [find dynamic=no]
+/ip/hotspot/user    remove [find dynamic=no name!="default-trial"]
 /ip/hotspot/ip-binding remove [find]
 
 # Create profile
