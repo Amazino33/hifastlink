@@ -318,23 +318,30 @@ class RouterController extends Controller
 
 # =======================================================
 # STEP 9 - HOTSPOT
-# Wipe all existing hotspot config and rebuild from scratch.
 # =======================================================
 :put ">> Rebuilding hotspot..."
-# Wipe all hotspot servers, profiles, users (except dynamic)
-/ip/hotspot        remove [find dynamic=no]
-/ip/hotspot/profile remove [find name!="default" dynamic=no]
-/ip/hotspot/user    remove [find dynamic=no name!="default-trial"]
+
+# Wipe configs, but explicitly ignore "hifastlink" so we don't trigger "in use" errors
+/ip/hotspot remove [find dynamic=no name!="hifastlink"]
+/ip/hotspot/profile remove [find name!="default" name!="hifastlink" dynamic=no]
+/ip/hotspot/user remove [find dynamic=no name!="default-trial"]
 /ip/hotspot/ip-binding remove [find]
 
-# Create profile
-/ip/hotspot/profile add name="hifastlink" dns-name=$DNSName use-radius=yes login-by=cookie,http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+# Create or Update the Profile
+:if ([:len [/ip/hotspot/profile find name="hifastlink"]] = 0) do={
+    /ip/hotspot/profile add name="hifastlink" dns-name=$DNSName use-radius=yes login-by=cookie,http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+} else={
+    /ip/hotspot/profile set [find name="hifastlink"] dns-name=$DNSName use-radius=yes login-by=cookie,http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+}
 
-# Create hotspot server on bridge
-# Comment flag removed from add method to prevent RouterOS syntax halt
-/ip/hotspot add name="hifastlink" interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no
+# Create or Update the Server
+:if ([:len [/ip/hotspot find name="hifastlink"]] = 0) do={
+    /ip/hotspot add name="hifastlink" interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no
+} else={
+    /ip/hotspot set [find name="hifastlink"] interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no
+}
 
-# Hotspot user profile (RADIUS handles auth but this sets defaults)
+# Hotspot user profile
 :if ([:len [/ip/hotspot/user/profile find name="default" dynamic=no]] = 0) do={
     :do { /ip/hotspot/user/profile add name="default" shared-users=10 } on-error={}
 } else={
