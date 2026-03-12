@@ -383,24 +383,31 @@ class RouterController extends Controller
 :put ">> Configuring system..."
 /system/identity set name=$LocationName
 
-# Wipe ALL schedulers and scripts, then add only ours
-/system/scheduler remove [find]
-/system/script    remove [find dynamic=no]
+# Safely wipe ALL schedulers and scripts without crashing if they are currently executing
+:do { /system/scheduler remove [find] } on-error={}
+:do { /system/script    remove [find dynamic=no] } on-error={}
 
 # Heartbeat scheduler
 :local q "\""
 :local heartbeatURL ("https://" . $DomainName . "/api/routers/heartbeat?identity=" . $LocationName)
-/system/scheduler add name="heartbeat" interval=1m on-event=("/tool/fetch url=" . $q . $heartbeatURL . $q . " mode=https output=none") comment="HiFastLink Heartbeat"
+:do {
+    /system/scheduler add name="heartbeat" interval=1m on-event=("/tool/fetch url=" . $q . $heartbeatURL . $q . " mode=https output=none") comment="HiFastLink Heartbeat"
+} on-error={}
 
 # Stats script - single escaped string literal avoids quote mangling
-/system/script add name="realtime-stats-script" comment="HiFastLink Stats" source=":local identity [/system/identity get name]\n:local apiURL \"https://hifastlink.com/api/routers/speed\"\n:foreach session in=[/ip/hotspot/active find] do={\n:local user [/ip/hotspot/active get \$session user]\n:local bytesIn [/ip/hotspot/active get \$session bytes-in]\n:local bytesOut [/ip/hotspot/active get \$session bytes-out]\n:local fullURL (\$apiURL . \"?identity=\" . \$identity . \"&user=\" . \$user . \"&bytes_in=\" . \$bytesIn . \"&bytes_out=\" . \$bytesOut)\n:do {/tool/fetch url=\$fullURL mode=https output=none} on-error={}}"
-/system/scheduler add name="realtime-stats" interval=10s on-event="/system/script run realtime-stats-script" comment="HiFastLink Stats"
+:do {
+    /system/script add name="realtime-stats-script" comment="HiFastLink Stats" source=":local identity [/system/identity get name]\n:local apiURL \"https://hifastlink.com/api/routers/speed\"\n:foreach session in=[/ip/hotspot/active find] do={\n:local user [/ip/hotspot/active get \$session user]\n:local bytesIn [/ip/hotspot/active get \$session bytes-in]\n:local bytesOut [/ip/hotspot/active get \$session bytes-out]\n:local fullURL (\$apiURL . \"?identity=\" . \$identity . \"&user=\" . \$user . \"&bytes_in=\" . \$bytesIn . \"&bytes_out=\" . \$bytesOut)\n:do {/tool/fetch url=\$fullURL mode=https output=none} on-error={}}"
+} on-error={}
 
-# NTP - wipe all servers then add ours
+:do {
+    /system/scheduler add name="realtime-stats" interval=10s on-event="/system/script run realtime-stats-script" comment="HiFastLink Stats"
+} on-error={}
+
+# NTP - safely wipe all servers then add ours
 /system/ntp/client set enabled=yes
-/system/ntp/client/servers remove [find]
-/system/ntp/client/servers add address=162.159.200.1
-/system/ntp/client/servers add address=162.159.200.123
+:do { /system/ntp/client/servers remove [find] } on-error={}
+:do { /system/ntp/client/servers add address=162.159.200.1 } on-error={}
+:do { /system/ntp/client/servers add address=162.159.200.123 } on-error={}
 
 # Services
 /ip/service set www     disabled=no  port=80
