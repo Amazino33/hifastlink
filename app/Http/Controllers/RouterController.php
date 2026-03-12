@@ -321,27 +321,22 @@ class RouterController extends Controller
 # =======================================================
 :put ">> Rebuilding hotspot..."
 
-# Wipe configs, but explicitly ignore "hifastlink" so we don't trigger "in use" errors
-/ip/hotspot remove [find dynamic=no name!="hifastlink"]
-/ip/hotspot/profile remove [find name!="default" name!="hifastlink" dynamic=no]
+# 1. Detach profile from any active servers so it isn't "in use"
+:do { /ip/hotspot set [find] profile="default" } on-error={}
+
+# 2. Safely wipe old configs now that the profile is unlocked
+:do { /ip/hotspot remove [find dynamic=no] } on-error={}
+:do { /ip/hotspot/profile remove [find name!="default" dynamic=no] } on-error={}
 /ip/hotspot/user remove [find dynamic=no name!="default-trial"]
 /ip/hotspot/ip-binding remove [find]
 
-# Create or Update the Profile
-:if ([:len [/ip/hotspot/profile find name="hifastlink"]] = 0) do={
-    /ip/hotspot/profile add name="hifastlink" dns-name=$DNSName use-radius=yes login-by=cookie,http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
-} else={
-    /ip/hotspot/profile set [find name="hifastlink"] dns-name=$DNSName use-radius=yes login-by=cookie,http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
-}
+# 3. Create profile
+/ip/hotspot/profile add name="hifastlink" dns-name=$DNSName use-radius=yes login-by=cookie,http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
 
-# Create or Update the Server
-:if ([:len [/ip/hotspot find name="hifastlink"]] = 0) do={
-    /ip/hotspot add name="hifastlink" interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no
-} else={
-    /ip/hotspot set [find name="hifastlink"] interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no
-}
+# 4. Create hotspot server on bridge
+/ip/hotspot add name="hifastlink" interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no
 
-# Hotspot user profile
+# 5. Hotspot user profile
 :if ([:len [/ip/hotspot/user/profile find name="default" dynamic=no]] = 0) do={
     :do { /ip/hotspot/user/profile add name="default" shared-users=10 } on-error={}
 } else={
