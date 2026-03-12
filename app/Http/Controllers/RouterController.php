@@ -124,7 +124,7 @@ class RouterController extends Controller
         $wifiSsid         = $router->wifi_ssid ?? 'HiFastLink';
         $wifiPassword     = $router->wifi_password ?? '';
 
-        $esc = fn($v) => str_replace('"', '\\"', $v);
+        $esc = fn($v) => str_replace('"', '\\"', (string) $v);
 
         $template = <<<'RSC'
 # ==================================================
@@ -137,7 +137,7 @@ class RouterController extends Controller
 :global DNSName      "{DNSNAME}"
 :global BridgeName   "{BRIDGE}"
 :global WebsiteIP    "{WEBSITEIP}"
-:global VPNEnabled         true
+:global VPNEnabled        true
 :global WGServerPublicKey  "{WG_SERVER_PUB_KEY}"
 :global WGRouterPrivateKey "{WG_ROUTER_PRIV_KEY}"
 :global WGServerEndpoint   "{WG_SERVER_ENDPOINT}"
@@ -282,13 +282,6 @@ class RouterController extends Controller
 
 # =======================================================
 # STEP 7 - FIREWALL (build fresh after wipe in Step 0)
-#
-# Rule order is critical:
-# INPUT:   established -> drop invalid -> specific accepts
-# FORWARD: established -> drop invalid -> hotspot=auth -> default drop
-#
-# The final "drop" in FORWARD is what enforces the captive
-# portal. Without it RouterOS passes all traffic (policy=accept).
 # =======================================================
 :put ">> Building firewall rules..."
 
@@ -336,10 +329,11 @@ class RouterController extends Controller
 /ip/hotspot/ip-binding remove [find]
 
 # Create profile
-/ip/hotspot/profile add name="hifastlink" dns-name=$DNSName use-radius=yes login-by=cookie,http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m comment="HiFastLink Profile"
+/ip/hotspot/profile add name="hifastlink" dns-name=$DNSName use-radius=yes login-by=cookie,http-chap,http-pap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
 
 # Create hotspot server on bridge
-/ip/hotspot add name="hifastlink" interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no comment="HiFastLink Hotspot"
+# Comment flag removed from add method to prevent RouterOS syntax halt
+/ip/hotspot add name="hifastlink" interface=$BridgeName profile="hifastlink" address-pool="hs-pool" disabled=no
 
 # Hotspot user profile (RADIUS handles auth but this sets defaults)
 :if ([:len [/ip/hotspot/user/profile find name="default" dynamic=no]] = 0) do={
@@ -372,10 +366,6 @@ class RouterController extends Controller
 
 # =======================================================
 # STEP 11 - DNS
-# Use public upstream resolvers. The router acts as a proxy
-# for clients (192.168.88.1 in DHCP is correct - it points
-# clients at the router which then forwards to 8.8.8.8).
-# Do NOT set servers=192.168.88.1 - that is a loop.
 # =======================================================
 :put ">> Configuring DNS..."
 /ip/dns set servers=8.8.8.8,1.1.1.1 allow-remote-requests=yes
@@ -396,10 +386,13 @@ class RouterController extends Controller
 /system/scheduler remove [find]
 /system/script    remove [find dynamic=no]
 
+# Heartbeat scheduler
+:local q "\""
 :local heartbeatURL ("https://" . $DomainName . "/api/routers/heartbeat?identity=" . $LocationName)
-/system/scheduler add name="heartbeat" interval=1m on-event=("/tool/fetch url=\"" . $heartbeatURL . "\" mode=https output=none") comment="HiFastLink Heartbeat"
+/system/scheduler add name="heartbeat" interval=1m on-event=("/tool/fetch url=" . $q . $heartbeatURL . $q . " mode=https output=none") comment="HiFastLink Heartbeat"
 
-/system/script add name="realtime-stats-script" comment="HiFastLink Stats" source=":local identity [/system/identity get name]; :local apiURL \"https://hifastlink.com/api/routers/speed\"; :foreach session in=[/ip/hotspot/active find] do={:local user [/ip/hotspot/active get \$session user]; :local bytesIn [/ip/hotspot/active get \$session bytes-in]; :local bytesOut [/ip/hotspot/active get \$session bytes-out]; :local fullURL (\$apiURL . \"?identity=\" . \$identity . \"&user=\" . \$user . \"&bytes_in=\" . \$bytesIn . \"&bytes_out=\" . \$bytesOut); :do {/tool/fetch url=\$fullURL mode=https output=none} on-error={}}"
+# Stats script - single escaped string literal avoids quote mangling
+/system/script add name="realtime-stats-script" comment="HiFastLink Stats" source=":local identity [/system/identity get name]\n:local apiURL \"https://hifastlink.com/api/routers/speed\"\n:foreach session in=[/ip/hotspot/active find] do={\n:local user [/ip/hotspot/active get \$session user]\n:local bytesIn [/ip/hotspot/active get \$session bytes-in]\n:local bytesOut [/ip/hotspot/active get \$session bytes-out]\n:local fullURL (\$apiURL . \"?identity=\" . \$identity . \"&user=\" . \$user . \"&bytes_in=\" . \$bytesIn . \"&bytes_out=\" . \$bytesOut)\n:do {/tool/fetch url=\$fullURL mode=https output=none} on-error={}}"
 /system/scheduler add name="realtime-stats" interval=10s on-event="/system/script run realtime-stats-script" comment="HiFastLink Stats"
 
 # NTP - wipe all servers then add ours
