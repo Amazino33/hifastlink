@@ -28,7 +28,9 @@
             border: 0;
             background: #2563eb;
             color: white;
-            cursor: pointer
+            cursor: pointer;
+            text-decoration: none; /* Added to remove link underline */
+            display: inline-block; /* Added to respect vertical padding */
         }
     </style>
 </head>
@@ -38,33 +40,33 @@
         <p class="text-sm text-gray-500">You will be redirected back to your dashboard shortly.</p>
 
         @php
+            // 1. Build the Destination (dst) URL parameters
             $dstWithParams = $link_orig;
             $paramsToAdd = [];
-            if (!empty($mac))
-                $paramsToAdd['mac'] = $mac;
-            if (!empty($router))
-                $paramsToAdd['router'] = $router;
+            
+            if (!empty($mac)) $paramsToAdd['mac'] = $mac;
+            if (!empty($router)) $paramsToAdd['router'] = $router;
+            
             if (count($paramsToAdd)) {
                 $dstWithParams .= (strpos($dstWithParams, '?') === false ? '?' : '&') . http_build_query($paramsToAdd);
             }
+
+            // 2. Build the Final Login URL with all former hidden inputs
+            $loginParams = [
+                'username' => $username,
+                'password' => $password,
+                'dst'      => $dstWithParams
+            ];
+            
+            if (!empty($mac)) $loginParams['mac'] = $mac;
+            if (!empty($router)) $loginParams['router'] = $router;
+
+            $finalLoginUrl = $link_login . (strpos($link_login, '?') === false ? '?' : '&') . http_build_query($loginParams);
         @endphp
 
-        <form id="mikrotik-login-form" action="{{ $link_login }}" method="GET">
-            <input type="hidden" name="username" value="{{ $username }}">
-            <input type="hidden" name="password" value="{{ $password }}">
-            <input type="hidden" name="dst" value="{{ $dstWithParams }}">
-
-            @if(!empty($mac))
-                <input type="hidden" name="mac" value="{{ $mac }}">
-            @endif
-            @if(!empty($router))
-                <input type="hidden" name="router" value="{{ $router }}">
-            @endif
-
-            <div style="margin-top:12px">
-                <button type="submit" id="connectBtn" class="btn">Click here if not redirected</button>
-            </div>
-        </form>
+        <div style="margin-top:12px">
+            <a id="connectLink" href="{{ $finalLoginUrl }}" class="btn">Click here if not redirected</a>
+        </div>
     </div>
 
     <script>
@@ -88,12 +90,12 @@
                 console.error('localStorage not available:', e);
             }
 
-            // Automatically submit the form
+            // Automatically redirect using window.location instead of form.submit()
             setTimeout(function () {
                 try {
-                    document.getElementById('mikrotik-login-form').submit();
+                    window.location.href = document.getElementById('connectLink').href;
                 } catch (e) {
-                    console.error('Form auto-submit failed:', e);
+                    console.error('Auto-redirect failed:', e);
                 }
             }, 500);
         })();
