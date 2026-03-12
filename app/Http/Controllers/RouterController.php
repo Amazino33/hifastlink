@@ -303,7 +303,6 @@ class RouterController extends Controller
 /ip/firewall/filter add chain=forward action=accept connection-state=established,related,untracked comment="HiFastLink Fwd: Established"
 /ip/firewall/filter add chain=forward action=drop   connection-state=invalid                       comment="HiFastLink Fwd: Drop Invalid"
 /ip/firewall/filter add chain=forward action=accept hotspot=auth                                   comment="HiFastLink Fwd: Hotspot Auth"
-/ip/firewall/filter add chain=forward action=drop                                                  comment="HiFastLink Fwd: Default Drop"
 
 :put ">> Firewall ready"
 
