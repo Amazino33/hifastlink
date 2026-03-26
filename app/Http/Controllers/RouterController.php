@@ -345,10 +345,10 @@ class RouterController extends Controller
 }
 
 # 5. Hotspot user profile
-:if ([:len [/ip/hotspot/user/profile find name="default" dynamic=no]] = 0) do={
+:if ([:len [/ip/hotspot/user/profile find name="default"]] = 0) do={
     :do { /ip/hotspot/user/profile add name="default" shared-users=10 } on-error={}
 } else={
-    /ip/hotspot/user/profile set [find name="default" dynamic=no] shared-users=10
+    /ip/hotspot/user/profile set [find name="default"] shared-users=10
 }
 :put ">> Hotspot ready"
 
