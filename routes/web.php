@@ -104,8 +104,8 @@ Route::get('/debug-janitor', function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(\App\Http\Middleware\CheckHotspotMac::class)->name('dashboard');
-Route::get('/dashboard/realtime-data', [DashboardController::class, 'getRealtimeData'])->name('dashboard.realtime');
+    Route::get('/dashboard', [\App\Http\Livewire\UserDashboard::class])->middleware(\App\Http\Middleware\CheckHotspotMac::class)->name('dashboard');
+    Route::get('/dashboard/realtime-data', [DashboardController::class, 'getRealtimeData'])->name('dashboard.realtime');
 
     // Custom plan requests for users
     Route::get('/request-custom-plans', \App\Livewire\RequestCustomPlans::class)->name('request-custom-plans');
