@@ -9,37 +9,39 @@ class CheckHotspotMac
 {
     public function handle(Request $request, Closure $next)
     {
-        // 1. Catch the bounce-back from the MikroTik router
-        if ($request->has('mac')) {
+        $mac = $request->query('mac');
+
+        // Safety Catch: Sometimes MikroTik fails to parse variables and outputs literal strings
+        if ($mac === '$(mac)') {
+            $mac = null; 
+        }
+
+        // 1. Catch the bounce-back or initial login from the MikroTik router
+        if (!empty($mac)) {
             // Save the MAC securely to the Laravel session
-            $request->session()->put('hotspot_mac', $request->query('mac'));
+            $request->session()->put('hotspot_mac', $mac);
             
-            // Optional: You can also grab the router identity if needed
             if ($request->has('router')) {
                 $request->session()->put('hotspot_router', $request->query('router'));
             }
 
-            // Strip the query parameters from the URL for a clean user experience
-            return redirect()->url($request->url()); 
+            // FIX: Let the request pass directly to the dashboard. 
+            // Do NOT redirect here, as captive portals will drop the session cookie.
+            return $next($request); 
         }
 
-        // 2. If the session already has the MAC, let the request pass to the dashboard
+        // 2. If the session already has the MAC (e.g., normal Chrome navigation)
         if ($request->session()->has('hotspot_mac')) {
             return $next($request);
         }
 
         // 3. Trigger the Micro-Bounce
-        // If we reach here, Chrome doesn't know the MAC. We must ask the router.
-        
-        // Grab the gateway exactly as you do in your RouterController
+        // If we reach here, the browser doesn't know the MAC. Bounce to the router.
         $gateway = env('MIKROTIK_GATEWAY', 'http://login.wifi');
         $gatewayUrl = rtrim((strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway), '/');
         
-        // Tell the router exactly where to send the user back to (the current URL)
         $returnUrl = urlencode($request->fullUrl());
 
-        // Redirect to the router. Because the user is already authenticated at Layer 2,
-        // the router will skip the login page and instantly serve 'status.html'
         return redirect()->away($gatewayUrl . '/login?dst=' . $returnUrl);
     }
 }
