@@ -9,39 +9,45 @@ class CheckHotspotMac
 {
     public function handle(Request $request, Closure $next)
     {
-        $mac = $request->query('mac');
-
-        // Safety Catch: Sometimes MikroTik fails to parse variables and outputs literal strings
-        if ($mac === '$(mac)') {
-            $mac = null; 
+        // 1. NEVER intercept AJAX/Fetch requests. This causes invisible loops.
+        if ($request->ajax() || $request->wantsJson() || !$request->isMethod('get')) {
+            return $next($request);
         }
 
-        // 1. Catch the bounce-back or initial login from the MikroTik router
-        if (!empty($mac)) {
-            // Save the MAC securely to the Laravel session
+        $mac = $request->query('mac');
+
+        // 2. Catch the return trip from the MikroTik router
+        if (!empty($mac) && $mac !== '$(mac)') {
+            // Save to session and FORCE write it so it isn't lost
             $request->session()->put('hotspot_mac', $mac);
-            
             if ($request->has('router')) {
                 $request->session()->put('hotspot_router', $request->query('router'));
             }
+            session()->save();
 
-            // FIX: Let the request pass directly to the dashboard. 
-            // Do NOT redirect here, as captive portals will drop the session cookie.
-            return $next($request); 
+            // Redirect to the clean URL (strips out the ?mac= string)
+            return redirect($request->url()); 
         }
 
-        // 2. If the session already has the MAC (e.g., normal Chrome navigation)
+        // 3. We have the MAC in session, let them see the dashboard!
         if ($request->session()->has('hotspot_mac')) {
             return $next($request);
         }
 
-        // 3. Trigger the Micro-Bounce
-        // If we reach here, the browser doesn't know the MAC. Bounce to the router.
-        $gateway = env('MIKROTIK_GATEWAY', 'http://login.wifi');
-        $gatewayUrl = rtrim((strpos($gateway, '://') === false ? 'http://' . $gateway : $gateway), '/');
-        
-        $returnUrl = urlencode($request->fullUrl());
+        // 4. THE LOOP BREAKER: If we already bounced them and it failed, stop here.
+        if ($request->query('bounced') == '1') {
+            return $next($request); // Let them through to prevent infinite crashes
+        }
 
-        return redirect()->away($gatewayUrl . '/login?dst=' . $returnUrl);
+        // 5. Trigger the Micro-Bounce
+        $gateway = rtrim(env('MIKROTIK_GATEWAY', 'http://login.wifi'), '/');
+        if (strpos($gateway, '://') === false) {
+            $gateway = 'http://' . $gateway;
+        }
+        
+        // Add ?bounced=1 so we know we already attempted this bounce
+        $returnUrl = urlencode($request->url() . '?bounced=1');
+
+        return redirect()->away($gateway . '/login?dst=' . $returnUrl);
     }
 }
