@@ -9,24 +9,32 @@ class CheckHotspotMac
 {
     public function handle(Request $request, Closure $next)
     {
-        // 1. NEVER intercept AJAX/Fetch requests. This causes invisible loops.
+        // 1. NEVER intercept AJAX/Fetch or non-GET requests. 
         if ($request->ajax() || $request->wantsJson() || !$request->isMethod('get')) {
             return $next($request);
         }
 
         $mac = $request->query('mac');
 
+        // Safety Catch: If MikroTik fails to parse the variable and outputs the literal string
+        if ($mac === '$(mac)') {
+            $mac = null; 
+        }
+
         // 2. Catch the return trip from the MikroTik router
-        if (!empty($mac) && $mac !== '$(mac)') {
+        if (!empty($mac)) {
             // Save to session and FORCE write it so it isn't lost
             $request->session()->put('hotspot_mac', $mac);
+            
             if ($request->has('router')) {
                 $request->session()->put('hotspot_router', $request->query('router'));
             }
+            
             session()->save();
 
-            // Redirect to the clean URL (strips out the ?mac= string)
-            return redirect($request->url()); 
+            // Let the request pass directly to the dashboard. 
+            // DO NOT REDIRECT HERE, or the captive portal will drop the session cookie.
+            return $next($request); 
         }
 
         // 3. We have the MAC in session, let them see the dashboard!
@@ -35,12 +43,14 @@ class CheckHotspotMac
         }
 
         // 4. THE LOOP BREAKER: If we already bounced them and it failed, stop here.
+        // This ensures the page eventually loads even if cookies are strictly blocked.
         if ($request->query('bounced') == '1') {
-            return $next($request); // Let them through to prevent infinite crashes
+            return $next($request);
         }
 
         // 5. Trigger the Micro-Bounce
         $gateway = rtrim(env('MIKROTIK_GATEWAY', 'http://login.wifi'), '/');
+        
         if (strpos($gateway, '://') === false) {
             $gateway = 'http://' . $gateway;
         }
