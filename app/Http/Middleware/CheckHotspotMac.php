@@ -42,6 +42,11 @@ class CheckHotspotMac
             return $next($request);
         }
 
+        // ✅ Only bounce if the user is actually on the hotspot subnet
+        if (!$this->isOnHotspotNetwork($request)) {
+            return $next($request); // External user — let them see the dashboard normally
+        }
+
         // 4. THE LOOP BREAKER: If we already bounced them and it failed, stop here.
         // This ensures the page eventually loads even if cookies are strictly blocked.
         if ($request->query('bounced') == '1') {
@@ -63,5 +68,13 @@ class CheckHotspotMac
         $returnUrl = urlencode($request->url() . '?bounced=1');
 
         return redirect()->away($gateway . '/login?dst=' . $returnUrl);
+    }
+
+    private function isOnHotspotNetwork(Request $request): bool
+    {
+        $ip     = $request->ip();
+        $subnet = env('HOTSPOT_SUBNET', '192.168.88.');   // adjust if your subnet differs
+
+        return str_starts_with($ip, $subnet);
     }
 }
