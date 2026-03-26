@@ -35,9 +35,9 @@
     </style>
 </head>
 <body>
-    <div class="card">
-        <p class="mb-4"><strong class="text-lg font-bold">Logging you in...</strong></p>
-        <p class="text-sm text-gray-500">You will be redirected back to your dashboard shortly.</p>
+    <div @class(['card'])>
+        <p @class(['mb-4'])><strong @class(['text-lg', 'font-bold'])>Logging you in...</strong></p>
+        <p @class(['text-sm', 'text-gray-500'])>You will be redirected back to your dashboard shortly.</p>
 
         @php
             // 1. Build the Destination (dst) URL parameters
@@ -65,7 +65,7 @@
         @endphp
 
         <div style="margin-top:12px">
-            <a id="connectLink" href="{{ $finalLoginUrl }}" class="btn">Click here if not redirected</a>
+            <a id="connectLink" href="{{ $finalLoginUrl }}" @class(['btn'])>Click here if not redirected</a>
         </div>
     </div>
 

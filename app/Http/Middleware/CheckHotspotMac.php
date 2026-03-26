@@ -45,6 +45,10 @@ class CheckHotspotMac
         // 4. THE LOOP BREAKER: If we already bounced them and it failed, stop here.
         // This ensures the page eventually loads even if cookies are strictly blocked.
         if ($request->query('bounced') == '1') {
+            // ✅ Persist so future requests don't bounce again
+            $request->session()->put('hotspot_mac', 'unknown');
+            $request->session()->put('hotspot_connected_at', now()->toISOString());
+            session()->save();
             return $next($request);
         }
 
