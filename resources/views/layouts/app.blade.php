@@ -17,6 +17,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <script src="//code.jivosite.com/widget/Gh75GsLtvF" async></script>
 </head>
 
 <body class="font-sans antialiased">
@@ -168,7 +169,7 @@
                                     <i class="fa-solid fa-phone text-white group-hover:text-white"></i>
                                 </div>
                                 <div>
-                                    <p class="text-gray-300">+234 800 123 4567</p>
+                                    <p class="text-gray-300">+234 701 732 1413</p>
                                     <p class="text-sm text-gray-400">24/7 Support Line</p>
                                 </div>
                             </li>
