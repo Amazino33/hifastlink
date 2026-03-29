@@ -145,7 +145,7 @@ class PlanResource extends Resource
                             ->numeric()
                             ->default(1)
                             ->minValue(1)
-                            ->maxValue(10)
+                            ->maxValue(100)
                             ->helperText('Maximum devices that can connect at once')
                             ->required()
                             ->columnSpan(1),
