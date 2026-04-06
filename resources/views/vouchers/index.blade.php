@@ -52,7 +52,14 @@
                                 <option value="{{ $i }}">{{ $i }} Voucher{{ $i > 1 ? 's' : '' }}</option>
                             @endfor
                         </select>
+                    </div>
 
+                    <button type="submit"
+                        class="bg-primary hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition duration-300">
+                        Generate Now
+                    </button>
+
+                    
                         @if(session('success'))
                             <div class="mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg shadow-sm">
                                 <div class="flex items-center">
@@ -70,12 +77,6 @@
                                 </div>
                             </div>
                         @endif
-                    </div>
-
-                    <button type="submit"
-                        class="bg-primary hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition duration-300">
-                        Generate Now
-                    </button>
                 </form>
             </div>
 
