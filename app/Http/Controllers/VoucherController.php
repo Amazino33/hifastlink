@@ -51,7 +51,7 @@ class VoucherController extends Controller
         $user = $request->user();
 
         // 1. Identify the Limit (Priority: Plan > User Column > Default 10)
-        $maxAllowed = $user->plan->max_devices
+        $maxAllowed = $user->plan->family_limit
                       ?? $user->family_limit
                       ?? 10;
 
