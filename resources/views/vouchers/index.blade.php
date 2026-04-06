@@ -53,12 +53,6 @@
                             @endfor
                         </select>
                     </div>
-
-                    <button type="submit"
-                        class="bg-primary hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition duration-300">
-                        Generate Now
-                    </button>
-
                     
                         @if(session('success'))
                             <div class="mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg shadow-sm">
@@ -77,6 +71,11 @@
                                 </div>
                             </div>
                         @endif
+
+                    <button type="submit"
+                        class="bg-primary hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition duration-300">
+                        Generate Now
+                    </button>
                 </form>
             </div>
 
