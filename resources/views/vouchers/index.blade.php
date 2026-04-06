@@ -5,13 +5,16 @@
         </h2>
 
         @php
-            $totalLimit = auth()->user()->family_limit ?? 10;
+            // 1. Sync Math: Check Plan limit first, fallback to user limit, default to 10
+            $planLimit = auth()->user()->plan->max_devices ?? null;
+            $totalLimit = $planLimit ?? auth()->user()->family_limit ?? 10;
 
-            // Just count total vouchers created by this head
+            // 2. Just count total vouchers created by this head
             $activeVouchers = \App\Models\Voucher::where('created_by', auth()->id())->count();
 
+            // 3. Calculate remaining (Total - 1 Head - Active Vouchers)
             $maxGuestSlots = $totalLimit - 1;
-            $slotsRemaining = $maxGuestSlots - $activeVouchers;
+            $slotsRemaining = max(0, $maxGuestSlots - $activeVouchers);
         @endphp
 
         <div class="flex justify-between items-center mb-6 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -22,7 +25,7 @@
             <div class="text-right">
                 <span class="block text-xs font-bold text-primary uppercase tracking-widest mb-1">Available Slots</span>
                 <div class="flex items-baseline justify-end gap-1">
-                    <span class="text-4xl font-black text-primary">{{ max(0, $slotsRemaining) }}</span>
+                    <span class="text-4xl font-black text-primary">{{ $slotsRemaining }}</span>
                     <span class="text-gray-400 font-bold text-lg">/ {{ $maxGuestSlots }}</span>
                 </div>
             </div>
@@ -48,37 +51,44 @@
                         <label class="block text-sm font-medium text-gray-700">How many vouchers do you need?</label>
                         <select name="quantity"
                             class="mt-1 block w-full rounded-md border-gray-200 shadow-sm focus:border-primary focus:ring-primary">
-                            @for($i = 1; $i <= 10; $i++)
-                                <option value="{{ $i }}">{{ $i }} Voucher{{ $i > 1 ? 's' : '' }}</option>
-                            @endfor
+                            {{-- Smart Dropdown: Only show available slots --}}
+                            @if($slotsRemaining > 0)
+                                @for($i = 1; $i <= $slotsRemaining; $i++)
+                                    <option value="{{ $i }}">{{ $i }} Voucher{{ $i > 1 ? 's' : '' }}</option>
+                                @endfor
+                            @else
+                                <option value="0" disabled selected>No slots available</option>
+                            @endif
                         </select>
                     </div>
                     
+                    {{-- Smart Button: Disables when 0 slots --}}
                     <button type="submit"
-                        class="bg-primary hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition duration-300">
+                        @if($slotsRemaining <= 0) disabled @endif
+                        class="bg-primary hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
                         Generate Now
                     </button>
                 </form>
 
-                <div>
+                <div class="mt-4">
                     @if(session('success'))
-                            <div class="mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg shadow-sm">
-                                <div class="flex items-center">
-                                    <i class="fa-solid fa-check-circle text-green-500 mr-3 text-lg"></i>
-                                    <p class="text-green-800 font-bold">{{ session('success') }}</p>
-                                </div>
+                        <div class="mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg shadow-sm">
+                            <div class="flex items-center">
+                                <i class="fa-solid fa-check-circle text-green-500 mr-3 text-lg"></i>
+                                <p class="text-green-800 font-bold">{{ session('success') }}</p>
                             </div>
-                        @endif
+                        </div>
+                    @endif
 
-                        @if(session('error'))
-                            <div class="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm">
-                                <div class="flex items-center">
-                                    <i class="fa-solid fa-triangle-exclamation text-red-500 mr-3 text-lg"></i>
-                                    <p class="text-red-800 font-bold">{{ session('error') }}</p>
-                                </div>
+                    @if(session('error'))
+                        <div class="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm">
+                            <div class="flex items-center">
+                                <i class="fa-solid fa-triangle-exclamation text-red-500 mr-3 text-lg"></i>
+                                <p class="text-red-800 font-bold">{{ session('error') }}</p>
                             </div>
-                        @endif
-                    </div>
+                        </div>
+                    @endif
+                </div>
             </div>
 
             <div class="bg-white overflow-hidden shadow sm:rounded-lg">
@@ -88,14 +98,10 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code
-                                    </th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status
-                                    </th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usage
-                                    </th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action
-                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usage</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
@@ -105,25 +111,32 @@
                                             {{ $voucher->code }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <span
-                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $voucher->is_used ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800' }}">
-                                                {{ $voucher->is_used ? 'Used' : 'Active' }}
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                Active
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {{ $voucher->used_count }} / {{ $voucher->max_uses }} devices
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm flex gap-3">
                                             <a href="https://wa.me/?text=Your+WiFi+Voucher+Code+is:+{{ $voucher->code }}"
                                                 target="_blank" class="text-green-600 hover:text-green-900">
                                                 <i class="fa-brands fa-whatsapp mr-1"></i> Share
                                             </a>
+                                            
+                                            {{-- Added a quick delete button so they can free up slots --}}
+                                            <form action="{{ route('vouchers.destroy', $voucher->id) }}" method="POST" onsubmit="return confirm('Delete this voucher and free up a slot?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-red-600 hover:text-red-900">
+                                                    <i class="fa-solid fa-trash mr-1"></i> Revoke
+                                                </button>
+                                            </form>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="px-6 py-10 text-center text-gray-500">No vouchers generated
-                                            yet.</td>
+                                        <td colspan="4" class="px-6 py-10 text-center text-gray-500">No vouchers generated yet.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
