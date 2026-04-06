@@ -49,17 +49,20 @@
                     @csrf
                     <div class="flex-1">
                         <label class="block text-sm font-medium text-gray-700">How many vouchers do you need?</label>
-                        <select name="quantity"
-                            class="mt-1 block w-full rounded-md border-gray-200 shadow-sm focus:border-primary focus:ring-primary">
-                            {{-- Smart Dropdown: Only show available slots --}}
-                            @if($slotsRemaining > 0)
-                                @for($i = 1; $i <= $slotsRemaining; $i++)
-                                    <option value="{{ $i }}">{{ $i }} Voucher{{ $i > 1 ? 's' : '' }}</option>
-                                @endfor
-                            @else
-                                <option value="0" disabled selected>No slots available</option>
-                            @endif
-                        </select>
+                        
+                        {{-- Smart Number Input: Caps at available slots --}}
+                        <input type="number" 
+                               name="quantity" 
+                               min="1" 
+                               max="{{ $slotsRemaining }}" 
+                               value="{{ $slotsRemaining > 0 ? 1 : 0 }}"
+                               @if($slotsRemaining <= 0) disabled @endif
+                               class="mt-1 block w-full rounded-md border-gray-200 shadow-sm focus:border-primary focus:ring-primary disabled:bg-gray-100 disabled:text-gray-500"
+                               placeholder="Enter amount..."
+                        >
+                        @if($slotsRemaining > 0)
+                            <p class="text-xs text-gray-500 mt-1">You can generate up to {{ $slotsRemaining }} vouchers.</p>
+                        @endif
                     </div>
                     
                     {{-- Smart Button: Disables when 0 slots --}}
@@ -124,7 +127,6 @@
                                                 <i class="fa-brands fa-whatsapp mr-1"></i> Share
                                             </a>
                                             
-                                            {{-- Added a quick delete button so they can free up slots --}}
                                             <form action="{{ route('vouchers.destroy', $voucher->id) }}" method="POST" onsubmit="return confirm('Delete this voucher and free up a slot?');">
                                                 @csrf
                                                 @method('DELETE')
