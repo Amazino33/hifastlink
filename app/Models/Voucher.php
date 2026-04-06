@@ -86,11 +86,6 @@ class Voucher extends Model
     public static function findValid(string $code): ?self
     {
         return static::where('code', strtoupper(trim($code)))
-            ->where('is_used', false)
-            ->where(function ($q) {
-                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
-            })
-            ->whereColumn('used_count', '<', 'max_uses')
             ->first();
     }
 
@@ -99,19 +94,7 @@ class Voucher extends Model
      */
     public function consume(?int $userId = null): void
     {
-        $this->increment('used_count');
-        $this->refresh();
-
-        $update = [];
-
-        if ($this->used_count >= $this->max_uses) {
-            $update['is_used'] = true;
-            $update['used_by'] = $userId;
-            $update['used_at'] = now();
-        }
-
-        if (!empty($update)) {
-            $this->update($update);
-        }
+        $this->increment('used_count'); // Just tracks how many times they've logged in
+        $this->update(['used_at' => now()]);
     }
 }

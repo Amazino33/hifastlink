@@ -56,12 +56,7 @@ class VoucherController extends Controller
                       ?? 10;
 
         // 2. Count ACTIVE vouchers (not expired, not fully used)
-        $activeVoucherCount = \App\Models\Voucher::where('created_by', $user->id)
-            ->where('is_used', false)
-            ->where(function ($q) {
-                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
-            })
-            ->count();
+        $activeVoucherCount = Voucher::where('created_by', $user->id)->count();
 
         // 3. Calculate remaining guest slots (Total - 1 for Head - Active Vouchers)
         $remainingSlots = $maxAllowed - 1 - $activeVoucherCount;

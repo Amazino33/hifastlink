@@ -5,20 +5,12 @@
         </h2>
 
         @php
-            // Force the limit to check the 'family_limit' column directly
-            // If the column is named 'family_member_limit', change it below
-            $totalLimit = auth()->user()->family_limit ?? 10;
+            $totalLimit = auth()->user()->family_limit ?? 10; 
+            
+            // Just count total vouchers created by this head
+            $activeVouchers = \App\Models\Voucher::where('created_by', auth()->id())->count();
 
-            // Count vouchers that are currently 'out in the wild'
-            $activeVouchers = \App\Models\Voucher::where('created_by', auth()->id())
-                ->where('is_used', false)
-                ->where(function ($q) {
-                    $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
-                })
-                ->count();
-
-            // The family head takes 1 slot. Guests take the rest.
-            $maxGuestSlots = $totalLimit - 1;
+            $maxGuestSlots = $totalLimit - 1; 
             $slotsRemaining = $maxGuestSlots - $activeVouchers;
         @endphp
 

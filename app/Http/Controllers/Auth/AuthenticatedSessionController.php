@@ -106,6 +106,15 @@ class AuthenticatedSessionController extends Controller
         }
 
         $familyHead = $voucher->creator;
+
+        // Check if the Family Head's plan is still active!
+        $subscriptionService = new \App\Services\SubscriptionService();
+        if (!$subscriptionService->canConnectToHotspot($familyHead)) {
+            return back()
+                ->withInput()
+                ->withErrors(['login' => 'The Family Head\'s plan has expired or run out of data.']);
+        }
+        
         $code = strtoupper(trim($code));
 
         // 1. Check/Create the Password entry
