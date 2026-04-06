@@ -5,12 +5,12 @@
         </h2>
 
         @php
-            $totalLimit = auth()->user()->family_limit ?? 10; 
-            
+            $totalLimit = auth()->user()->family_limit ?? 10;
+
             // Just count total vouchers created by this head
             $activeVouchers = \App\Models\Voucher::where('created_by', auth()->id())->count();
 
-            $maxGuestSlots = $totalLimit - 1; 
+            $maxGuestSlots = $totalLimit - 1;
             $slotsRemaining = $maxGuestSlots - $activeVouchers;
         @endphp
 
@@ -52,6 +52,24 @@
                                 <option value="{{ $i }}">{{ $i }} Voucher{{ $i > 1 ? 's' : '' }}</option>
                             @endfor
                         </select>
+
+                        @if(session('success'))
+                            <div class="mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg shadow-sm">
+                                <div class="flex items-center">
+                                    <i class="fa-solid fa-check-circle text-green-500 mr-3 text-lg"></i>
+                                    <p class="text-green-800 font-bold">{{ session('success') }}</p>
+                                </div>
+                            </div>
+                        @endif
+
+                        @if(session('error'))
+                            <div class="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm">
+                                <div class="flex items-center">
+                                    <i class="fa-solid fa-triangle-exclamation text-red-500 mr-3 text-lg"></i>
+                                    <p class="text-red-800 font-bold">{{ session('error') }}</p>
+                                </div>
+                            </div>
+                        @endif
                     </div>
 
                     <button type="submit"
