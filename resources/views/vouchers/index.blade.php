@@ -6,7 +6,7 @@
 
         @php
             // 1. Sync Math: Check Plan limit first, fallback to user limit, default to 10
-            $planLimit = auth()->user()->plan->max_devices ?? null;
+            $planLimit = auth()->user()->plan->family_limit ?? null;
             $totalLimit = $planLimit ?? auth()->user()->family_limit ?? 10;
 
             // 2. Just count total vouchers created by this head
