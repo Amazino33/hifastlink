@@ -161,12 +161,11 @@ class UserResource extends Resource
                             ->maxLength(20)
                             ->columnSpan(1),
                         Select::make('roles')
-                            ->options(\Spatie\Permission\Models\Role::pluck('name', 'name'))
                             ->label('Roles')
                             ->multiple()
                             ->preload()
                             ->searchable()
-                            ->default(fn ($record) => $record ? $record->roles->pluck('name')->toArray() : [])
+                            ->relationship('roles', 'name')
                             ->columnSpan(1),
                     ])->columns(2),
 
