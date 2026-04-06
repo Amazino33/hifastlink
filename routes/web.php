@@ -10,6 +10,8 @@ use App\Http\Controllers\AdminController;
 use App\Models\RadCheck;
 use App\Http\Controllers\StatsController;
 use Illuminate\Support\Facades\Artisan;
+use App\Http\Controllers\VoucherController;
+
 
 Route::get('/', function () {
     return view('welcome');
@@ -29,6 +31,25 @@ Route::get('/help', [PageController::class, 'help'])->name('help');
 Route::get('/faq', [PageController::class, 'faq'])->name('faq');
 Route::get('/installation-guide', [PageController::class, 'installation'])->name('installation');
 Route::get('/network-status', [PageController::class, 'status'])->name('status');
+
+// Voucher check — no auth needed, called from login page JS
+Route::post('/voucher/check-input', [VoucherController::class, 'checkInput'])
+    ->name('voucher.check-input');
+
+// Voucher success page
+Route::get('/voucher/success', [VoucherController::class, 'success'])
+    ->name('voucher.success');
+
+// Voucher generation — must be logged in and be a family head
+Route::middleware('auth')->group(function () {
+    Route::post('/vouchers/generate', [VoucherController::class, 'generate'])
+        ->name('vouchers.generate');
+});
+
+// Voucher index page (admin only)
+Route::get('/vouchers', [VoucherController::class, 'index'])
+    ->middleware('auth')
+    ->name('vouchers.index');
 
 // TEMPORARY DEBUG ROUTE
 Route::get('/debug-router', function () {
