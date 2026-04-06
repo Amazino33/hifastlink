@@ -5,17 +5,34 @@
         </h2>
 
         @php
-            $max = auth()->user()->plan->family_limit ?? 1;
-            $activeCount = $vouchers->where('is_used', false)->count();
-            $left = $max - 1 - $activeCount;
+            // Force the limit to check the 'family_limit' column directly
+            // If the column is named 'family_member_limit', change it below
+            $totalLimit = auth()->user()->family_limit ?? 10;
+
+            // Count vouchers that are currently 'out in the wild'
+            $activeVouchers = \App\Models\Voucher::where('created_by', auth()->id())
+                ->where('is_used', false)
+                ->where(function ($q) {
+                    $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+                })
+                ->count();
+
+            // The family head takes 1 slot. Guests take the rest.
+            $maxGuestSlots = $totalLimit - 1;
+            $slotsRemaining = $maxGuestSlots - $activeVouchers;
         @endphp
 
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-gray-900">Invite Guests</h3>
+        <div class="flex justify-between items-center mb-6 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div>
+                <h3 class="text-xl font-black text-gray-900">Invite Family & Friends</h3>
+                <p class="text-sm text-gray-500">Your plan supports {{ $totalLimit }} total devices.</p>
+            </div>
             <div class="text-right">
-                <span class="block text-xs font-bold text-gray-500 uppercase">Devices Remaining</span>
-                <span class="text-2xl font-black text-primary">{{ max(0, $left) }}</span>
-                <span class="text-gray-400">/ {{ $max - 1 }}</span>
+                <span class="block text-xs font-bold text-primary uppercase tracking-widest mb-1">Available Slots</span>
+                <div class="flex items-baseline justify-end gap-1">
+                    <span class="text-4xl font-black text-primary">{{ max(0, $slotsRemaining) }}</span>
+                    <span class="text-gray-400 font-bold text-lg">/ {{ $maxGuestSlots }}</span>
+                </div>
             </div>
         </div>
     </x-slot>

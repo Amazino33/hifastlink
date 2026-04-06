@@ -47,57 +47,60 @@ class VoucherController extends Controller
      * Family head voucher generation.
      */
     public function generate(Request $request)
-{
-    $user = $request->user();
-    $plan = $user->plan;
+    {
+        $user = $request->user();
 
-    if (!$plan) {
-        return back()->with('error', 'You need an active plan to generate vouchers.');
+        // 1. Identify the Limit (Priority: Plan > User Column > Default 10)
+        $maxAllowed = $user->plan->max_devices
+                      ?? $user->family_limit
+                      ?? 10;
+
+        // 2. Count ACTIVE vouchers (not expired, not fully used)
+        $activeVoucherCount = \App\Models\Voucher::where('created_by', $user->id)
+            ->where('is_used', false)
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->count();
+
+        // 3. Calculate remaining guest slots (Total - 1 for Head - Active Vouchers)
+        $remainingSlots = $maxAllowed - 1 - $activeVoucherCount;
+
+        // 4. Validate the request
+        $quantityRequested = (int) $request->input('quantity', 1);
+
+        if ($remainingSlots <= 0) {
+            return back()->with('error', 'Limit reached! Your plan allows '.($maxAllowed - 1).' guests. Remove old vouchers to add more.');
+        }
+
+        if ($quantityRequested > $remainingSlots) {
+            return back()->with('error', "You only have {$remainingSlots} guest slots left.");
+        }
+
+        // 5. Inherit Plan Details
+        $duration = $user->plan->duration_hours ?? 24;
+
+        // Convert data_limit to MB if it's currently in bytes (common for RADIUS)
+        $rawLimit = $user->plan->data_limit ?? 0;
+        $dataLimitMb = $rawLimit > 1000000 ? (int) ($rawLimit / 1048576) : $rawLimit;
+
+        // 6. Create the Vouchers
+        for ($i = 0; $i < $quantityRequested; $i++) {
+            \App\Models\Voucher::create([
+                'code' => \App\Models\Voucher::generateCode(),
+                'plan_id' => $user->plan_id,
+                'created_by' => $user->id,
+                'router_id' => $user->router_id,
+                'duration_hours' => $duration,
+                'data_limit_mb' => $dataLimitMb,
+                'max_uses' => 1, // 1 device per guest voucher
+                'expires_at' => now()->addHours($duration),
+                'is_used' => false,
+            ]);
+        }
+
+        return back()->with('success', "{$quantityRequested} voucher(s) created. You have ".($remainingSlots - $quantityRequested).' slots remaining.');
     }
-
-    // 1. Get the limit from the plan (e.g., 5 devices)
-    $maxAllowed = $plan->max_devices ?? 1;
-
-    // 2. Count current ACTIVE vouchers created by this user
-    // We only count vouchers that aren't expired and aren't fully used yet
-    $activeVoucherCount = Voucher::where('created_by', $user->id)
-        ->where('is_used', false)
-        ->where(function ($q) {
-            $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
-        })
-        ->count();
-
-    // 3. Calculate remaining slots
-    // We subtract 1 because the Family Head counts as 1 device themselves
-    $remainingSlots = $maxAllowed - 1 - $activeVoucherCount;
-
-    $quantityRequested = (int) $request->input('quantity');
-
-    // 4. Validation: Check if they are overstepping their plan
-    if ($remainingSlots <= 0) {
-        return back()->with('error', "Limit reached! Your plan only allows {$maxAllowed} total devices. Delete old vouchers to make space.");
-    }
-
-    if ($quantityRequested > $remainingSlots) {
-        return back()->with('error', "You can only create {$remainingSlots} more voucher(s) based on your plan limits.");
-    }
-
-    // 5. Proceed to generate if they pass the check
-    for ($i = 0; $i < $quantityRequested; $i++) {
-        Voucher::create([
-            'code'           => Voucher::generateCode(),
-            'plan_id'        => $plan->id,
-            'created_by'     => $user->id,
-            'router_id'      => $user->router_id,
-            'duration_hours' => $plan->duration_hours ?? 24,
-            'data_limit_mb'  => $plan->data_limit_mb, // Inherit from plan
-            'max_uses'       => 1, // Usually 1 device per voucher for guests
-            'expires_at'     => now()->addHours($plan->duration_hours ?? 24),
-        ]);
-    }
-
-    return back()->with('success', "{$quantityRequested} voucher(s) generated successfully.");
-}
 
     /**
      * Simple success page shown when a voucher is used
@@ -106,5 +109,18 @@ class VoucherController extends Controller
     public function success()
     {
         return view('vouchers.success');
+    }
+
+    public function destroy(Voucher $voucher)
+    {
+        abort_unless(auth()->id() === $voucher->created_by, 403);
+
+        // Clean up RADIUS so the code stops working immediately
+        \App\Models\RadCheck::where('username', $voucher->code)->delete();
+        \App\Models\RadReply::where('username', $voucher->code)->delete();
+
+        $voucher->delete();
+
+        return back()->with('success', 'Voucher removed and slot freed.');
     }
 }

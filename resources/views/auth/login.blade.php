@@ -13,17 +13,15 @@
     <div class="text-center mb-4">
         <form method="POST" action="{{ route('router.send_link') }}" class="inline-block">
             @csrf
-            <input type="email" name="email" placeholder="Email for magic link" class="px-3 py-2 rounded-md text-sm" required>
-            <button type="submit" class="ml-2 px-3 py-2 bg-primary text-white rounded-md text-sm">Send login link</button>
+            <input type="email" name="email" placeholder="Email for magic link" class="px-3 py-2 rounded-md text-sm"
+                required>
+            <button type="submit" class="ml-2 px-3 py-2 bg-primary text-white rounded-md text-sm">Send login
+                link</button>
         </form>
     </div>
 
     {{-- x-data added here to manage voucher state across the whole form --}}
-    <form
-        method="POST"
-        action="{{ route('login') }}"
-        class="space-y-6"
-        x-data="{
+    <form method="POST" action="{{ route('login') }}" class="space-y-6" x-data="{
             isVoucher: false,
             checkingInput: false,
             checkTimer: null,
@@ -49,21 +47,25 @@
                 }
             },
             fillPasswordAndSubmit(form) {
-                if (this.isVoucher) {
-                    const loginVal = form.querySelector('#login').value;
-                    form.querySelector('#password').removeAttribute('required');
-                    form.querySelector('#password').value = loginVal;
+                const loginVal = form.querySelector('#login').value.trim();
+                // Do an instant check just in case they clicked faster than the network request
+                const isVoucherFormat = /^VCH-[A-Z0-9]{8}$/i.test(loginVal);
+
+                if (this.isVoucher || isVoucherFormat) {
+                    const passField = form.querySelector('#password');
+                    passField.removeAttribute('required'); // Force remove it before submit
+                    passField.value = loginVal; // Auto-fill the hidden password field
                 }
             }
-        }"
-        @submit="fillPasswordAndSubmit($el)"
-    >
+        }" @submit="fillPasswordAndSubmit($el)">
         @csrf
 
         {{-- Captive portal hidden params --}}
         @if(request()->has('link-login') || request()->has('link-login-only') || request()->has('link-orig') || request()->has('link_login') || request()->has('link_orig'))
-            <input type="hidden" name="link_login" value="{{ request()->get('link-login') ?? request()->get('link-login-only') ?? request()->get('link_login') ?? request()->get('link-orig') ?? request()->get('link_orig') }}">
-            <input type="hidden" name="link_orig" value="{{ request()->get('link-orig') ?? request()->get('link_orig') ?? '' }}">
+            <input type="hidden" name="link_login"
+                value="{{ request()->get('link-login') ?? request()->get('link-login-only') ?? request()->get('link_login') ?? request()->get('link-orig') ?? request()->get('link_orig') }}">
+            <input type="hidden" name="link_orig"
+                value="{{ request()->get('link-orig') ?? request()->get('link_orig') ?? '' }}">
         @endif
         @if(request()->has('mac'))
             <input type="hidden" name="mac" value="{{ request()->get('mac') }}">
@@ -85,25 +87,19 @@
                 Email, Phone, Username or Voucher Code
             </label>
             <div class="relative">
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
+                <div
+                    class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
                     <i class="fa-solid fa-user"></i>
                 </div>
-                <input
-                    id="login"
-                    type="text"
-                    name="login"
-                    value="{{ old('login') }}"
-                    required
-                    autofocus
-                    autocomplete="username"
-                    placeholder="Email, phone, username or VCH-XXXXXXXX"
+                <input id="login" type="text" name="login" value="{{ old('login') }}" required autofocus
+                    autocomplete="username" placeholder="Email, phone, username or VCH-XXXXXXXX"
                     class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('login') border-red-500 ring-4 ring-red-100 @enderror"
-                    @input="onLoginInput($event.target.value)"
-                >
+                    @input="onLoginInput($event.target.value)">
             </div>
 
             {{-- Voucher badge — shows when a voucher code is detected --}}
-            <div x-show="isVoucher" x-transition class="mt-2 flex items-center gap-2 text-green-600 text-sm font-medium">
+            <div x-show="isVoucher" x-transition
+                class="mt-2 flex items-center gap-2 text-green-600 text-sm font-medium">
                 <i class="fa-solid fa-ticket"></i>
                 Voucher code detected — no password needed
             </div>
@@ -117,24 +113,16 @@
                 <i class="fa-solid fa-lock mr-2 text-primary"></i>Pin
             </label>
             <div class="relative">
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary transition-colors duration-300">
+                <div
+                    class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary transition-colors duration-300">
                     <i class="fa-solid fa-key"></i>
                 </div>
-                <input
-                    id="password"
-                    :type="showPassword ? 'text' : 'password'"
-                    name="password"
-                    required
-                    autocomplete="current-password"
-                    placeholder="Enter your PIN"
-                    class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-primary focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('password') border-red-500 ring-4 ring-red-100 @enderror"
-                >
-                <button
-                    type="button"
-                    @click="showPassword = !showPassword"
+                <input id="password" :type="showPassword ? 'text' : 'password'" name="password" :required="!isVoucher"
+                    autocomplete="current-password" placeholder="Enter your PIN"
+                    class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-primary focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('password') border-red-500 ring-4 ring-red-100 @enderror">
+                <button type="button" @click="showPassword = !showPassword"
                     class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none p-1 hover:bg-gray-100 rounded-lg transition-all duration-300"
-                    tabindex="-1"
-                >
+                    tabindex="-1">
                     <i :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'" class="text-lg"></i>
                 </button>
             </div>
@@ -143,30 +131,26 @@
 
         <div class="flex items-center justify-between">
             <label class="flex items-center cursor-pointer group">
-                <input
-                    id="remember_me"
-                    type="checkbox"
-                    name="remember"
-                    class="w-5 h-5 text-blue-600 bg-gray-50 border-2 border-gray-300 rounded focus:ring-4 focus:ring-blue-100 transition-all duration-300 cursor-pointer"
-                >
+                <input id="remember_me" type="checkbox" name="remember"
+                    class="w-5 h-5 text-blue-600 bg-gray-50 border-2 border-gray-300 rounded focus:ring-4 focus:ring-blue-100 transition-all duration-300 cursor-pointer">
                 <span class="ml-3 text-sm text-gray-600 group-hover:text-gray-900 transition-colors duration-300">
                     Remember me
                 </span>
             </label>
 
             @if (Route::has('password.request'))
-                <a href="{{ route('password.request') }}" class="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-all duration-300">
+                <a href="{{ route('password.request') }}"
+                    class="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-all duration-300">
                     Forgot PIN?
                 </a>
             @endif
         </div>
 
-        <button
-            type="submit"
-            class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 group"
-        >
+        <button type="submit"
+            class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 group">
             <span class="flex items-center justify-center">
-                <i class="fa-solid fa-right-to-bracket mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
+                <i
+                    class="fa-solid fa-right-to-bracket mr-2 group-hover:translate-x-1 transition-transform duration-300"></i>
                 <span x-text="isVoucher ? 'Connect' : 'Log in'"></span>
             </span>
         </button>
@@ -181,11 +165,10 @@
         </div>
 
         @if (Route::has('register'))
-            <a
-                href="{{ route('register') }}"
-                class="block w-full text-center bg-white border-2 border-gray-300 hover:border-primary text-gray-700 hover:text-primary font-semibold py-4 rounded-2xl transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg group"
-            >
-                <i class="fa-solid fa-user-plus mr-2 group-hover:scale-110 inline-block transition-transform duration-300"></i>
+            <a href="{{ route('register') }}"
+                class="block w-full text-center bg-white border-2 border-gray-300 hover:border-primary text-gray-700 hover:text-primary font-semibold py-4 rounded-2xl transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg group">
+                <i
+                    class="fa-solid fa-user-plus mr-2 group-hover:scale-110 inline-block transition-transform duration-300"></i>
                 Create Account
             </a>
         @endif
@@ -193,10 +176,10 @@
 
     @if(auth()->check() && (request()->has('link-login') || request()->has('link-login-only') || request()->has('link-orig')))
         <script>
-            (function(){
+            (function () {
                 const linkLogin = `{{ request()->get('link-login') ?? request()->get('link-login-only') ?? request()->get('link-orig') }}`;
                 const mac = `{{ request()->get('mac') ?? '' }}`;
-                const ip  = `{{ request()->get('ip') ?? '' }}`;
+                const ip = `{{ request()->get('ip') ?? '' }}`;
 
                 const notice = document.createElement('div');
                 notice.className = 'fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg';
