@@ -97,6 +97,24 @@
                     @input="onLoginInput($event.target.value)">
             </div>
 
+            @if(session('success'))
+                <div class="mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg shadow-sm">
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-check-circle text-green-500 mr-3 text-lg"></i>
+                        <p class="text-green-800 font-bold">{{ session('success') }}</p>
+                    </div>
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm">
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-triangle-exclamation text-red-500 mr-3 text-lg"></i>
+                        <p class="text-red-800 font-bold">{{ session('error') }}</p>
+                    </div>
+                </div>
+            @endif
+
             {{-- Voucher badge — shows when a voucher code is detected --}}
             <div x-show="isVoucher" x-transition
                 class="mt-2 flex items-center gap-2 text-green-600 text-sm font-medium">
