@@ -26,9 +26,12 @@ class LoginRequest extends FormRequest
      */
     public function rules(): array
     {
+        $login = trim($this->input('login', ''));
+        $isVoucher = (bool) preg_match('/^VCH-[A-Z0-9]{8}$/i', $login);
+
         return [
-            'login' => ['required', 'string'],
-            'password' => ['required', 'string'],
+            'login'    => ['required', 'string'],
+            'password' => $isVoucher ? ['nullable', 'string'] : ['required', 'string'],
         ];
     }
 
