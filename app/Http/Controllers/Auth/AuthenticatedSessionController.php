@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Controllers/Auth/AuthenticatedSessionController.php
-
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -12,12 +10,97 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
-    public function create(): View
+    public function create(): View|Response
     {
+        $linkLogin = request()->get('link-login')
+                  ?? request()->get('link-login-only')
+                  ?? request()->get('link_login')
+                  ?? request()->get('link-orig');
+
+        $mac = request()->get('mac');
+
+        // ── Layer 1: MAC-based auto-reconnect ─────────────────────────
+        // MikroTik always passes the device MAC in the captive portal URL.
+        // If we recognise that MAC and the owner has an active subscription,
+        // bridge them silently — no form, no password prompt.
+        if ($linkLogin && $mac) {
+            $device = \App\Models\Device::where('mac', $mac)
+                ->with('user')
+                ->first();
+
+            if ($device?->user) {
+                $user                = $device->user;
+                $subscriptionService = new \App\Services\SubscriptionService();
+
+                if ($subscriptionService->canConnectToHotspot($user)) {
+                    $rad      = RadCheck::where('username', $user->username)
+                                        ->where('attribute', 'Cleartext-Password')
+                                        ->first();
+                    $password = $rad?->value ?? $user->radius_password;
+
+                    if ($password) {
+                        Auth::login($user, remember: true);
+                        request()->session()->regenerate();
+
+                        try {
+                            \App\Models\Device::upsertFromLogin(
+                                $user,
+                                $mac,
+                                request()->get('router'),
+                                request()->get('ip') ?? request()->ip(),
+                                request()->userAgent()
+                            );
+                        } catch (\Throwable $e) {
+                            Log::warning('Device upsert failed during MAC auto-reconnect: ' . $e->getMessage());
+                        }
+
+                        return response()->view('hotspot.redirect_to_router', [
+                            'username'   => $user->username,
+                            'password'   => $password,
+                            'link_login' => $linkLogin,
+                            'link_orig'  => route('dashboard'),
+                            'mac'        => $mac,
+                            'ip'         => request()->get('ip'),
+                            'router'     => request()->get('router'),
+                        ]);
+                    }
+                }
+            }
+        }
+
+        // ── Layer 2: Active Laravel session ───────────────────────────
+        // Session cookie is still alive but MikroTik hotspot session
+        // dropped (e.g. router reboot). Re-bridge without showing form.
+        if (auth()->check() && $linkLogin) {
+            $user                = auth()->user();
+            $subscriptionService = new \App\Services\SubscriptionService();
+
+            if ($subscriptionService->canConnectToHotspot($user)) {
+                $rad      = RadCheck::where('username', $user->username)
+                                    ->where('attribute', 'Cleartext-Password')
+                                    ->first();
+                $password = $rad?->value ?? $user->radius_password;
+
+                if ($password) {
+                    return response()->view('hotspot.redirect_to_router', [
+                        'username'   => $user->username,
+                        'password'   => $password,
+                        'link_login' => $linkLogin,
+                        'link_orig'  => route('dashboard'),
+                        'mac'        => $mac,
+                        'ip'         => request()->get('ip'),
+                        'router'     => request()->get('router'),
+                    ]);
+                }
+            }
+        }
+
+        // ── Layer 3: Unknown device, no session — show login form ──────
         return view('auth.login');
     }
 
@@ -47,7 +130,7 @@ class AuthenticatedSessionController extends Controller
                     $request->userAgent() ?? null
                 );
             } catch (\Throwable $e) {
-                \Log::warning('Device upsert failed: '.$e->getMessage());
+                Log::warning('Device upsert failed: ' . $e->getMessage());
             }
         }
 
@@ -58,7 +141,7 @@ class AuthenticatedSessionController extends Controller
         if ($request->filled('link_login')) {
             $user = Auth::user();
 
-            $subscriptionService = new \App\Services\SubscriptionService;
+            $subscriptionService = new \App\Services\SubscriptionService();
             if (! $subscriptionService->canConnectToHotspot($user)) {
                 Auth::guard('web')->logout();
                 $request->session()->invalidate();
@@ -68,9 +151,9 @@ class AuthenticatedSessionController extends Controller
             }
 
             $linkLogin = $request->input('link_login');
-            $linkOrig = route('dashboard');
+            $linkOrig  = route('dashboard');
 
-            $rad = RadCheck::where('username', $user->username)->where('attribute', 'Cleartext-Password')->first();
+            $rad      = RadCheck::where('username', $user->username)->where('attribute', 'Cleartext-Password')->first();
             $password = $rad ? $rad->value : ($user->radius_password ?? null);
 
             if (! $password) {
@@ -78,13 +161,13 @@ class AuthenticatedSessionController extends Controller
             }
 
             return response()->view('hotspot.redirect_to_router', [
-                'username' => $user->username,
-                'password' => $password,
+                'username'   => $user->username,
+                'password'   => $password,
                 'link_login' => $linkLogin,
-                'link_orig' => $linkOrig,
-                'mac' => $request->input('mac'),
-                'ip' => $request->input('ip'),
-                'router' => $request->input('router') ?? null,
+                'link_orig'  => $linkOrig,
+                'mac'        => $request->input('mac'),
+                'ip'         => $request->input('ip'),
+                'router'     => $request->input('router') ?? null,
             ]);
         }
 
@@ -107,80 +190,68 @@ class AuthenticatedSessionController extends Controller
 
         $familyHead = $voucher->creator;
 
-        // Check if the Family Head's plan is still active!
         $subscriptionService = new \App\Services\SubscriptionService();
-        if (!$subscriptionService->canConnectToHotspot($familyHead)) {
+        if (! $subscriptionService->canConnectToHotspot($familyHead)) {
             return back()
                 ->withInput()
                 ->withErrors(['login' => 'The Family Head\'s plan has expired or run out of data.']);
         }
-        
+
         $code = strtoupper(trim($code));
 
-        // 1. Check/Create the Password entry
         $existingRad = RadCheck::where('username', $code)
             ->where('attribute', 'Cleartext-Password')
             ->first();
 
         if (! $existingRad) {
-            // Basic Auth
             RadCheck::create([
-                'username' => $code,
+                'username'  => $code,
                 'attribute' => 'Cleartext-Password',
-                'op' => ':=',
-                'value' => $code,
+                'op'        => ':=',
+                'value'     => $code,
             ]);
 
-            // Device Limit
             RadCheck::create([
-                'username' => $code,
+                'username'  => $code,
                 'attribute' => 'Simultaneous-Use',
-                'op' => ':=',
-                'value' => (string) $voucher->max_uses,
+                'op'        => ':=',
+                'value'     => (string) $voucher->max_uses,
             ]);
 
-            // --- TIE TO FAMILY HEAD PLAN LIMITS ---
-            if ($familyHead && $familyHead->plan) {
-                // A. Speed Limit (Rate-Limit)
-                // Assuming your plan has a 'bandwidth' column like '2M/2M'
+            if ($familyHead?->plan) {
                 if ($familyHead->plan->bandwidth) {
                     \App\Models\RadReply::create([
-                        'username' => $code,
+                        'username'  => $code,
                         'attribute' => 'Mikrotik-Rate-Limit',
-                        'op' => ':=',
-                        'value' => $familyHead->plan->bandwidth,
+                        'op'        => ':=',
+                        'value'     => $familyHead->plan->bandwidth,
                     ]);
                 }
 
-                // B. Data Limit (Total-Limit)
-                // Use the voucher's data limit if it has one, otherwise inherit family head's
                 $limitMb = $voucher->data_limit_mb ?? ($familyHead->plan->data_limit ?? null);
                 if ($limitMb) {
-                    $bytes = $limitMb * 1024 * 1024;
                     RadCheck::create([
-                        'username' => $code,
+                        'username'  => $code,
                         'attribute' => 'Mikrotik-Total-Limit',
-                        'op' => ':=',
-                        'value' => (string) $bytes,
+                        'op'        => ':=',
+                        'value'     => (string) ($limitMb * 1024 * 1024),
                     ]);
                 }
             }
         }
 
-        // Mark the voucher as consumed
         $voucher->consume();
 
-        // Captive portal logic...
         $linkLogin = $request->input('link_login');
         if ($linkLogin) {
             return response()->view('hotspot.redirect_to_router', [
-                'username' => $code,
-                'password' => $code,
+                'username'   => $code,
+                'password'   => $code,
                 'link_login' => $linkLogin,
-                'link_orig' => route('home'),
-                'mac' => $request->input('mac'),
-                'ip' => $request->input('ip'),
-                'router' => $request->input('router') ?? null,
+                'link_orig'  => route('home'),
+                'mac'        => $request->input('mac'),
+                'ip'         => $request->input('ip'),
+                'router'     => $request->input('router') ?? null,
             ]);
         }
 
