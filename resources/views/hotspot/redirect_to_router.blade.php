@@ -29,8 +29,11 @@
             background: #2563eb;
             color: white;
             cursor: pointer;
-            text-decoration: none; /* Added to remove link underline */
-            display: inline-block; /* Added to respect vertical padding */
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-secondary {
+            background: #6b7280;
         }
     </style>
 </head>
@@ -40,24 +43,19 @@
         <p @class(['text-sm', 'text-gray-500'])>You will be redirected back to your dashboard shortly.</p>
 
         @php
-            // 1. Build the Destination (dst) URL parameters
             $dstWithParams = $link_orig;
             $paramsToAdd = [];
-            
             if (!empty($mac)) $paramsToAdd['mac'] = $mac;
             if (!empty($router)) $paramsToAdd['router'] = $router;
-            
             if (count($paramsToAdd)) {
                 $dstWithParams .= (strpos($dstWithParams, '?') === false ? '?' : '&') . http_build_query($paramsToAdd);
             }
 
-            // 2. Build the Final Login URL with all former hidden inputs
             $loginParams = [
                 'username' => $username,
                 'password' => $password,
                 'dst'      => $dstWithParams
             ];
-            
             if (!empty($mac)) $loginParams['mac'] = $mac;
             if (!empty($router)) $loginParams['router'] = $router;
 
@@ -67,30 +65,60 @@
         <div style="margin-top:12px">
             <a id="connectLink" href="{{ $finalLoginUrl }}" @class(['btn'])>Click here if not redirected</a>
         </div>
+
+        {{-- Shown only when the loop is detected (injected by JS below) --}}
+        <div id="loop-warning" style="display:none; margin-top:16px;">
+            <p style="color:#dc2626; font-size:0.875rem; margin-bottom:8px;">
+                ⚠️ It looks like your credentials didn't work. Please log in again with the correct voucher.
+            </p>
+            <a id="loginPageLink" href="{{ route('login') }}" @class(['btn', 'btn-secondary'])>
+                Go to login page
+            </a>
+        </div>
     </div>
 
     <script>
         (function () {
-            // Get or create unique device ID for this browser
-            function getDeviceId() {
-                let deviceId = localStorage.getItem('hifastlink_device_id');
+            var MAX_ATTEMPTS = 3;
+            var COUNTER_KEY  = 'hfl_redirect_attempts';
+            var TS_KEY       = 'hfl_redirect_ts';
+            var SESSION_TTL  = 30 * 1000; // 30 s — treat anything older as a fresh attempt
+
+            // ── 1. Loop detection ──────────────────────────────────────────
+            var now      = Date.now();
+            var attempts = 0;
+            var firstTs  = parseInt(sessionStorage.getItem(TS_KEY) || '0', 10);
+
+            // Reset the counter if the last hit was too long ago (user came back later)
+            if (now - firstTs > SESSION_TTL) {
+                sessionStorage.removeItem(COUNTER_KEY);
+                sessionStorage.setItem(TS_KEY, now);
+            }
+
+            attempts = (parseInt(sessionStorage.getItem(COUNTER_KEY) || '0', 10)) + 1;
+            sessionStorage.setItem(COUNTER_KEY, attempts);
+
+            if (attempts >= MAX_ATTEMPTS) {
+                // Loop detected — stop, clear counter, show the warning UI
+                sessionStorage.removeItem(COUNTER_KEY);
+                sessionStorage.removeItem(TS_KEY);
+                document.getElementById('loop-warning').style.display = 'block';
+                return; // <-- bail out entirely; no auto-redirect
+            }
+
+            // ── 2. Normal flow (first or second pass) ─────────────────────
+            try {
+                var deviceId   = localStorage.getItem('hifastlink_device_id');
                 if (!deviceId) {
                     deviceId = 'device_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
                     localStorage.setItem('hifastlink_device_id', deviceId);
                 }
-                return deviceId;
-            }
-
-            // Mark THIS specific device as connected
-            try {
-                const deviceId = getDeviceId();
-                const storageKey = 'hifastlink_connected_{{ Auth::id() ?? "guest" }}_' + deviceId;
+                var storageKey = 'hifastlink_connected_{{ Auth::id() ?? "guest" }}_' + deviceId;
                 localStorage.setItem(storageKey, 'true');
             } catch (e) {
                 console.error('localStorage not available:', e);
             }
 
-            // Automatically redirect using window.location instead of form.submit()
             setTimeout(function () {
                 try {
                     window.location.href = document.getElementById('connectLink').href;
