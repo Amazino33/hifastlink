@@ -24,6 +24,12 @@ class AuthenticatedSessionController extends Controller
 
         $mac = request()->get('mac');
 
+        // Check if we should skip auto-login due to recent voucher failure
+        if (session()->get('skip_auto_login')) {
+            session()->forget('skip_auto_login');
+            return view('auth.login');
+        }
+
         // ── Layer 1: Regular user MAC auto-reconnect ──────────────────────
         if ($linkLogin && $mac) {
             $device = \App\Models\Device::where('mac', $mac)
@@ -146,6 +152,7 @@ class AuthenticatedSessionController extends Controller
         // ── Normal account login flow ─────────────────────────────────
         $request->authenticate();
         $request->session()->regenerate();
+        $request->session()->forget('skip_auto_login');
 
         if ($request->filled('mac')) {
             $mac = $request->input('mac');
@@ -211,8 +218,10 @@ class AuthenticatedSessionController extends Controller
     private function handleVoucherLogin(LoginRequest $request, string $code): RedirectResponse|Response
     {
         $voucher = Voucher::findValid($code);
+        $request->session()->forget('skip_auto_login');
 
         if (! $voucher) {
+            $request->session()->put('skip_auto_login', true);
             return back()
                 ->withInput()
                 ->withErrors(['login' => 'This voucher is invalid, expired, or already used.']);
@@ -222,6 +231,7 @@ class AuthenticatedSessionController extends Controller
 
         $subscriptionService = new \App\Services\SubscriptionService;
         if (! $subscriptionService->canConnectToHotspot($familyHead)) {
+            $request->session()->put('skip_auto_login', true);
             return back()
                 ->withInput()
                 ->withErrors(['login' => 'The Family Head\'s plan has expired or run out of data.']);
@@ -289,6 +299,7 @@ class AuthenticatedSessionController extends Controller
             );
         }
 
+        $request->session()->forget('skip_auto_login');
         return redirect()->route('voucher.success')->with('voucher_code', $code);
     }
 
