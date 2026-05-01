@@ -85,18 +85,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/affiliate/router/analytics', [\App\Http\Controllers\AffiliateController::class, 'routerAnalytics'])
         ->name('affiliate.router.analytics');
+
+    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/routers/{router}/download-config', [RouterController::class, 'downloadConfig'])->name('router.download');
+    Route::get('/unmatched-router-refs', [\App\Http\Controllers\AdminRouterController::class, 'index'])->name('router.unmatched');
+    Route::post('/unmatched-router-refs/assign', [\App\Http\Controllers\AdminRouterController::class, 'assign'])->name('router.assign');
+
 });
 
 // ============================================================
 // ADMIN ROUTES
 // ============================================================
 
-Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
-    Route::get('/routers/{router}/download-config', [RouterController::class, 'downloadConfig'])->name('router.download');
-    Route::get('/unmatched-router-refs', [\App\Http\Controllers\AdminRouterController::class, 'index'])->name('router.unmatched');
-    Route::post('/unmatched-router-refs/assign', [\App\Http\Controllers\AdminRouterController::class, 'assign'])->name('router.assign');
-});
+// Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+//     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+//     Route::get('/routers/{router}/download-config', [RouterController::class, 'downloadConfig'])->name('router.download');
+//     Route::get('/unmatched-router-refs', [\App\Http\Controllers\AdminRouterController::class, 'index'])->name('router.unmatched');
+//     Route::post('/unmatched-router-refs/assign', [\App\Http\Controllers\AdminRouterController::class, 'assign'])->name('router.assign');
+// });
 
 // ============================================================
 // UTILITY / TEMPORARY — remove before production
