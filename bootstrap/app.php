@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Trust the reverse proxy (Nginx) so Laravel sees the correct https:// scheme
+        // on incoming requests, which is required for signed URL verification to work.
+        $middleware->trustProxies(at: '*');
+
         $middleware->validateCsrfTokens(except: [
             'payment/webhook', // OR 'paystack/webhook' - Check your route name
         ]);
