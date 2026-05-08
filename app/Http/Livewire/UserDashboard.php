@@ -70,6 +70,33 @@ class UserDashboard extends Component
                 ]);
             }
         }
+
+        // Auto-connect when arriving from captive portal redirect (MikroTik passes ?mac= in the URL).
+        // Only fires on a fresh redirect — after connect.bridge runs, MikroTik sends the user back
+        // to /dashboard?router=... without ?mac=, so this block is never re-entered on return.
+        if (request()->filled('mac')) {
+            $mac = request()->input('mac');
+            $routerIdentifier = $this->router
+                ?? session('current_router')
+                ?? session('hotspot_router');
+
+            if ($routerIdentifier) {
+                $masterUser = $user->parent_id ? $user->parent : $user;
+
+                $alreadyOnline = RadAcct::where('username', $user->username)
+                    ->where('callingstationid', $mac)
+                    ->whereNull('acctstoptime')
+                    ->exists();
+
+                $hasActivePlan = $masterUser->plan_id
+                    && $masterUser->plan_expiry
+                    && $masterUser->plan_expiry->isFuture();
+
+                if (!$alreadyOnline && $hasActivePlan) {
+                    return redirect()->route('connect.bridge', ['router' => $routerIdentifier]);
+                }
+            }
+        }
     }
 
     public function subscribe(int $planId): void
