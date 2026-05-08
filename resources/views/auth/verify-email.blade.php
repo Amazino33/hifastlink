@@ -24,6 +24,20 @@
         </div>
     </div>
 
+    <!-- Error Message -->
+    @if (session('error'))
+        <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-6 mb-6">
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0">
+                    <i class="fa-solid fa-circle-exclamation text-2xl text-red-600"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="text-red-800 font-medium leading-relaxed">{{ session('error') }}</p>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- Success Message -->
     @if (session('status') == 'verification-link-sent')
         <div class="bg-green-50 border-2 border-green-200 rounded-2xl p-6 mb-6 animate-fade-in">

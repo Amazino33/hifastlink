@@ -16,9 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'payment/webhook', // OR 'paystack/webhook' - Check your route name
         ]);
     })
-    ->withMiddleware(function (Middleware $middleware) {
-        //
-    })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Redirect invalid/expired email verification links to the notice page
+        // instead of showing a bare 403. Most common cause: APP_URL http/https mismatch.
+        $exceptions->render(function (\Illuminate\Routing\Exceptions\InvalidSignatureException $e, \Illuminate\Http\Request $request) {
+            if ($request->routeIs('verification.verify')) {
+                return redirect()->route('verification.notice')
+                    ->with('error', 'This verification link is invalid or has expired. Please request a new one below.');
+            }
+        });
     })->create();

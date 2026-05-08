@@ -47,6 +47,8 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'rollover_available_bytes',
         'rollover_validity_days',
         'router_id',
+        'google_id',
+        'email_verified_at',
     ];
 
     /**

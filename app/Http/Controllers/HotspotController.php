@@ -40,7 +40,7 @@ class HotspotController extends Controller
 
         // Determine if user has an active subscription
         $validSubscription = null;
-        if (class_exists(\App\Models\Subscription::class)) {
+        if (class_exists(\App\Models\Subscription::class) && \Illuminate\Support\Facades\Schema::hasTable('subscriptions')) {
             $validSubscription = \App\Models\Subscription::where('user_id', $user->id)
                 ->where('status', 'ACTIVE')
                 ->where('expires_at', '>', now())
@@ -49,7 +49,9 @@ class HotspotController extends Controller
                 })
                 ->orderBy('expires_at', 'desc')
                 ->first();
-        } else {
+        }
+
+        if (! $validSubscription) {
             $hasExpiry = $user->plan_expiry && $user->plan_expiry->isFuture();
             $dataRemaining = is_null($user->data_limit) ? null : max(0, ($user->data_limit ?? 0) - ($user->data_used ?? 0));
 

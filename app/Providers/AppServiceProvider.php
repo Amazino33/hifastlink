@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,8 +23,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Register admin middleware
-        $router = $this->app['router'];
-        $router->aliasMiddleware('admin', \App\Http\Middleware\AdminMiddleware::class);
+        $this->app->make('router')->aliasMiddleware('admin', \App\Http\Middleware\AdminMiddleware::class);
+
+        // Limit verification email resends to 3 per hour per user (anti-spam)
+        RateLimiter::for('verification-email', function (Request $request) {
+            return Limit::perHour(3)->by($request->user()?->id ?: $request->ip());
+        });
 
         // Observe user plan changes to trigger plan sync to RADIUS tables.
         \App\Models\User::observe(\App\Observers\UserObserver::class);
