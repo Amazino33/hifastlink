@@ -20,8 +20,10 @@ class EditUser extends EditRecord
     protected function afterSave(): void
     {
         $record = $this->record;
-        $roles = $this->form->getState()['roles'] ?? [];
+        $formState = $this->form->getState();
 
-        $record->syncRoles($roles);
+        if (array_key_exists('roles', $formState)) {
+            $record->syncRoles($formState['roles'] ?? []);
+        }
     }
 }
