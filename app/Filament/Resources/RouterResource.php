@@ -214,7 +214,7 @@ class RouterResource extends Resource
                     ->label('Download Config')
                     ->icon('heroicon-m-cloud-arrow-down')
                     ->color('success')
-                    ->url(fn (Router $record) => route('router.download', $record))
+                    ->url(fn (Router $record) => route('admin.router.download', $record))
                     ->openUrlInNewTab(false),
                 EditAction::make(),
                 DeleteAction::make(),
