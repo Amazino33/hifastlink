@@ -332,9 +332,9 @@ class RouterController extends Controller
 
 # 3. Create or update profile (Fixed)
 :if ([:len [/ip/hotspot/profile find name="hifastlink"]] = 0) do={
-    /ip/hotspot/profile add name="hifastlink" dns-name=$DNSName use-radius=yes login-by="cookie,http-chap,http-pap" cookie-timeout=30d nas-port-type="wireless-802.11" radius-accounting=yes radius-interim-update=00:01:00
+    /ip/hotspot/profile add name="hifastlink" dns-name=$DNSName use-radius=yes login-by="cookie,http-chap,http-pap" nas-port-type="wireless-802.11" radius-accounting=yes radius-interim-update=00:01:00
 } else={
-    /ip/hotspot/profile set [find name="hifastlink"] dns-name=$DNSName use-radius=yes login-by="cookie,http-chap,http-pap" cookie-timeout=30d nas-port-type="wireless-802.11" radius-accounting=yes radius-interim-update=00:01:00
+    /ip/hotspot/profile set [find name="hifastlink"] dns-name=$DNSName use-radius=yes login-by="cookie,http-chap,http-pap" nas-port-type="wireless-802.11" radius-accounting=yes radius-interim-update=00:01:00
 }
 
 # 4. Create or update hotspot server on bridge (Fixed)
