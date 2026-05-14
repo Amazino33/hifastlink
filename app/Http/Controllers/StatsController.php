@@ -7,8 +7,9 @@ use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Number;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Number;
 
 class StatsController extends Controller
 {
@@ -66,9 +67,9 @@ class StatsController extends Controller
 
             $activeSubscribers = $activeSubscribersQuery->count();
 
-            // Data consumed today
+            // Data consumed: all active sessions + sessions that ended today
             $dataConsumedBytes = (int) RadAcct::query()
-                ->whereDate('acctstarttime', today())
+                ->where(fn($q) => $q->whereNull('acctstoptime')->orWhereDate('acctstoptime', today()))
                 ->when($router, fn($q) => $this->applyRouterFilter($q, $router))
                 ->sum(DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
 
@@ -80,7 +81,7 @@ class StatsController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Stats API error: ' . $e->getMessage());
+            Log::error('Stats API error: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }

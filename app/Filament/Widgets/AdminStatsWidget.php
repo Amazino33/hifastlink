@@ -68,9 +68,9 @@ class AdminStatsWidget extends Widget
         }
         $activeSubscribers = $activeSubscribersQuery->count();
 
-        // Data consumed today
+        // Data consumed: all active sessions + sessions that ended today
         $dataConsumedBytes = (int) RadAcct::query()
-            ->whereDate('acctstarttime', today())
+            ->where(fn($q) => $q->whereNull('acctstoptime')->orWhereDate('acctstoptime', today()))
             ->when($router, fn($q) => $this->applyRouterFilter($q, $router))
             ->sum(DB::raw('COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)'));
 
