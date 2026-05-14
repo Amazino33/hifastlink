@@ -39,7 +39,7 @@ class StatsController extends Controller
 
             // Today's revenue
             $todayRevenue = (float) Transaction::query()
-                ->where('status', 'completed')
+                ->whereIn('status', ['completed', 'success'])
                 ->whereDate('created_at', today())
                 ->when($router, fn($q) => $q->where('router_id', $router->id))
                 ->sum('amount');

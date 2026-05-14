@@ -42,7 +42,7 @@ class AdminStatsWidget extends Widget
 
         // Today's revenue
         $todayRevenue = (float) Transaction::query()
-            ->where('status', 'completed')
+            ->whereIn('status', ['completed', 'success'])
             ->whereDate('created_at', today())
             ->when($router, fn($q) => $q->where('router_id', $router->id))
             ->sum('amount');
@@ -91,13 +91,13 @@ class AdminStatsWidget extends Widget
         $totalUsers = $totalUsersQuery->count();
 
         $todayTransactions = Transaction::query()
-            ->where('status', 'completed')
+            ->whereIn('status', ['completed', 'success'])
             ->whereDate('created_at', today())
             ->when($router, fn($q) => $q->where('router_id', $router->id))
             ->count();
 
         $monthlyRevenue = (float) Transaction::query()
-            ->where('status', 'completed')
+            ->whereIn('status', ['completed', 'success'])
             ->whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
             ->when($router, fn($q) => $q->where('router_id', $router->id))

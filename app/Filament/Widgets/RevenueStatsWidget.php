@@ -6,7 +6,6 @@ use App\Models\Transaction;
 use App\Models\PendingSubscription;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Facades\DB;
 
 class RevenueStatsWidget extends BaseWidget
 {
@@ -47,7 +46,7 @@ class RevenueStatsWidget extends BaseWidget
         $periodEnd = now()->endOfMonth();
         $userIds = $userIdsForPeriod($periodStart, $periodEnd);
 
-        $revenueThisMonthQuery = Transaction::where('status', 'completed')
+        $revenueThisMonthQuery = Transaction::whereIn('status', ['completed', 'success'])
             ->whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year);
         if ($userIds->isNotEmpty()) {
@@ -63,7 +62,7 @@ class RevenueStatsWidget extends BaseWidget
         $periodEndLast = now()->subMonth()->endOfMonth();
         $userIdsLast = $userIdsForPeriod($periodStartLast, $periodEndLast);
 
-        $revenueLastMonthQuery = Transaction::where('status', 'completed')
+        $revenueLastMonthQuery = Transaction::whereIn('status', ['completed', 'success'])
             ->whereMonth('created_at', now()->subMonth()->month)
             ->whereYear('created_at', now()->subMonth()->year);
         if ($userIdsLast->isNotEmpty()) {
@@ -74,7 +73,7 @@ class RevenueStatsWidget extends BaseWidget
         $revenueLastMonth = $revenueLastMonthQuery->sum('amount');
 
         // All-time revenue
-        $totalRevenueQuery = Transaction::where('status', 'completed');
+        $totalRevenueQuery = Transaction::whereIn('status', ['completed', 'success']);
         if ($router) {
             $allUsernamesQuery = \App\Models\RadAcct::query();
             $allUsernamesQuery->where(function($q) use ($router) {

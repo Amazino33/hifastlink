@@ -16,12 +16,12 @@ class AdminController extends Controller
 
     public function dashboard()
     {
-        $dataBytes = (int) RadAcct::whereDate('acctstarttime', today())
+        $dataBytes = (int) RadAcct::where(fn($q) => $q->whereNull('acctstoptime')->orWhereDate('acctstoptime', today()))
             ->sum(DB::raw('COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)'));
 
         $stats = [
             'online_users'       => RadAcct::whereNull('acctstoptime')->distinct('username')->count('username'),
-            'today_revenue'      => (float) Transaction::where('status', 'completed')->whereDate('created_at', today())->sum('amount'),
+            'today_revenue'      => (float) Transaction::whereIn('status', ['completed', 'success'])->whereDate('created_at', today())->sum('amount'),
             'active_subscribers' => User::whereNotNull('plan_id')->whereNotNull('plan_expiry')->where('plan_expiry', '>', now())->count(),
             'data_consumed'      => Number::fileSize($dataBytes),
         ];

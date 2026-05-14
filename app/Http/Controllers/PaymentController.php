@@ -167,7 +167,7 @@ class PaymentController extends Controller
                 'plan_id' => $plan->id,
                 'amount' => $data['amount'] / 100,
                 'reference' => $data['reference'],
-                'status' => 'success',
+                'status' => 'completed',
                 'gateway' => 'paystack',
                 'paid_at' => now(),
                 'router_id' => $routerId,
@@ -260,7 +260,7 @@ class PaymentController extends Controller
                     'plan_id' => $plan->id,
                     'amount' => $data['amount'] / 100,
                     'reference' => $data['reference'],
-                    'status' => 'success',
+                    'status' => 'completed',
                     'gateway' => 'paystack',
                     'paid_at' => now(),
                 ]);
@@ -270,7 +270,7 @@ class PaymentController extends Controller
                     'plan_id' => $plan->id,
                     'amount' => $data['amount'] / 100,
                     'reference' => $data['reference'],
-                    'status' => 'success',
+                    'status' => 'completed',
                     'gateway' => 'paystack',
                     'paid_at' => now(),
                 ]);
