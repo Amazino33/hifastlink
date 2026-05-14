@@ -76,6 +76,14 @@ class PlanSyncService
                 $remainingBytes += $rolloverBytes;
             }
 
+            // Auto-terminate idle sessions after inactivity (prevents ghost sessions on other routers)
+            RadReply::create([
+                'username'  => $user->username,
+                'attribute' => 'Idle-Timeout',
+                'op'        => ':=',
+                'value'     => (string) (int) env('RADIUS_IDLE_TIMEOUT', 900),
+            ]);
+
             // Speed limits and data limit go into radreply (Mikrotik specific)
             if (! empty($plan->speed_limit)) {
                 RadReply::create([

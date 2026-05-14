@@ -256,7 +256,7 @@ class UserDashboard extends Component
         // Active RADIUS session (acctstoptime NULL - no time restriction)
         $radiusReachable = true;
         try {
-            $devices = Device::where('user_id', $user->id)->get();
+            $devices = Device::where('user_id', $user->id)->latest('last_seen')->paginate(5, ['*'], 'devices_page');
             $activeSession_ = RadAcct::forUser($user->username)
                 ->whereNull('acctstoptime')
                 ->get()
@@ -918,6 +918,46 @@ class UserDashboard extends Component
         if (session('current_device_mac') === $device->mac) session()->forget('current_device_mac');
 
         Notification::make()->title('Device forgotten')->success()->send();
+    }
+
+    public function disconnectDevice(int $deviceId): void
+    {
+        $user = Auth::user();
+        $device = Device::where('id', $deviceId)->where('user_id', $user->id)->first();
+
+        if (! $device) {
+            Notification::make()->title('Device not found')->danger()->send();
+            return;
+        }
+
+        $mac = strtoupper(str_replace(['-', '.'], ':', $device->mac));
+
+        // Close only this device's RADIUS session
+        DB::table('radacct')
+            ->whereRaw('LOWER(username) = ?', [strtolower($user->username)])
+            ->whereRaw("UPPER(REPLACE(REPLACE(callingstationid, '-', ':'), '.', ':')) = ?", [$mac])
+            ->whereNull('acctstoptime')
+            ->update([
+                'acctstoptime'       => now(),
+                'acctterminatecause' => 'User-Request',
+            ]);
+
+        $device->update(['is_connected' => false, 'last_seen' => now()]);
+
+        // Remove the live session from the router via REST API
+        try {
+            $this->disconnectFromMikroTik($user->username);
+        } catch (\Throwable $e) {
+            Log::warning('disconnectDevice: router disconnect failed', ['error' => $e->getMessage()]);
+        }
+
+        // If disconnecting the current device, clear its session markers
+        if (session('current_device_mac') === $device->mac) {
+            session()->forget('current_device_mac');
+            Cookie::queue(Cookie::forget('fastlink_device_token'));
+        }
+
+        Notification::make()->title('Device disconnected')->success()->send();
     }
 
     /**

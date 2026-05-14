@@ -471,62 +471,63 @@
                     @if(isset($devices) && $devices->count())
                         <div class="space-y-3">
                             @foreach($devices as $device)
-                                <div
-                                    class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                                @php
+                                    $macKey = preg_replace('/[^a-f0-9]/', '', strtolower($device->mac));
+                                    $deviceSession = $activeSession_->get($macKey);
+                                    $displayIp = $deviceSession ? $deviceSession->framedipaddress : ($device->ip ?? 'N/A');
+                                    $isThisDevice = session('current_device_mac') === $device->mac;
+                                @endphp
+                                <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
                                     <div class="flex items-center space-x-3">
                                         <div class="flex-shrink-0">
-                                            <span
-                                                class="inline-flex items-center justify-center h-8 w-8 rounded-full {{ $device->is_connected ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700' }}">
+                                            <span class="inline-flex items-center justify-center h-8 w-8 rounded-full {{ $device->is_connected ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700' }}">
                                                 <i class="fa-solid fa-wifi"></i>
                                             </span>
                                         </div>
                                         <div>
                                             <div class="text-sm font-semibold text-gray-800 dark:text-gray-100">
                                                 {{ strtoupper($device->mac) }}
-                                                @if(session('current_device_mac') && session('current_device_mac') === $device->mac)
-                                                    <span class="ml-2 text-xs font-medium text-blue-600">(This
-                                                        browser/device)</span>
+                                                @if($isThisDevice)
+                                                    <span class="ml-2 text-xs font-medium text-blue-600">(This device)</span>
                                                 @endif
                                             </div>
-                                            <div class="text-xs text-gray-500">
-                                                {{ $device->router?->name ?? 'Router: ' . ($device->router_id ?? 'N/A') }} · IP:
-                                                {{ $device->ip ?? 'N/A' }}
-                                                @php
-                                                    $mac = preg_replace('/[^a-f0-9]/', '', strtolower($device->mac));
-                                                    $deviceSession = $activeSession_->get($mac);
-                                                    $displayIp = $deviceSession ? $deviceSession->framedipaddress : ($device->ip ?? 'N/A');
-                                                @endphp
-                                                <div class="text-xs text-gray-500">
-                                                    {{ $device->router?->name ?? 'Router: ' . ($device->router_id ?? 'N/A') }} ·
-                                                    IP: {{ $displayIp }}
-                                                </div>
+                                            <div class="text-xs text-gray-500 mt-0.5">
+                                                {{ $device->router?->name ?? 'Unknown Router' }} &middot; IP: {{ $displayIp }}
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="text-right">
-                                        <div
-                                            class="text-sm font-medium {{ $device->is_connected ? 'text-green-600' : 'text-gray-500' }}">
+                                    <div class="text-right space-y-1">
+                                        <div class="text-sm font-medium {{ $device->is_connected ? 'text-green-600' : 'text-gray-400' }}">
                                             {{ $device->is_connected ? 'Connected' : 'Offline' }}
                                         </div>
-                                        <div class="text-xs text-gray-400 mt-1">
-                                            {{ $device->last_seen ? $device->last_seen->diffForHumans() : '—' }}</div>
-
-                                        <div class="mt-2">
-                                            @if(session('current_device_mac') === $device->mac)
+                                        <div class="text-xs text-gray-400">
+                                            {{ $device->last_seen ? $device->last_seen->diffForHumans() : '—' }}
+                                        </div>
+                                        <div class="flex items-center justify-end gap-2 mt-1">
+                                            @if($device->is_connected)
+                                                <button
+                                                    wire:click="disconnectDevice({{ $device->id }})"
+                                                    wire:confirm="Disconnect this device from the network?"
+                                                    class="text-xs text-red-500 hover:text-red-700 font-medium hover:underline">
+                                                    Disconnect
+                                                </button>
+                                            @endif
+                                            @if($isThisDevice)
                                                 @if(data_get($device->meta, 'browser_token_hash'))
                                                     <button wire:click="forgetDevice({{ $device->id }})"
                                                         class="text-xs text-gray-500 hover:underline">Forget</button>
                                                 @else
                                                     <button wire:click="claimDevice({{ $device->id }})"
-                                                        class="text-xs text-blue-600 hover:underline">Claim this device</button>
+                                                        class="text-xs text-blue-600 hover:underline">Claim</button>
                                                 @endif
-                                            @else
-                                                {{-- Claim link hidden for devices that are not the current browser/device --}}
                                             @endif
                                         </div>
                                     </div>
                                 </div>
                             @endforeach
+                        </div>
+                        <div class="mt-4">
+                            {{ $devices->links() }}
                         </div>
                     @else
                         <div class="text-sm text-gray-500">No devices recorded yet.</div>
