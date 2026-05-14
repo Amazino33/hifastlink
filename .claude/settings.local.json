@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\LENOVO\\\\Herd\\\\fastlink_app\" -Force)",
-      "Bash(Select-Object -First 20)",
-      "WebSearch"
-    ]
-  }
-}
