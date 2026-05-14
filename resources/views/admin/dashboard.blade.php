@@ -14,7 +14,7 @@
 
             @foreach($allRouters as $router)
                 <button class="filter-chip inline-flex items-center px-4 py-2 rounded-full text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 mr-2"
-                        data-router-id="{{ $router->ip_address }}">
+                        data-router-id="{{ $router->id }}">
                     {{ $router->name ?? $router->identity }}
                 </button>
             @endforeach
@@ -86,6 +86,10 @@
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            fetchStats('all', document.querySelector('.filter-chip[data-router-id="all"]'));
+        });
+
         function fetchStats(routerId, btnElement) {
             // 1. Visual Switch (PWA Feel)
             // Reset all buttons to 'inactive' style

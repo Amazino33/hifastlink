@@ -33,110 +33,106 @@ class AdminStatsWidget extends Widget
             }
         }
 
-        // online users
-        $activeSessionsQuery = RadAcct::query()->whereNull('acctstoptime');
+        // Online users
+        $onlineUsers = RadAcct::query()
+            ->whereNull('acctstoptime')
+            ->when($router, fn($q) => $this->applyRouterFilter($q, $router))
+            ->distinct('username')
+            ->count('username');
+
+        // Today's revenue
+        $todayRevenue = (float) Transaction::query()
+            ->where('status', 'completed')
+            ->whereDate('created_at', today())
+            ->when($router, fn($q) => $q->where('router_id', $router->id))
+            ->sum('amount');
+
+        // Active subscribers — scoped by RadAcct sessions so a user is counted
+        // under the router they are actually connected to, not where they paid
+        $activeSubscribersQuery = User::query()
+            ->whereNotNull('plan_id')
+            ->whereNotNull('plan_expiry')
+            ->where('plan_expiry', '>', now());
+
         if ($router) {
-            $activeSessionsQuery->where(function ($q) use ($router) {
-                $q->where('nasipaddress', $router->ip_address);
+            $usernames = RadAcct::query()
+                ->where(fn($q) => $this->applyRouterFilter($q, $router))
+                ->distinct('username')
+                ->pluck('username');
 
-                if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
-                    $q->orWhere('nasidentifier', $router->nas_identifier)
-                      ->orWhere('nasidentifier', $router->identity ?? '');
-                }
-            });
-        }
-        $onlineUsers = $activeSessionsQuery->distinct('username')->count('username');
-
-        // revenue
-        $todayRevenueQuery = Transaction::query()->where('status', 'completed')->whereDate('created_at', today());
-        if ($router) $todayRevenueQuery->where('router_id', $router->id);
-        $todayRevenue = (float) $todayRevenueQuery->sum('amount');
-
-        // active subscribers
-        $activeSubscribersQuery = User::query()->whereNotNull('plan_id')->whereNotNull('plan_expiry')->where('plan_expiry', '>', now());
-        if ($router) {
-            $userIds = Transaction::where('router_id', $router->id)->distinct('user_id')->pluck('user_id');
-            if ($userIds->isNotEmpty()) {
-                $activeSubscribersQuery->whereIn('id', $userIds);
-            } else {
-                $usernames = RadAcct::where(function($q) use ($router){
-                    $q->where('nasipaddress', $router->ip_address);
-
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
-                        $q->orWhere('nasidentifier', $router->nas_identifier)
-                          ->orWhere('nasidentifier', $router->identity ?? '');
-                    }
-                })->distinct('username')->pluck('username');
-
-                if ($usernames->isNotEmpty()) {
-                    $activeSubscribersQuery->whereIn('username', $usernames);
-                } else {
-                    $activeSubscribersQuery->whereRaw('1 = 0');
-                }
-            }
+            $activeSubscribersQuery->when(
+                $usernames->isNotEmpty(),
+                fn($q) => $q->whereIn('username', $usernames),
+                fn($q) => $q->whereRaw('1 = 0')
+            );
         }
         $activeSubscribers = $activeSubscribersQuery->count();
 
-        // data consumed
-        $dataConsumedQuery = RadAcct::whereDate('acctstarttime', today());
-        if ($router) {
-            $dataConsumedQuery->where(function ($q) use ($router) {
-                $q->where('nasipaddress', $router->ip_address);
+        // Data consumed today
+        $dataConsumedBytes = (int) RadAcct::query()
+            ->whereDate('acctstarttime', today())
+            ->when($router, fn($q) => $this->applyRouterFilter($q, $router))
+            ->sum(DB::raw('COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)'));
 
-                if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
-                    $q->orWhere('nasidentifier', $router->nas_identifier)
-                      ->orWhere('nasidentifier', $router->identity ?? '');
-                }
-            });
-        }
-        $dataConsumedBytes = (int) $dataConsumedQuery->sum(DB::raw('COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)'));
-
-        // additional stats
+        // Total users seen on this router (via RadAcct history)
         $totalUsersQuery = User::query();
         if ($router) {
-            // Get users who have had transactions on this router
-            $userIds = Transaction::where('router_id', $router->id)->distinct('user_id')->pluck('user_id');
-            if ($userIds->isNotEmpty()) {
-                $totalUsersQuery->whereIn('id', $userIds);
-            } else {
-                // Fallback: get users who have had RADIUS sessions on this router
-                $usernames = RadAcct::where(function($q) use ($router){
-                    $q->where('nasipaddress', $router->ip_address);
+            $usernames = RadAcct::query()
+                ->where(fn($q) => $this->applyRouterFilter($q, $router))
+                ->distinct('username')
+                ->pluck('username');
 
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('radacct', 'nasidentifier')) {
-                        $q->orWhere('nasidentifier', $router->nas_identifier)
-                          ->orWhere('nasidentifier', $router->identity ?? '');
-                    }
-                })->distinct('username')->pluck('username');
-
-                if ($usernames->isNotEmpty()) {
-                    $totalUsersQuery->whereIn('username', $usernames);
-                } else {
-                    // No users found for this router
-                    $totalUsersQuery->whereRaw('1 = 0');
-                }
-            }
+            $totalUsersQuery->when(
+                $usernames->isNotEmpty(),
+                fn($q) => $q->whereIn('username', $usernames),
+                fn($q) => $q->whereRaw('1 = 0')
+            );
         }
         $totalUsers = $totalUsersQuery->count();
-        $todayTransactions = Transaction::where('status', 'completed')->whereDate('created_at', today())->count();
-        $monthlyRevenue = (float) Transaction::where('status', 'completed')->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->sum('amount');
 
-        $recentSessions = RadAcct::query()->whereDate('acctstarttime', today())
-            ->when($router, fn($q) => $q->where('nasipaddress', $router->ip_address))
+        $todayTransactions = Transaction::query()
+            ->where('status', 'completed')
+            ->whereDate('created_at', today())
+            ->when($router, fn($q) => $q->where('router_id', $router->id))
+            ->count();
+
+        $monthlyRevenue = (float) Transaction::query()
+            ->where('status', 'completed')
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->when($router, fn($q) => $q->where('router_id', $router->id))
+            ->sum('amount');
+
+        $recentSessions = RadAcct::query()
+            ->whereDate('acctstarttime', today())
+            ->when($router, fn($q) => $this->applyRouterFilter($q, $router))
             ->orderBy('acctstarttime', 'desc')
             ->limit(10)
             ->get();
 
         return [
-            'onlineUsers' => $onlineUsers,
-            'todayRevenue' => $todayRevenue,
+            'onlineUsers'       => $onlineUsers,
+            'todayRevenue'      => $todayRevenue,
             'activeSubscribers' => $activeSubscribers,
-            'dataConsumed' => Number::fileSize($dataConsumedBytes),
-            'totalUsers' => $totalUsers,
+            'dataConsumed'      => Number::fileSize($dataConsumedBytes),
+            'totalUsers'        => $totalUsers,
             'todayTransactions' => $todayTransactions,
-            'monthlyRevenue' => $monthlyRevenue,
-            'recentSessions' => $recentSessions,
-            'currentRouter' => $routerParam,
+            'monthlyRevenue'    => $monthlyRevenue,
+            'recentSessions'    => $recentSessions,
+            'currentRouter'     => $routerParam,
         ];
+    }
+
+    private function applyRouterFilter($query, \App\Models\Router $router)
+    {
+        $query->where(function ($q) use ($router) {
+            $q->where('nasipaddress', $router->ip_address);
+            if (Schema::hasColumn('radacct', 'nasidentifier')) {
+                $q->orWhere('nasidentifier', $router->nas_identifier);
+                if (! empty($router->identity)) {
+                    $q->orWhere('nasidentifier', $router->identity);
+                }
+            }
+        });
     }
 }

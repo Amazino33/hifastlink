@@ -465,7 +465,7 @@
                 <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-md">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">Your Devices</h3>
-                        <a href="#" class="text-sm text-gray-500 hover:underline">Manage</a>
+                        <a href="#" class="text-sm text-gray-500 dark:text-gray-400 hover:underline">Manage</a>
                     </div>
 
                     @if(isset($devices) && $devices->count())
@@ -477,10 +477,10 @@
                                     $displayIp = $deviceSession ? $deviceSession->framedipaddress : ($device->ip ?? 'N/A');
                                     $isThisDevice = session('current_device_mac') === $device->mac;
                                 @endphp
-                                <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                                <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-100 dark:border-gray-600">
                                     <div class="flex items-center space-x-3">
                                         <div class="flex-shrink-0">
-                                            <span class="inline-flex items-center justify-center h-8 w-8 rounded-full {{ $device->is_connected ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700' }}">
+                                            <span class="inline-flex items-center justify-center h-8 w-8 rounded-full {{ $device->is_connected ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-400' : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300' }}">
                                                 <i class="fa-solid fa-wifi"></i>
                                             </span>
                                         </div>
@@ -488,19 +488,19 @@
                                             <div class="text-sm font-semibold text-gray-800 dark:text-gray-100">
                                                 {{ strtoupper($device->mac) }}
                                                 @if($isThisDevice)
-                                                    <span class="ml-2 text-xs font-medium text-blue-600">(This device)</span>
+                                                    <span class="ml-2 text-xs font-medium text-blue-600 dark:text-blue-400">(This device)</span>
                                                 @endif
                                             </div>
-                                            <div class="text-xs text-gray-500 mt-0.5">
+                                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                                 {{ $device->router?->name ?? 'Unknown Router' }} &middot; IP: {{ $displayIp }}
                                             </div>
                                         </div>
                                     </div>
                                     <div class="text-right space-y-1">
-                                        <div class="text-sm font-medium {{ $device->is_connected ? 'text-green-600' : 'text-gray-400' }}">
+                                        <div class="text-sm font-medium {{ $device->is_connected ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500' }}">
                                             {{ $device->is_connected ? 'Connected' : 'Offline' }}
                                         </div>
-                                        <div class="text-xs text-gray-400">
+                                        <div class="text-xs text-gray-400 dark:text-gray-500">
                                             {{ $device->last_seen ? $device->last_seen->diffForHumans() : '—' }}
                                         </div>
                                         <div class="flex items-center justify-end gap-2 mt-1">
@@ -508,17 +508,17 @@
                                                 <button
                                                     wire:click="disconnectDevice({{ $device->id }})"
                                                     wire:confirm="Disconnect this device from the network?"
-                                                    class="text-xs text-red-500 hover:text-red-700 font-medium hover:underline">
+                                                    class="text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium hover:underline">
                                                     Disconnect
                                                 </button>
                                             @endif
                                             @if($isThisDevice)
                                                 @if(data_get($device->meta, 'browser_token_hash'))
                                                     <button wire:click="forgetDevice({{ $device->id }})"
-                                                        class="text-xs text-gray-500 hover:underline">Forget</button>
+                                                        class="text-xs text-gray-500 dark:text-gray-400 hover:underline">Forget</button>
                                                 @else
                                                     <button wire:click="claimDevice({{ $device->id }})"
-                                                        class="text-xs text-blue-600 hover:underline">Claim</button>
+                                                        class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Claim</button>
                                                 @endif
                                             @endif
                                         </div>
@@ -530,7 +530,7 @@
                             {{ $devices->links() }}
                         </div>
                     @else
-                        <div class="text-sm text-gray-500">No devices recorded yet.</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">No devices recorded yet.</div>
                     @endif
                 </div>
 
@@ -548,17 +548,17 @@
                             <div
                                 class="bg-gradient-to-br from-blue-600 to-blue-400 rounded-3xl shadow-lg transform hover:-translate-y-2 transition-all duration-300 cursor-pointer group">
                                 <div class="text-center space-y-2 p-1">
-                                    <div class="bg-white py-4 rounded-3xl m-1">
-                                        <div class="text-2xl font-black text-blue-600">{{ $plan->validity_days }}</div>
-                                        <div class="text-gray-400 text-xs font-bold uppercase tracking-wide">Days</div>
-                                        <div class="border-t border-gray-100 pt-2 mt-2">
-                                            <div class="text-xl font-black text-gray-800">{{ $plan->data_limit_human }}
+                                    <div class="bg-white dark:bg-gray-700 py-4 rounded-3xl m-1">
+                                        <div class="text-2xl font-black text-blue-600 dark:text-blue-400">{{ $plan->validity_days }}</div>
+                                        <div class="text-gray-400 dark:text-gray-300 text-xs font-bold uppercase tracking-wide">Days</div>
+                                        <div class="border-t border-gray-100 dark:border-gray-600 pt-2 mt-2">
+                                            <div class="text-xl font-black text-gray-800 dark:text-white">{{ $plan->data_limit_human }}
                                             </div>
-                                            <div class="text-gray-400 text-xs">Data</div>
+                                            <div class="text-gray-400 dark:text-gray-300 text-xs">Data</div>
                                         </div>
-                                        <div class="border-t border-gray-100 pt-2 mt-2">
-                                            <div class="text-sm font-bold text-gray-600 flex items-center justify-center">
-                                                <i class="fa-solid fa-devices text-blue-600 mr-1"></i>
+                                        <div class="border-t border-gray-100 dark:border-gray-600 pt-2 mt-2">
+                                            <div class="text-sm font-bold text-gray-600 dark:text-gray-300 flex items-center justify-center">
+                                                <i class="fa-solid fa-devices text-blue-600 dark:text-blue-400 mr-1"></i>
                                                 {{ $plan->max_devices ?? 1 }}
                                                 {{ ($plan->max_devices ?? 1) == 1 ? 'Device' : 'Devices' }}
                                             </div>
@@ -608,7 +608,7 @@
                                             {{ $txn->plan ? $txn->plan->name : 'Unknown Plan' }}</td>
                                         <td class="py-4 text-gray-600 dark:text-gray-300">₦{{ number_format($txn->amount) }}
                                         </td>
-                                        <td class="py-4 text-xs font-mono text-gray-400">
+                                        <td class="py-4 text-xs font-mono text-gray-400 dark:text-gray-500">
                                             {{ Str::limit($txn->reference, 12) }}</td>
                                         <td class="py-4 text-gray-600 dark:text-gray-300">{{ strtoupper($txn->gateway) }}
                                         </td>
@@ -621,7 +621,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="py-6 text-center text-gray-500">No transactions found yet.
+                                        <td colspan="6" class="py-6 text-center text-gray-500 dark:text-gray-400">No transactions found yet.
                                         </td>
                                     </tr>
                                 @endforelse

@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RadAcct;
+use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Number;
 
 class AdminController extends Controller
 {
@@ -12,27 +16,24 @@ class AdminController extends Controller
 
     public function dashboard()
     {
+        $dataBytes = (int) RadAcct::whereDate('acctstarttime', today())
+            ->sum(DB::raw('COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)'));
+
         $stats = [
-            'total_users' => User::count(),
-            'active_users' => User::where('connection_status', 'active')->count(),
-            'suspended_users' => User::where('connection_status', 'suspended')->count(),
-            'total_revenue' => User::sum('wallet_balance'), // This is just wallet balance, you'll need proper revenue tracking
-            'online_users' => User::where('connection_status', 'active')
-                                 ->where('last_online', '>', now()->subMinutes(5))
-                                 ->count(),
+            'online_users'       => RadAcct::whereNull('acctstoptime')->distinct('username')->count('username'),
+            'today_revenue'      => (float) Transaction::where('status', 'completed')->whereDate('created_at', today())->sum('amount'),
+            'active_subscribers' => User::whereNotNull('plan_id')->whereNotNull('plan_expiry')->where('plan_expiry', '>', now())->count(),
+            'data_consumed'      => Number::fileSize($dataBytes),
         ];
 
-        $recent_sessions = \DB::table('user_sessions')
-                             ->join('users', 'user_sessions.user_id', '=', 'users.id')
-                             ->select('user_sessions.*', 'users.name', 'users.username')
-                             ->orderBy('user_sessions.created_at', 'desc')
-                             ->limit(10)
-                             ->get();
-
-        // Provide available routers for the PWA-style filter bar
-        $allRouters = \App\Models\Router::where('is_active', true)
-            ->orderBy('name')
+        $recent_sessions = DB::table('radacct')
+            ->leftJoin('users', DB::raw('LOWER(radacct.username)'), '=', DB::raw('LOWER(users.username)'))
+            ->select('radacct.username', 'radacct.acctstarttime as created_at', 'users.name')
+            ->orderBy('radacct.acctstarttime', 'desc')
+            ->limit(10)
             ->get();
+
+        $allRouters = \App\Models\Router::where('is_active', true)->orderBy('name')->get();
 
         return view('admin.dashboard', compact('stats', 'recent_sessions', 'allRouters'));
     }
