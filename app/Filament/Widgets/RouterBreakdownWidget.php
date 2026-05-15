@@ -76,13 +76,15 @@ class RouterBreakdownWidget extends Widget
             $onlineByIp, $todayRevenueById, $monthlyRevenueById,
             $usernamesByIp, $activePlanUsernames, $todayTxnById
         ) {
-            $ip        = $router->ip_address;
-            $nasId     = $router->nas_identifier;
+            $ip     = $router->ip_address;
+            $vpnIp  = $router->vpn_ip;
+            $nasId  = $router->nas_identifier;
 
-            $onlineNow = (int) ($onlineByIp->get($ip, 0));
+            $onlineNow = (int) ($onlineByIp->get($ip, 0)) + (int) ($vpnIp ? $onlineByIp->get($vpnIp, 0) : 0);
 
-            // Unique usernames seen on this router (by IP or NAS identifier)
+            // Unique usernames seen on this router (by LAN IP, VPN IP, or NAS identifier)
             $usernames = $usernamesByIp->get($ip, collect())
+                ->merge($vpnIp ? $usernamesByIp->get($vpnIp, collect()) : collect())
                 ->merge($usernamesByIp->get($nasId, collect()))
                 ->unique();
 

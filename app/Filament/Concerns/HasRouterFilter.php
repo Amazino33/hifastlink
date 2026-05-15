@@ -18,8 +18,10 @@ trait HasRouterFilter
 
     protected function applyRouterFilter($query, Router $router): void
     {
-        $query->where(function ($q) use ($router) {
-            $q->where('nasipaddress', $router->ip_address);
+        $ips = array_values(array_filter([$router->ip_address, $router->vpn_ip]));
+
+        $query->where(function ($q) use ($router, $ips) {
+            $q->whereIn('nasipaddress', $ips);
             if (Schema::hasColumn('radacct', 'nasidentifier')) {
                 $q->orWhere('nasidentifier', $router->nas_identifier);
                 if (! empty($router->identity)) {
