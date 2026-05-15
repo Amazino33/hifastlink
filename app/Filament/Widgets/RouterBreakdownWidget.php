@@ -32,7 +32,7 @@ class RouterBreakdownWidget extends Widget
             ->pluck('cnt', 'nasipaddress');
 
         // ── Batch: today's revenue per router_id ──────────────────────────────
-        $todayRevenueById = Transaction::whereIn('status', ['completed', 'success'])
+        $todayRevenueById = Transaction::whereIn('status', ['completed', 'success'])->where('gateway', 'paystack')
             ->whereDate('created_at', $today)
             ->whereNotNull('router_id')
             ->select('router_id', DB::raw('SUM(amount) as total'))
@@ -40,7 +40,7 @@ class RouterBreakdownWidget extends Widget
             ->pluck('total', 'router_id');
 
         // ── Batch: monthly revenue per router_id ──────────────────────────────
-        $monthlyRevenueById = Transaction::whereIn('status', ['completed', 'success'])
+        $monthlyRevenueById = Transaction::whereIn('status', ['completed', 'success'])->where('gateway', 'paystack')
             ->whereMonth('created_at', $month)
             ->whereYear('created_at', $year)
             ->whereNotNull('router_id')
@@ -64,7 +64,7 @@ class RouterBreakdownWidget extends Widget
             ->flip(); // flip for O(1) lookup
 
         // ── Batch: today's transactions count per router ───────────────────────
-        $todayTxnById = Transaction::whereIn('status', ['completed', 'success'])
+        $todayTxnById = Transaction::whereIn('status', ['completed', 'success'])->where('gateway', 'paystack')
             ->whereDate('created_at', $today)
             ->whereNotNull('router_id')
             ->select('router_id', DB::raw('COUNT(*) as cnt'))
