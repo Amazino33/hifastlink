@@ -23,7 +23,7 @@ class RecentSessionsWidget extends Widget
 
         $sessions = RadAcct::query()
             ->leftJoin('users', DB::raw('radacct.username COLLATE utf8mb4_unicode_ci'), '=', 'users.username')
-            ->leftJoin('routers', 'routers.ip_address', '=', 'radacct.nasipaddress')
+            ->leftJoin('routers', DB::raw('routers.ip_address'), '=', DB::raw('radacct.nasipaddress COLLATE utf8mb4_unicode_ci'))
             ->select([
                 'radacct.username',
                 'radacct.nasipaddress',
