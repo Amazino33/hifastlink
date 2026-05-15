@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use App\Models\Plan;
 use App\Models\RadAcct;
@@ -836,15 +835,6 @@ class UserDashboard extends Component
             'paid_at' => now(),
         ]);
 
-        // Resolve router from session
-        $routerId = null;
-        $routerIdentity = session('current_router_id');
-        if ($routerIdentity) {
-            $routerLookup = Schema::hasColumn('routers', 'identity') ? 'identity' : 'nas_identifier';
-            $r = \App\Models\Router::where($routerLookup, $routerIdentity)->orWhere('ip_address', $routerIdentity)->first();
-            $routerId = $r?->id;
-        }
-
         $transaction = \App\Models\Transaction::create([
             'user_id' => $user->id,
             'plan_id' => $newPlan->id,
@@ -853,7 +843,7 @@ class UserDashboard extends Component
             'status' => 'success',
             'gateway' => 'voucher',
             'paid_at' => now(),
-            'router_id' => $routerId,
+            'router_id' => $user->router_id ?? null,
         ]);
 
         \Illuminate\Support\Facades\Log::info("Transaction created successfully for voucher {$voucher->code} with ID: {$transaction->id}");

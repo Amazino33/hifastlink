@@ -13,7 +13,6 @@ use Illuminate\Support\Number;
 use App\Models\RadCheck;
 use App\Models\RadUserGroup;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 
 class PaymentController extends Controller
 {
@@ -121,6 +120,9 @@ class PaymentController extends Controller
             return redirect()->route('dashboard')->with('error', 'Plan not found for this payment.');
         }
 
+        // Resolve router from the user's current connection
+        $routerId = $user->router_id ?? null;
+
         // Check if user has active plan with data left
         $hasActivePlan = $user->plan_expiry && $user->plan_expiry->isFuture();
         $hasDataLeft = $user->data_used < $user->data_limit;
@@ -144,15 +146,6 @@ class PaymentController extends Controller
             ]);
 
             // Record the payment even for queued plans
-            // Resolve router from session (if present)
-            $routerId = null;
-            $routerIdentity = session('current_router_id');
-            if ($routerIdentity) {
-                $routerLookup = Schema::hasColumn('routers', 'identity') ? 'identity' : 'nas_identifier';
-                $r = \App\Models\Router::where($routerLookup, $routerIdentity)->orWhere('ip_address', $routerIdentity)->first();
-                $routerId = $r?->id;
-            }
-
             Payment::create([
                 'user_id' => $user->id,
                 'reference' => $data['reference'],
@@ -251,20 +244,11 @@ class PaymentController extends Controller
                 'reference' => $data['reference'],
                 'amount' => $data['amount'] / 100, // Convert Kobo to Naira
                 'plan_name' => $plan->name,
+                'router_id' => $routerId,
             ]);
 
             // Also create transaction record
             try {
-                \Illuminate\Support\Facades\Log::info("Attempting to create transaction for payment {$data['reference']}", [
-                    'user_id' => $user->id,
-                    'plan_id' => $plan->id,
-                    'amount' => $data['amount'] / 100,
-                    'reference' => $data['reference'],
-                    'status' => 'completed',
-                    'gateway' => 'paystack',
-                    'paid_at' => now(),
-                ]);
-
                 $transaction = \App\Models\Transaction::create([
                     'user_id' => $user->id,
                     'plan_id' => $plan->id,
@@ -273,6 +257,7 @@ class PaymentController extends Controller
                     'status' => 'completed',
                     'gateway' => 'paystack',
                     'paid_at' => now(),
+                    'router_id' => $routerId,
                 ]);
 
                 \Illuminate\Support\Facades\Log::info("Transaction created successfully for payment {$data['reference']} with ID: {$transaction->id}");
