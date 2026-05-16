@@ -749,12 +749,41 @@ class UserDashboard extends Component
         ]);
     // 2. Find Voucher
     $voucher = \App\Models\Voucher::where('code', $this->voucherCode)->first();
-    // 3. Check if Used
-    if ($voucher->is_used) {
-        $this->addError('voucherCode', 'This voucher has already been used.');
+    $user = \Illuminate\Support\Facades\Auth::user();
+
+    // 3. Check limits and per-user uniqueness
+    if ($voucher->used_count >= $voucher->max_uses) {
+        $this->addError('voucherCode', 'This voucher has reached its usage limit.');
         return;
     }
-    $user = \Illuminate\Support\Facades\Auth::user();
+    if (\App\Models\Transaction::where('reference', 'VCH-' . $voucher->code)
+        ->where('user_id', $user->id)
+        ->exists()) {
+        $this->addError('voucherCode', 'You have already redeemed this voucher.');
+        return;
+    }
+
+    // Atomically claim one slot (prevents race conditions)
+    $claimed = DB::transaction(function () use ($voucher, $user) {
+        $fresh = \App\Models\Voucher::lockForUpdate()->find($voucher->id);
+        if ($fresh->used_count >= $fresh->max_uses) {
+            return false;
+        }
+        $newCount = $fresh->used_count + 1;
+        $fresh->update([
+            'used_count' => $newCount,
+            'is_used'    => $newCount >= $fresh->max_uses,
+            'used_by'    => $user->id,
+            'used_at'    => now(),
+        ]);
+        return true;
+    });
+
+    if (! $claimed) {
+        $this->addError('voucherCode', 'This voucher was just used up. Please try another.');
+        return;
+    }
+
     $newPlan = $voucher->plan;
     // 4. THE DECISION: Queue or Activate?
     // SCENARIO A: User has an ACTIVE plan -> Queue It (unless data exhausted)
@@ -816,25 +845,8 @@ class UserDashboard extends Component
         session()->flash('success', $msg);
     }
 
-    // 5. Mark Voucher as Used
-    $voucher->update([
-        'is_used' => true,
-        'used_by' => $user->id,
-        'used_at' => now(),
-    ]);
-
-    // 6. Create Transaction Record
+    // 5. Create Transaction Record
     try {
-        \Illuminate\Support\Facades\Log::info("Attempting to create transaction for voucher {$voucher->code}", [
-            'user_id' => $user->id,
-            'plan_id' => $newPlan->id,
-            'amount' => $newPlan->price,
-            'reference' => 'VCH-' . $voucher->code,
-            'status' => 'success',
-            'gateway' => 'voucher',
-            'paid_at' => now(),
-        ]);
-
         $transaction = \App\Models\Transaction::create([
             'user_id' => $user->id,
             'plan_id' => $newPlan->id,

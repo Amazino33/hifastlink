@@ -14,6 +14,7 @@ use Filament\Actions\EditAction;
 use Filament\Schemas\Schema;
 use UnitEnum;
 use Filament\Facades\Filament;
+use App\Models\Router;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -126,6 +127,27 @@ class PlanResource extends Resource
                             ->columnSpan(1),
                     ])->columns(2),
 
+                Fieldset::make('Availability')
+                    ->schema([
+                        Toggle::make('is_admin_only')
+                            ->label('Admin Only')
+                            ->helperText('Hide this plan from regular users — only visible to admins')
+                            ->inline(false)
+                            ->columnSpan(1),
+                        Select::make('router_id')
+                            ->label('Restrict to Router')
+                            ->options(
+                                Router::where('is_active', true)
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id')
+                                    ->prepend('All Routers (Universal)', '')
+                            )
+                            ->default('')
+                            ->helperText('Leave as "All Routers" to show this plan everywhere')
+                            ->nullable()
+                            ->columnSpan(1),
+                    ])->columns(2),
+
                 Fieldset::make('Family & Access Control')
                     ->schema([
                         Toggle::make('is_family')
@@ -225,6 +247,21 @@ class PlanResource extends Resource
                 TextColumn::make('validity_days')
                     ->label('Validity (Days)')
                     ->sortable(),
+
+                TextColumn::make('router.name')
+                    ->label('Router')
+                    ->placeholder('All Routers')
+                    ->badge()
+                    ->color('gray')
+                    ->sortable(),
+
+                IconColumn::make('is_admin_only')
+                    ->label('Admin Only')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-lock-closed')
+                    ->falseIcon('heroicon-o-globe-alt')
+                    ->trueColor('danger')
+                    ->falseColor('gray'),
 
                 IconColumn::make('is_family')
                     ->label('Family')

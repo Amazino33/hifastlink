@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use App\Models\RadGroupReply;
+use App\Models\Router;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
 
@@ -34,6 +35,7 @@ class Plan extends Model
         'features',
         'router_id',
         'is_custom',
+        'is_admin_only',
         'show_universal_plans',
     ];
 
@@ -49,6 +51,7 @@ class Plan extends Model
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
         'is_custom' => 'boolean',
+        'is_admin_only' => 'boolean',
         'show_universal_plans' => 'boolean',
         'features' => 'array',
     ];
@@ -59,6 +62,11 @@ class Plan extends Model
     public function users()
     {
         return $this->hasMany(User::class);
+    }
+
+    public function router()
+    {
+        return $this->belongsTo(Router::class);
     }
 
     /**
