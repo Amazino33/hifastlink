@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\RadAcct;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\RadReply;
 use App\Models\RadUserGroup;
+use App\Models\Voucher;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\RadiusService;
 use Illuminate\Support\Facades\Artisan;
@@ -160,15 +163,30 @@ class SubscriptionService
         }
 
         // Fallback: use User plan fields
-        $userHasPlan = ($user->plan_expiry && $user->plan_expiry->isFuture()) && (is_null($user->data_limit) || max(0, ($user->data_limit ?? 0) - ($user->data_used ?? 0)) > 0);
-        if ($userHasPlan) return true;
+        $masterUser = $masterId !== $user->id ? \App\Models\User::find($masterId) : $user;
+        $checkUser  = $masterUser ?? $user;
 
-        if ($masterId !== $user->id) {
-            $masterUser = \App\Models\User::find($masterId);
-            if ($masterUser) {
-                $masterHasPlan = ($masterUser->plan_expiry && $masterUser->plan_expiry->isFuture()) && (is_null($masterUser->data_limit) || max(0, ($masterUser->data_limit ?? 0) - ($masterUser->data_used ?? 0)) > 0);
-                if ($masterHasPlan) return true;
-            }
+        if (! ($checkUser->plan_expiry && $checkUser->plan_expiry->isFuture())) {
+            return false;
+        }
+
+        // Unlimited data plan — time check already passed
+        if (is_null($checkUser->data_limit)) {
+            return true;
+        }
+
+        // Add voucher sessions to the stored data_used so the check is accurate
+        $voucherCodes = \App\Models\Voucher::where('created_by', $checkUser->id)->pluck('code');
+        $voucherUsed  = $voucherCodes->isNotEmpty()
+            ? (int) \App\Models\RadAcct::whereIn('username', $voucherCodes)
+                ->where('acctstarttime', '>=', $checkUser->plan_started_at ?? now()->subYears(1))
+                ->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)'))
+            : 0;
+
+        $totalUsed = ($checkUser->data_used ?? 0) + $voucherUsed;
+
+        if (max(0, $checkUser->data_limit - $totalUsed) > 0) {
+            return true;
         }
 
         // Rollover-only does NOT permit connection here

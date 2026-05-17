@@ -534,6 +534,79 @@
                     @endif
                 </div>
 
+                {{-- My Vouchers — only shown to users who have created vouchers --}}
+                @if($myVouchers->isNotEmpty())
+                <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-2xl font-black text-gray-900 dark:text-white">
+                            <i class="fa-solid fa-ticket mr-2 text-blue-500"></i>My Vouchers
+                        </h3>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">
+                            {{ $myVouchers->where('status', 'active')->count() }} active
+                            of {{ $myVouchers->count() }} total
+                        </span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                                    <th class="pb-3 pr-4">Code</th>
+                                    <th class="pb-3 pr-4">Plan</th>
+                                    <th class="pb-3 pr-4">Slots</th>
+                                    <th class="pb-3 pr-4">Online Now</th>
+                                    <th class="pb-3 pr-4">Data Used</th>
+                                    <th class="pb-3 pr-4">Expires</th>
+                                    <th class="pb-3">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                @foreach($myVouchers as $v)
+                                <tr>
+                                    <td class="py-3 pr-4 font-mono font-bold text-gray-800 dark:text-gray-200 text-xs">
+                                        {{ $v['code'] }}
+                                    </td>
+                                    <td class="py-3 pr-4 text-gray-600 dark:text-gray-400">{{ $v['plan'] }}</td>
+                                    <td class="py-3 pr-4 text-gray-600 dark:text-gray-400">
+                                        {{ $v['used'] }}/{{ $v['max'] }}
+                                    </td>
+                                    <td class="py-3 pr-4">
+                                        @if($v['online'] > 0)
+                                            <span class="flex items-center gap-1.5 text-green-600 dark:text-green-400 font-semibold">
+                                                <span class="relative flex h-2 w-2">
+                                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                                </span>
+                                                {{ $v['online'] }}
+                                            </span>
+                                        @else
+                                            <span class="text-gray-400 dark:text-gray-600">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3 pr-4 text-gray-600 dark:text-gray-400">{{ $v['data_used'] }}</td>
+                                    <td class="py-3 pr-4 text-xs text-gray-500 dark:text-gray-400">{{ $v['expires_at'] }}</td>
+                                    <td class="py-3">
+                                        @php
+                                            [$badgeClass, $badgeLabel] = match($v['status']) {
+                                                'active'    => ['bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400', 'Active'],
+                                                'idle'      => ['bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300', 'Idle'],
+                                                'exhausted' => ['bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400', 'Exhausted'],
+                                                'expired'   => ['bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400', 'Expired'],
+                                                default     => ['bg-gray-100 text-gray-600', ucfirst($v['status'])],
+                                            };
+                                        @endphp
+                                        <span class="px-2 py-1 rounded-full text-xs font-semibold {{ $badgeClass }}">
+                                            {{ $badgeLabel }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                @endif
+
                 <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
                     <div class="flex items-center justify-between mb-6">
                         <h3 id="hot-deals" class="text-2xl font-black text-gray-900 dark:text-white">Hot Deals</h3>

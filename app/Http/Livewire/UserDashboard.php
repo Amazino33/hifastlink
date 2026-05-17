@@ -302,8 +302,13 @@ class UserDashboard extends Component
         // Get all family usernames (master + children)
         $familyUsernames = User::where('id', $masterId)->orWhere('parent_id', $masterId)->pluck('username');
 
-        // Sum all historical sessions for the family since the plan started
-        $historyUsage = RadAcct::whereIn('username', $familyUsernames)
+        // Voucher users connect with the voucher code as their RADIUS username — include them
+        $voucherUsernames = \App\Models\Voucher::where('created_by', $masterId)->pluck('code');
+
+        $allUsernames = $familyUsernames->merge($voucherUsernames);
+
+        // Sum all historical sessions for the family + voucher users since the plan started
+        $historyUsage = RadAcct::whereIn('username', $allUsernames)
             ->where('acctstarttime', '>=', $startDate)
             ->sum(DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
 
@@ -651,6 +656,46 @@ class UserDashboard extends Component
             ->latest()
             ->paginate(10);
 
+        // Voucher status panel — only built if this user has created vouchers
+        $myVouchers = collect();
+        $userVouchers = \App\Models\Voucher::where('created_by', $user->id)
+            ->with('plan')
+            ->orderByDesc('created_at')
+            ->get();
+
+        if ($userVouchers->isNotEmpty()) {
+            $codes = $userVouchers->pluck('code');
+
+            $activeSessions = RadAcct::whereIn('username', $codes)
+                ->whereNull('acctstoptime')
+                ->select('username', DB::raw('COUNT(*) as cnt'))
+                ->groupBy('username')
+                ->pluck('cnt', 'username');
+
+            $dataUsed = RadAcct::whereIn('username', $codes)
+                ->select('username', DB::raw('SUM(COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)) as total'))
+                ->groupBy('username')
+                ->pluck('total', 'username');
+
+            $myVouchers = $userVouchers->map(function ($v) use ($activeSessions, $dataUsed) {
+                $online    = (int) ($activeSessions->get($v->code, 0));
+                $bytes     = (int) ($dataUsed->get($v->code, 0));
+                $exhausted = $v->used_count >= $v->max_uses;
+                $expired   = $v->expires_at && $v->expires_at->isPast();
+
+                return [
+                    'code'      => $v->code,
+                    'plan'      => $v->plan?->name ?? '—',
+                    'used'      => $v->used_count,
+                    'max'       => $v->max_uses,
+                    'online'    => $online,
+                    'data_used' => Number::fileSize($bytes),
+                    'expires_at'=> $v->expires_at?->format('M d, Y') ?? 'No expiry',
+                    'status'    => $expired ? 'expired' : ($exhausted ? 'exhausted' : ($online > 0 ? 'active' : 'idle')),
+                ];
+            });
+        }
+
         return view('livewire.user-dashboard', [
             'user' => $user,
             'plans' => $plans,
@@ -680,6 +725,7 @@ class UserDashboard extends Component
             'showDisconnectButton' => $isDeviceOnline,
             'devices' => $devices ?? [],
             'activeSession_' => $activeSession_ ?? collect(),
+            'myVouchers' => $myVouchers,
         ]);
     }
 
