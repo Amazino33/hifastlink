@@ -4,6 +4,21 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Redirecting to Router...</title>
+    @php
+        $dstWithParams = $link_orig;
+        $paramsToAdd = [];
+        if (!empty($mac)) $paramsToAdd['mac'] = $mac;
+        if (!empty($router)) $paramsToAdd['router'] = $router;
+        if (count($paramsToAdd)) {
+            $dstWithParams .= (strpos($dstWithParams, '?') === false ? '?' : '&') . http_build_query($paramsToAdd);
+        }
+        $loginParams = ['username' => $username, 'password' => $password, 'dst' => $dstWithParams];
+        if (!empty($mac)) $loginParams['mac'] = $mac;
+        if (!empty($router)) $loginParams['router'] = $router;
+        $finalLoginUrl = $link_login . (strpos($link_login, '?') === false ? '?' : '&') . http_build_query($loginParams);
+    @endphp
+    {{-- No-JS fallback: iOS/Android captive portal mini-browsers often block or skip JavaScript --}}
+    <meta http-equiv="refresh" content="1;url={{ $finalLoginUrl }}" id="meta-refresh">
     <style>
         body {
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
@@ -41,26 +56,6 @@
     <div @class(['card'])>
         <p @class(['mb-4'])><strong @class(['text-lg', 'font-bold'])>Logging you in...</strong></p>
         <p @class(['text-sm', 'text-gray-500'])>You will be redirected back to your dashboard shortly.</p>
-
-        @php
-            $dstWithParams = $link_orig;
-            $paramsToAdd = [];
-            if (!empty($mac)) $paramsToAdd['mac'] = $mac;
-            if (!empty($router)) $paramsToAdd['router'] = $router;
-            if (count($paramsToAdd)) {
-                $dstWithParams .= (strpos($dstWithParams, '?') === false ? '?' : '&') . http_build_query($paramsToAdd);
-            }
-
-            $loginParams = [
-                'username' => $username,
-                'password' => $password,
-                'dst'      => $dstWithParams
-            ];
-            if (!empty($mac)) $loginParams['mac'] = $mac;
-            if (!empty($router)) $loginParams['router'] = $router;
-
-            $finalLoginUrl = $link_login . (strpos($link_login, '?') === false ? '?' : '&') . http_build_query($loginParams);
-        @endphp
 
         <div style="margin-top:12px">
             <a id="connectLink" href="{{ $finalLoginUrl }}" @class(['btn'])>Click here if not redirected</a>

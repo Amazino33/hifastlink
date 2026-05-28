@@ -7,7 +7,8 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/css/filament-overrides.css',
-                'resources/js/app.js'
+                'resources/js/app.js',
+                'resources/js/guest.js',
             ],
             refresh: true,
         }),

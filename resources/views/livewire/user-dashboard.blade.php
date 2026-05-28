@@ -179,6 +179,41 @@
             </div>
         @endif
 
+        {{-- Low data / expiry warning banners --}}
+        @if($subscriptionStatus === 'active')
+            @if(($dataUsagePercentage ?? 0) >= 90)
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-4 flex items-center gap-3">
+                    <i class="fa-solid fa-circle-exclamation text-red-500 text-xl flex-shrink-0"></i>
+                    <div>
+                        <p class="text-sm font-bold text-red-800 dark:text-red-300">Critical: Data almost exhausted</p>
+                        <p class="text-xs text-red-600 dark:text-red-400">You have used {{ $dataUsagePercentage }}% of your data. Top up now to avoid disconnection.</p>
+                    </div>
+                    <a href="#hot-deals" class="ml-auto text-xs font-bold bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition-colors flex-shrink-0">Top Up</a>
+                </div>
+            @elseif(($dataUsagePercentage ?? 0) >= 70)
+                <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 mb-4 flex items-center gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-yellow-500 text-xl flex-shrink-0"></i>
+                    <div>
+                        <p class="text-sm font-bold text-yellow-800 dark:text-yellow-300">Warning: Data running low</p>
+                        <p class="text-xs text-yellow-600 dark:text-yellow-400">You have used {{ $dataUsagePercentage }}% of your data allowance.</p>
+                    </div>
+                    <a href="#hot-deals" class="ml-auto text-xs font-bold bg-yellow-500 text-white px-3 py-1.5 rounded-lg hover:bg-yellow-600 transition-colors flex-shrink-0">Buy More</a>
+                </div>
+            @endif
+            @if(($subscriptionDays ?? 99) <= 3)
+                <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-4 mb-4 flex items-center gap-3">
+                    <i class="fa-solid fa-clock text-orange-500 text-xl flex-shrink-0"></i>
+                    <div>
+                        <p class="text-sm font-bold text-orange-800 dark:text-orange-300">
+                            Plan expiring {{ ($subscriptionDays ?? 0) === 0 ? 'today' : 'in ' . ($subscriptionDays ?? 0) . ' ' . (($subscriptionDays ?? 0) === 1 ? 'day' : 'days') }}
+                        </p>
+                        <p class="text-xs text-orange-600 dark:text-orange-400">Renew before {{ $validUntil }} to avoid losing connectivity.</p>
+                    </div>
+                    <a href="#hot-deals" class="ml-auto text-xs font-bold bg-orange-500 text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-colors flex-shrink-0">Renew</a>
+                </div>
+            @endif
+        @endif
+
         <div class="grid lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-6">
                 <div
@@ -462,10 +497,10 @@
                     </div>
                 </div>
 
-                <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-md">
+                <div id="devices" class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-md">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">Your Devices</h3>
-                        <a href="#" class="text-sm text-gray-500 dark:text-gray-400 hover:underline">Manage</a>
+                        <a href="#devices" class="text-sm text-gray-500 dark:text-gray-400 hover:underline">Manage</a>
                     </div>
 
                     @if(isset($devices) && $devices->count())
@@ -542,67 +577,75 @@
                             <i class="fa-solid fa-ticket mr-2 text-blue-500"></i>My Vouchers
                         </h3>
                         <span class="text-sm text-gray-500 dark:text-gray-400">
-                            {{ $myVouchers->where('status', 'active')->count() }} active
-                            of {{ $myVouchers->count() }} total
+                            {{ $myVouchers->total() }} voucher{{ $myVouchers->total() !== 1 ? 's' : '' }} total
                         </span>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
-                                    <th class="pb-3 pr-4">Code</th>
-                                    <th class="pb-3 pr-4">Plan</th>
-                                    <th class="pb-3 pr-4">Slots</th>
-                                    <th class="pb-3 pr-4">Online Now</th>
-                                    <th class="pb-3 pr-4">Data Used</th>
-                                    <th class="pb-3 pr-4">Expires</th>
-                                    <th class="pb-3">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                                @foreach($myVouchers as $v)
-                                <tr>
-                                    <td class="py-3 pr-4 font-mono font-bold text-gray-800 dark:text-gray-200 text-xs">
-                                        {{ $v['code'] }}
-                                    </td>
-                                    <td class="py-3 pr-4 text-gray-600 dark:text-gray-400">{{ $v['plan'] }}</td>
-                                    <td class="py-3 pr-4 text-gray-600 dark:text-gray-400">
-                                        {{ $v['used'] }}/{{ $v['max'] }}
-                                    </td>
-                                    <td class="py-3 pr-4">
-                                        @if($v['online'] > 0)
-                                            <span class="flex items-center gap-1.5 text-green-600 dark:text-green-400 font-semibold">
-                                                <span class="relative flex h-2 w-2">
-                                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                                                </span>
-                                                {{ $v['online'] }}
-                                            </span>
-                                        @else
-                                            <span class="text-gray-400 dark:text-gray-600">—</span>
-                                        @endif
-                                    </td>
-                                    <td class="py-3 pr-4 text-gray-600 dark:text-gray-400">{{ $v['data_used'] }}</td>
-                                    <td class="py-3 pr-4 text-xs text-gray-500 dark:text-gray-400">{{ $v['expires_at'] }}</td>
-                                    <td class="py-3">
-                                        @php
-                                            [$badgeClass, $badgeLabel] = match($v['status']) {
-                                                'active'    => ['bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400', 'Active'],
-                                                'idle'      => ['bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300', 'Idle'],
-                                                'exhausted' => ['bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400', 'Exhausted'],
-                                                'expired'   => ['bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400', 'Expired'],
-                                                default     => ['bg-gray-100 text-gray-600', ucfirst($v['status'])],
-                                            };
-                                        @endphp
-                                        <span class="px-2 py-1 rounded-full text-xs font-semibold {{ $badgeClass }}">
-                                            {{ $badgeLabel }}
+                    <div class="space-y-4">
+                        @foreach($myVouchers as $v)
+                        @php
+                            [$badgeClass, $badgeLabel] = match($v['status']) {
+                                'active'    => ['bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400', 'Active'],
+                                'idle'      => ['bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300', 'Idle'],
+                                'exhausted' => ['bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400', 'Exhausted'],
+                                'expired'   => ['bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400', 'Expired'],
+                                default     => ['bg-gray-100 text-gray-600', ucfirst($v['status'])],
+                            };
+                        @endphp
+                        <div class="border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden">
+                            {{-- Voucher header row --}}
+                            <div class="flex flex-wrap items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700/50">
+                                <span class="font-mono font-bold text-gray-800 dark:text-gray-200 text-sm tracking-widest">{{ $v['code'] }}</span>
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ $badgeClass }}">{{ $badgeLabel }}</span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">{{ $v['plan'] }}</span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">Slots: <strong class="text-gray-700 dark:text-gray-300">{{ $v['used'] }}/{{ $v['max'] }}</strong></span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">Total used: <strong class="text-gray-700 dark:text-gray-300">{{ $v['data_used'] }}</strong></span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 ml-auto">Expires: {{ $v['expires_at'] }}</span>
+                            </div>
+                            {{-- Live sessions (shown when someone is connected on this voucher) --}}
+                            @if(!empty($v['sessions']))
+                                <div class="p-4">
+                                    <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
+                                        <span class="relative flex h-2 w-2">
+                                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                            <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                                         </span>
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                        {{ $v['online'] }} active connection{{ $v['online'] > 1 ? 's' : '' }}
+                                    </p>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-xs">
+                                            <thead>
+                                                <tr class="text-left text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-700">
+                                                    <th class="pb-2 pr-4 font-semibold">IP Address</th>
+                                                    <th class="pb-2 pr-4 font-semibold">MAC / Device</th>
+                                                    <th class="pb-2 pr-4 font-semibold">Duration</th>
+                                                    <th class="pb-2 font-semibold">Data This Session</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-gray-50 dark:divide-gray-700/50">
+                                                @foreach($v['sessions'] as $s)
+                                                <tr>
+                                                    <td class="py-2 pr-4 font-mono text-gray-700 dark:text-gray-300">{{ $s['ip'] }}</td>
+                                                    <td class="py-2 pr-4 font-mono text-gray-500 dark:text-gray-400">{{ $s['mac'] }}</td>
+                                                    <td class="py-2 pr-4 text-gray-600 dark:text-gray-400">{{ $s['duration'] }}</td>
+                                                    <td class="py-2 text-gray-600 dark:text-gray-400">{{ $s['data'] }}</td>
+                                                </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="px-4 py-3 text-xs text-gray-400 dark:text-gray-600">No active connections on this voucher.</div>
+                            @endif
+                        </div>
+                        @endforeach
+
+                        @if($myVouchers->hasPages())
+                            <div class="mt-4">
+                                {{ $myVouchers->links() }}
+                            </div>
+                        @endif
                     </div>
                 </div>
                 @endif
@@ -686,9 +729,16 @@
                                         <td class="py-4 text-gray-600 dark:text-gray-300">{{ strtoupper($txn->gateway) }}
                                         </td>
                                         <td class="py-4 text-right">
-                                            <span
-                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-400">
-                                                Success
+                                            @php
+                                                [$txBadge, $txLabel] = match(strtolower($txn->status ?? 'success')) {
+                                                    'completed', 'success' => ['bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-400', 'Success'],
+                                                    'pending'              => ['bg-yellow-100 text-yellow-800 dark:bg-yellow-800/20 dark:text-yellow-400', 'Pending'],
+                                                    'failed'               => ['bg-red-100 text-red-800 dark:bg-red-800/20 dark:text-red-400', 'Failed'],
+                                                    default                => ['bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', ucfirst($txn->status ?? 'Unknown')],
+                                                };
+                                            @endphp
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $txBadge }}">
+                                                {{ $txLabel }}
                                             </span>
                                         </td>
                                     </tr>
@@ -709,15 +759,80 @@
                     @endif
                 </div>
 
+                {{-- Session History --}}
+                <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
+                    <h3 class="text-2xl font-black text-gray-900 dark:text-white mb-6">
+                        <i class="fa-solid fa-clock-rotate-left mr-2 text-blue-500"></i>Session History
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="text-gray-400 text-xs uppercase border-b border-gray-200 dark:border-gray-700">
+                                    <th class="pb-3 font-semibold">Device / MAC</th>
+                                    <th class="pb-3 font-semibold">Started</th>
+                                    <th class="pb-3 font-semibold">Duration</th>
+                                    <th class="pb-3 font-semibold">Download</th>
+                                    <th class="pb-3 font-semibold">Upload</th>
+                                    <th class="pb-3 font-semibold">Router</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm divide-y divide-gray-100 dark:divide-gray-700">
+                                @forelse($sessionHistory as $sess)
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                        <td class="py-3 font-mono text-xs text-gray-500 dark:text-gray-400">
+                                            {{ $sess->callingstationid ? strtoupper($sess->callingstationid) : '—' }}
+                                        </td>
+                                        <td class="py-3 text-gray-600 dark:text-gray-300 text-xs">
+                                            {{ $sess->acctstarttime ? \Carbon\Carbon::parse($sess->acctstarttime)->format('d M, h:i A') : '—' }}
+                                        </td>
+                                        <td class="py-3 text-gray-600 dark:text-gray-300 text-xs">
+                                            @php
+                                                $secs = is_numeric($sess->acctsessiontime) ? (int)$sess->acctsessiontime : 0;
+                                                echo $secs > 0 ? \Carbon\CarbonInterval::seconds($secs)->cascade()->forHumans() : '—';
+                                            @endphp
+                                        </td>
+                                        <td class="py-3 text-gray-600 dark:text-gray-300 text-xs">
+                                            {{ \Illuminate\Support\Number::fileSize((int)($sess->acctoutputoctets ?? 0)) }}
+                                        </td>
+                                        <td class="py-3 text-gray-600 dark:text-gray-300 text-xs">
+                                            {{ \Illuminate\Support\Number::fileSize((int)($sess->acctinputoctets ?? 0)) }}
+                                        </td>
+                                        <td class="py-3 text-gray-600 dark:text-gray-300 text-xs">
+                                            {{ $sess->nasipaddress ?? '—' }}
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="py-6 text-center text-gray-500 dark:text-gray-400">No completed sessions yet.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    @if($sessionHistory->hasPages())
+                        <div class="mt-6 flex justify-center">
+                            {{ $sessionHistory->links() }}
+                        </div>
+                    @endif
+                </div>
+
             </div>
 
             <div class="space-y-6">
                 <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-xl">
-                    <div class="relative">
-                        <input type="text" placeholder="Search..."
-                            class="w-full pl-12 pr-4 py-3 bg-gray-100 dark:bg-gray-700 border-0 rounded-xl text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 transition-all duration-300">
-                        <i
-                            class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <h4 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Quick Navigation</h4>
+                    <div class="space-y-2">
+                        @foreach([
+                            ['href' => '#', 'icon' => 'fa-credit-card', 'label' => 'Subscription'],
+                            ['href' => '#devices', 'icon' => 'fa-laptop', 'label' => 'My Devices'],
+                            ['href' => '#hot-deals', 'icon' => 'fa-fire', 'label' => 'Hot Deals'],
+                        ] as $nav)
+                        <a href="{{ $nav['href'] }}" class="flex items-center gap-3 p-3 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fa-solid {{ $nav['icon'] }} w-4 text-blue-500 text-center"></i>
+                            {{ $nav['label'] }}
+                            <i class="fa-solid fa-chevron-right ml-auto text-xs text-gray-400"></i>
+                        </a>
+                        @endforeach
                     </div>
                 </div>
 
@@ -758,19 +873,13 @@
                                     <div class="text-xs text-gray-500 dark:text-gray-400">Current</div>
                                 </div>
                             </div>
-                            @php
-                                $liveSpeed = '0 Mbps';
-                                if ($isDeviceOnline) {
-                                    $speedData = \Illuminate\Support\Facades\Cache::get("user_speed_" . Auth::user()->username);
-                                    if ($speedData) {
-                                        $downloadMbps = round($speedData['download_bps'] / 1000000, 2);
-                                        $liveSpeed = $downloadMbps < 1 
-                                            ? round($speedData['download_bps'] / 1000, 0) . ' Kbps' 
-                                            : $downloadMbps . ' Mbps';
-                                    }
-                                }
-                            @endphp
-                            <span class="text-blue-600 dark:text-blue-400 font-bold">{{ $isDeviceOnline ? $liveSpeed : 'Offline' }}</span>
+                            <span class="text-blue-600 dark:text-blue-400 font-bold text-right">
+                                @if($isDeviceOnline)
+                                    {{ ($currentSpeed && $currentSpeed !== '0 kbps') ? $currentSpeed : 'No limit' }}
+                                @else
+                                    Offline
+                                @endif
+                            </span>
                         </div>
 
                         <div class="flex items-center justify-between p-4 bg-blue-50 dark:bg-gray-700 rounded-xl">
@@ -785,6 +894,33 @@
                             </div>
                             <span class="text-blue-600 dark:text-blue-400 font-bold">{{ $uptime }}</span>
                         </div>
+
+                        @if($isDeviceOnline && $sessionDownload)
+                        <div class="flex items-center justify-between p-4 bg-blue-50 dark:bg-gray-700 rounded-xl">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                                    <i class="fa-solid fa-arrow-down text-white"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-semibold text-gray-900 dark:text-white">Downloaded</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">This Session</div>
+                                </div>
+                            </div>
+                            <span class="text-green-600 dark:text-green-400 font-bold">{{ $sessionDownload }}</span>
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-blue-50 dark:bg-gray-700 rounded-xl">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                                    <i class="fa-solid fa-arrow-up text-white"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-semibold text-gray-900 dark:text-white">Uploaded</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">This Session</div>
+                                </div>
+                            </div>
+                            <span class="text-purple-600 dark:text-purple-400 font-bold">{{ $sessionUpload }}</span>
+                        </div>
+                        @endif
                     </div>
                 </div>
 
@@ -796,10 +932,10 @@
                         </div>
                         <h4 class="text-xl font-bold text-white mb-2">Need Help?</h4>
                         <p class="text-white/80 text-sm mb-4">Our support team is available 24/7</p>
-                        <button
-                            class="bg-white hover:bg-gray-100 text-gray-900 font-bold px-6 py-3 rounded-full transition-all duration-300 transform hover:scale-105">
+                        <a href="mailto:{{ config('mail.from.address', 'support@' . parse_url(config('app.url'), PHP_URL_HOST)) }}"
+                            class="inline-block bg-white hover:bg-gray-100 text-gray-900 font-bold px-6 py-3 rounded-full transition-all duration-300 transform hover:scale-105">
                             Contact Support
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>

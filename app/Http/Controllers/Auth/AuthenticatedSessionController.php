@@ -50,6 +50,7 @@ class AuthenticatedSessionController extends Controller
                     if ($password) {
                         Auth::login($user, remember: true);
                         request()->session()->regenerate();
+                        request()->session()->save(); // force-persist before the JS redirect chain leaves the app
 
                         try {
                             \App\Models\Device::upsertFromLogin(

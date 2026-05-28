@@ -290,6 +290,10 @@ class UserDashboard extends Component
         // Live usage from the active session (kept for reference)
         $liveUsage = $activeSession ? (($activeSession->acctinputoctets ?? 0) + ($activeSession->acctoutputoctets ?? 0)) : 0;
 
+        // MikroTik: acctoutputoctets = bytes sent to client (download), acctinputoctets = bytes from client (upload)
+        $sessionDownload = $activeSession ? Number::fileSize((int)($activeSession->acctoutputoctets ?? 0)) : null;
+        $sessionUpload   = $activeSession ? Number::fileSize((int)($activeSession->acctinputoctets ?? 0)) : null;
+
         // Determine start date for counting usage (plan start). If missing, fallback to 1 year back to avoid huge scans
         $startDate = $user->plan_started_at ?? now()->subYears(1);
 
@@ -656,32 +660,46 @@ class UserDashboard extends Component
             ->latest()
             ->paginate(10);
 
-        // Voucher status panel — only built if this user has created vouchers
-        $myVouchers = collect();
+        // Voucher status panel — paginated, only built if this user has created vouchers
         $userVouchers = \App\Models\Voucher::where('created_by', $user->id)
             ->with('plan')
             ->orderByDesc('created_at')
-            ->get();
+            ->paginate(5, ['*'], 'vouchers_page');
+
+        $myVouchers = $userVouchers; // paginator (empty or populated)
 
         if ($userVouchers->isNotEmpty()) {
             $codes = $userVouchers->pluck('code');
 
-            $activeSessions = RadAcct::whereIn('username', $codes)
+            $activeVoucherSessions = RadAcct::whereIn('username', $codes)
                 ->whereNull('acctstoptime')
-                ->select('username', DB::raw('COUNT(*) as cnt'))
-                ->groupBy('username')
-                ->pluck('cnt', 'username');
+                ->select(['username', 'framedipaddress', 'callingstationid', 'acctsessiontime', 'acctstarttime', 'acctinputoctets', 'acctoutputoctets'])
+                ->get()
+                ->groupBy('username');
 
             $dataUsed = RadAcct::whereIn('username', $codes)
                 ->select('username', DB::raw('SUM(COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)) as total'))
                 ->groupBy('username')
                 ->pluck('total', 'username');
 
-            $myVouchers = $userVouchers->map(function ($v) use ($activeSessions, $dataUsed) {
-                $online    = (int) ($activeSessions->get($v->code, 0));
+            $myVouchers = $userVouchers->through(function ($v) use ($activeVoucherSessions, $dataUsed) {
                 $bytes     = (int) ($dataUsed->get($v->code, 0));
                 $exhausted = $v->used_count >= $v->max_uses;
                 $expired   = $v->expires_at && $v->expires_at->isPast();
+                $vSessions = $activeVoucherSessions->get($v->code, collect())->map(function ($s) {
+                    $sBytes = (int)($s->acctinputoctets ?? 0) + (int)($s->acctoutputoctets ?? 0);
+                    $secs   = is_numeric($s->acctsessiontime) ? (int)$s->acctsessiontime : 0;
+                    $dur    = $secs > 0
+                        ? \Carbon\CarbonInterval::seconds($secs)->cascade()->forHumans()
+                        : ($s->acctstarttime ? \Carbon\Carbon::parse($s->acctstarttime)->diffForHumans() : '—');
+                    return [
+                        'ip'       => $s->framedipaddress ?? '—',
+                        'mac'      => $s->callingstationid ? strtoupper($s->callingstationid) : '—',
+                        'duration' => $dur,
+                        'data'     => Number::fileSize($sBytes),
+                    ];
+                })->values()->toArray();
+                $online = count($vSessions);
 
                 return [
                     'code'      => $v->code,
@@ -689,12 +707,18 @@ class UserDashboard extends Component
                     'used'      => $v->used_count,
                     'max'       => $v->max_uses,
                     'online'    => $online,
+                    'sessions'  => $vSessions,
                     'data_used' => Number::fileSize($bytes),
                     'expires_at'=> $v->expires_at?->format('M d, Y') ?? 'No expiry',
                     'status'    => $expired ? 'expired' : ($exhausted ? 'exhausted' : ($online > 0 ? 'active' : 'idle')),
                 ];
             });
         }
+
+        $sessionHistory = RadAcct::whereIn('username', $allUsernames)
+            ->whereNotNull('acctstoptime')
+            ->orderByDesc('acctstoptime')
+            ->paginate(10, ['*'], 'sessions_page');
 
         return view('livewire.user-dashboard', [
             'user' => $user,
@@ -725,7 +749,10 @@ class UserDashboard extends Component
             'showDisconnectButton' => $isDeviceOnline,
             'devices' => $devices ?? [],
             'activeSession_' => $activeSession_ ?? collect(),
-            'myVouchers' => $myVouchers,
+            'myVouchers'      => $myVouchers,
+            'sessionDownload' => $sessionDownload,
+            'sessionUpload'   => $sessionUpload,
+            'sessionHistory'  => $sessionHistory,
         ]);
     }
 
