@@ -814,137 +814,123 @@ class UserDashboard extends Component
         session()->flash('success', 'Plan activated! ' . Number::fileSize($rolloverBytes) . ' rolled over.');
     }
 
-    public function redeemVoucher()
+    public function redeemVoucher(): mixed
     {
-        // 1. Validate
-        $this->validate([
-            'voucherCode' => 'required|string|exists:vouchers,code',
-        ]);
-    // 2. Find Voucher
-    $voucher = \App\Models\Voucher::where('code', $this->voucherCode)->first();
-    $user = \Illuminate\Support\Facades\Auth::user();
+        $this->validate(['voucherCode' => 'required|string|exists:vouchers,code']);
 
-    // 3. Check limits and per-user uniqueness
-    if ($voucher->used_count >= $voucher->max_uses) {
-        $this->addError('voucherCode', 'This voucher has reached its usage limit.');
-        return;
-    }
-    if (\App\Models\Transaction::where('reference', 'VCH-' . $voucher->code)
-        ->where('user_id', $user->id)
-        ->exists()) {
-        $this->addError('voucherCode', 'You have already redeemed this voucher.');
-        return;
-    }
+        $voucher = \App\Models\Voucher::where('code', $this->voucherCode)->first();
+        $user    = Auth::user();
 
-    // Atomically claim one slot (prevents race conditions)
-    $claimed = DB::transaction(function () use ($voucher, $user) {
-        $fresh = \App\Models\Voucher::lockForUpdate()->find($voucher->id);
-        if ($fresh->used_count >= $fresh->max_uses) {
-            return false;
+        // Enforce limits and per-user uniqueness
+        if ($voucher->used_count >= $voucher->max_uses) {
+            $this->addError('voucherCode', 'This voucher has reached its usage limit.');
+            return null;
         }
-        $newCount = $fresh->used_count + 1;
-        $fresh->update([
-            'used_count' => $newCount,
-            'is_used'    => $newCount >= $fresh->max_uses,
-            'used_by'    => $user->id,
-            'used_at'    => now(),
-        ]);
-        return true;
-    });
+        if (\App\Models\Transaction::where('reference', 'VCH-' . $voucher->code)
+            ->where('user_id', $user->id)->exists()) {
+            $this->addError('voucherCode', 'You have already redeemed this voucher.');
+            return null;
+        }
 
-    if (! $claimed) {
-        $this->addError('voucherCode', 'This voucher was just used up. Please try another.');
-        return;
-    }
+        // Atomically claim one slot
+        $claimed = DB::transaction(function () use ($voucher, $user) {
+            $fresh = \App\Models\Voucher::lockForUpdate()->find($voucher->id);
+            if ($fresh->used_count >= $fresh->max_uses) return false;
+            $newCount = $fresh->used_count + 1;
+            $fresh->update([
+                'used_count' => $newCount,
+                'is_used'    => $newCount >= $fresh->max_uses,
+                'used_by'    => $user->id,
+                'used_at'    => now(),
+            ]);
+            return true;
+        });
 
-    $newPlan = $voucher->plan;
-    // 4. THE DECISION: Queue or Activate?
-    // SCENARIO A: User has an ACTIVE plan -> Queue It (unless data exhausted)
-    if ($user->plan_expiry && $user->plan_expiry > now()) {
-        // If current plan has no remaining data -> expire it and activate immediately
-        if (($user->remaining_data ?? 0) <= 0) {
-            $user->plan_id = null;
-            $user->plan_expiry = null;
-            $user->save(); // triggers PlanSyncService -> will set radusergroup to default_group
-            // fall through to activation
-        } else {
-            // Add to Queue
+        if (! $claimed) {
+            $this->addError('voucherCode', 'This voucher was just used up. Please try another.');
+            return null;
+        }
+
+        $newPlan = $voucher->plan;
+        $this->reset('voucherCode');
+
+        // Active plan with remaining data → queue it
+        $hasActiveData = $user->plan_expiry
+            && $user->plan_expiry > now()
+            && ($user->remaining_data ?? 1) > 0;
+
+        if ($hasActiveData) {
             \App\Models\PendingSubscription::create([
                 'user_id' => $user->id,
                 'plan_id' => $newPlan->id,
             ]);
-            session()->flash('success', "Voucher accepted! {$newPlan->name} added to your queue.");
-            return;
+            $this->recordVoucherTransaction($user, $newPlan, $voucher);
+            session()->flash('success', "{$newPlan->name} queued — it will activate automatically when your current plan runs out.");
+            return null;
         }
-    }
-    // SCENARIO B: User is EXPIRED or NEW -> Activate Immediately
-    else {
-        // Calculate rollover in bytes using accessor
+
+        // Activate immediately (expired, exhausted, or no plan)
         $rolloverBytes = $user->getRemainingDataAttribute();
 
-        // Convert new plan limit to bytes (respect unit)
         if ($newPlan->limit_unit === 'Unlimited') {
             $newPlanBytes = null;
         } else {
             $npval = (int) $newPlan->data_limit;
-            if ($npval > 1048576) {
-                $newPlanBytes = $npval;
-            } else {
-                $newPlanBytes = $newPlan->limit_unit === 'GB' ? (int) ($npval * 1073741824) : (int) ($npval * 1048576);
-            }
+            $newPlanBytes = $npval > 1048576
+                ? $npval
+                : ($newPlan->limit_unit === 'GB' ? (int) ($npval * 1073741824) : (int) ($npval * 1048576));
         }
-
         $newLimit = is_null($newPlanBytes) ? null : ($newPlanBytes + ($rolloverBytes ?? 0));
 
-        $user->plan_id = $newPlan->id;
-        $user->data_limit = $newLimit;
-        $user->data_used = 0;
-        $user->plan_expiry = now()->addDays($newPlan->validity_days);
+        $user->plan_id         = $newPlan->id;
+        $user->data_limit      = $newLimit;
+        $user->data_used       = 0;
+        $user->plan_expiry     = now()->addDays($newPlan->validity_days);
+        $user->plan_started_at = now();
         if ($newPlan->is_family) {
             $user->is_family_admin = true;
-            $user->parent_id = null;
+            $user->parent_id       = null;
             \App\Models\User::where('parent_id', $user->id)->update(['parent_id' => null]);
         } else {
             $user->is_family_admin = false;
         }
         $user->family_limit = $newPlan->family_limit ?? 0;
-        $user->save();
+        $user->save(); // UserObserver → PlanSyncService → RADIUS sync
 
-        // Note: The UserObserver will automatically sync this to Radius/MikroTik
-        $msg = "Success! {$newPlan->name} is now active.";
+        $this->recordVoucherTransaction($user, $newPlan, $voucher);
+
+        $msg = "{$newPlan->name} activated!";
         if (($rolloverBytes ?? 0) > 0) {
-            $msg .= ' ' . Number::fileSize($rolloverBytes) . ' rolled over.';
+            $msg .= ' ' . Number::fileSize($rolloverBytes) . ' rolled over from your previous plan.';
         }
-        session()->flash('success', $msg);
+
+        // If the user has a known router, redirect to connect.bridge so they get online immediately
+        $router = $user->router_id ? \App\Models\Router::find($user->router_id) : null;
+        if ($router) {
+            session()->flash('success', $msg . ' Connecting you to the router now...');
+            return redirect()->route('connect.bridge', ['router' => $router->nas_identifier]);
+        }
+
+        session()->flash('success', $msg . ' Tap "Connect to Router" below to get online.');
+        return null;
     }
 
-    // 5. Create Transaction Record
-    try {
-        $transaction = \App\Models\Transaction::create([
-            'user_id' => $user->id,
-            'plan_id' => $newPlan->id,
-            'amount' => $newPlan->price,
-            'reference' => 'VCH-' . $voucher->code,
-            'status' => 'success',
-            'gateway' => 'voucher',
-            'paid_at' => now(),
-            'router_id' => $user->router_id ?? null,
-        ]);
-
-        \Illuminate\Support\Facades\Log::info("Transaction created successfully for voucher {$voucher->code} with ID: {$transaction->id}");
-    } catch (\Exception $e) {
-        \Illuminate\Support\Facades\Log::error("Failed to create transaction for voucher {$voucher->code}: " . $e->getMessage(), [
-            'exception' => $e,
-            'user_id' => $user->id,
-            'plan_id' => $newPlan->id,
-            'plan_exists' => \App\Models\Plan::find($newPlan->id) ? 'yes' : 'no',
-            'user_exists' => \App\Models\User::find($user->id) ? 'yes' : 'no',
-        ]);
-        // Continue execution even if transaction creation fails
-    }
-
-    // 7. Reset Form
-    $this->reset('voucherCode');
+    private function recordVoucherTransaction(User $user, \App\Models\Plan $plan, \App\Models\Voucher $voucher): void
+    {
+        try {
+            \App\Models\Transaction::create([
+                'user_id'  => $user->id,
+                'plan_id'  => $plan->id,
+                'amount'   => $plan->price,
+                'reference'=> 'VCH-' . $voucher->code,
+                'status'   => 'success',
+                'gateway'  => 'voucher',
+                'paid_at'  => now(),
+                'router_id'=> $user->router_id ?? null,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Voucher transaction failed for {$voucher->code}: " . $e->getMessage());
+        }
     }
 
     // Claim / Remember this browser for a device (stores hashed token in Device.meta and sets secure cookie)

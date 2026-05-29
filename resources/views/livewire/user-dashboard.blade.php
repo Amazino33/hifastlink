@@ -466,34 +466,53 @@
                     </div>
                 @endif
 
-                <div
-                    class="bg-gradient-to-br from-blue-600 to-blue-400 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                <div class="bg-gradient-to-br from-blue-600 to-blue-400 rounded-3xl p-6 shadow-xl relative overflow-hidden">
                     <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
 
                     <div class="relative z-10">
                         <div class="flex items-center space-x-3 mb-4">
-                            <div
-                                class="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                            <div class="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
                                 <i class="fa-solid fa-ticket text-white text-xl"></i>
                             </div>
                             <div>
-                                <h3 class="text-lg font-bold text-white">Have a Voucher?</h3>
-                                <p class="text-white/60 text-xs">Enter your code to redeem data</p>
+                                <h3 class="text-lg font-bold text-white">Redeem a Voucher</h3>
+                                <p class="text-white/70 text-xs">Enter your code to activate data on your account</p>
                             </div>
                         </div>
 
                         <form wire:submit.prevent="redeemVoucher">
                             <div class="relative">
-                                <input wire:model="voucherCode" type="text" placeholder="XXXX-0000"
-                                    class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:ring-2 focus:ring-blue-300 focus:border-transparent font-mono uppercase tracking-widest text-center">
+                                <input
+                                    wire:model="voucherCode"
+                                    type="text"
+                                    placeholder="e.g. VCH-ABCD1234"
+                                    autocomplete="off"
+                                    class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:ring-2 focus:ring-blue-300 focus:border-transparent font-mono uppercase tracking-widest text-center"
+                                >
                             </div>
-                            <button type="submit"
-                                class="w-full mt-3 bg-white text-blue-900 font-bold py-2 rounded-xl hover:bg-gray-100 transition-colors shadow-lg">
-                                Redeem Code
+                            @error('voucherCode')
+                                <span class="text-red-200 text-xs mt-2 block text-center">
+                                    <i class="fa-solid fa-circle-exclamation mr-1"></i>{{ $message }}
+                                </span>
+                            @enderror
+                            <button
+                                type="submit"
+                                wire:loading.attr="disabled"
+                                wire:loading.class="opacity-75 cursor-not-allowed"
+                                class="w-full mt-3 bg-white text-blue-900 font-bold py-2.5 rounded-xl hover:bg-gray-100 transition-colors shadow-lg flex items-center justify-center gap-2"
+                            >
+                                <span wire:loading.remove wire:target="redeemVoucher">
+                                    <i class="fa-solid fa-ticket mr-1"></i> Redeem Code
+                                </span>
+                                <span wire:loading wire:target="redeemVoucher" class="flex items-center gap-2">
+                                    <svg class="animate-spin h-4 w-4 text-blue-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                    </svg>
+                                    Activating...
+                                </span>
                             </button>
                         </form>
-                        @error('voucherCode') <span
-                        class="text-red-300 text-xs mt-2 block text-center">{{ $message }}</span> @enderror
                     </div>
                 </div>
 
