@@ -864,6 +864,55 @@ class UserDashboard extends Component
         $newPlan = $voucher->plan;
         $this->reset('voucherCode');
 
+        // ── Custom voucher with no attached plan ──────────────────────────────
+        // Activates temporary access directly from the voucher's own parameters.
+        if (! $newPlan) {
+            if (! $voucher->duration_hours) {
+                $this->addError('voucherCode', 'This voucher has no valid access configuration.');
+                return null;
+            }
+
+            $user->plan_id         = null;
+            $user->data_limit      = $voucher->is_unlimited
+                ? null
+                : ($voucher->data_limit_mb ? $voucher->data_limit_mb * 1048576 : null);
+            $user->data_used       = 0;
+            $user->plan_expiry     = now()->addHours($voucher->duration_hours);
+            $user->plan_started_at = now();
+            $user->connection_status = 'active';
+            $user->save();
+
+            // plan_id didn't change so UserObserver won't auto-sync; call explicitly
+            \App\Services\PlanSyncService::syncUserPlan($user);
+
+            // Apply custom speed limits if the voucher specifies them
+            if ($voucher->speed_limit_upload || $voucher->speed_limit_download) {
+                \App\Models\RadReply::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Mikrotik-Rate-Limit'],
+                    ['op' => ':=', 'value' => ($voucher->speed_limit_upload ?? 0) . 'k/' . ($voucher->speed_limit_download ?? 0) . 'k']
+                );
+            }
+
+            $this->recordVoucherTransaction($user, null, $voucher);
+
+            $days = $voucher->duration_hours / 24;
+            $msg  = round($days, 1) . ' ' . (round($days) === 1.0 ? 'day' : 'days') . ' of access activated!';
+            if ($voucher->is_unlimited) {
+                $msg .= ' Unlimited data.';
+            } elseif ($voucher->data_limit_mb) {
+                $msg .= ' ' . Number::fileSize($voucher->data_limit_mb * 1048576) . ' data.';
+            }
+
+            $router = $user->router_id ? \App\Models\Router::find($user->router_id) : null;
+            if ($router) {
+                session()->flash('success', $msg . ' Connecting you now...');
+                return redirect()->route('connect.bridge', ['router' => $router->nas_identifier]);
+            }
+
+            session()->flash('success', $msg . ' Tap "Connect to Router" to get online.');
+            return null;
+        }
+
         // Active plan with remaining data → queue it
         $hasActiveData = $user->plan_expiry
             && $user->plan_expiry > now()
@@ -925,13 +974,13 @@ class UserDashboard extends Component
         return null;
     }
 
-    private function recordVoucherTransaction(User $user, \App\Models\Plan $plan, \App\Models\Voucher $voucher): void
+    private function recordVoucherTransaction(User $user, ?\App\Models\Plan $plan, \App\Models\Voucher $voucher): void
     {
         try {
             \App\Models\Transaction::create([
                 'user_id'  => $user->id,
-                'plan_id'  => $plan->id,
-                'amount'   => $plan->price,
+                'plan_id'  => $plan?->id,
+                'amount'   => $plan?->price ?? 0,
                 'reference'=> 'VCH-' . $voucher->code,
                 'status'   => 'success',
                 'gateway'  => 'voucher',

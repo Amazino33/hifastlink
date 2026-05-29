@@ -251,21 +251,42 @@ class AuthenticatedSessionController extends Controller
             ['op' => ':=', 'value' => (string) $voucher->max_uses]
         );
 
-        if ($familyHead?->plan) {
-            if ($familyHead->plan->bandwidth) {
-                \App\Models\RadReply::updateOrCreate(
-                    ['username' => $code, 'attribute' => 'Mikrotik-Rate-Limit'],
-                    ['op' => ':=', 'value' => $familyHead->plan->bandwidth]
-                );
-            }
+        // Expiration: FreeRADIUS rejects auth after this date, enforcing the voucher validity window
+        if ($voucher->expires_at) {
+            RadCheck::updateOrCreate(
+                ['username' => $code, 'attribute' => 'Expiration'],
+                ['op' => ':=', 'value' => $voucher->expires_at->format('d M Y H:i')]
+            );
+        }
 
-            $limitMb = $voucher->data_limit_mb ?? ($familyHead->plan->data_limit ?? null);
+        // Speed limits: prefer voucher's own settings, fall back to creator's plan
+        $uploadKbps   = $voucher->speed_limit_upload   ?? $familyHead?->plan?->speed_limit_upload;
+        $downloadKbps = $voucher->speed_limit_download ?? $familyHead?->plan?->speed_limit_download;
+        if ($uploadKbps || $downloadKbps) {
+            \App\Models\RadReply::updateOrCreate(
+                ['username' => $code, 'attribute' => 'Mikrotik-Rate-Limit'],
+                ['op' => ':=', 'value' => ($uploadKbps ?? 0) . 'k/' . ($downloadKbps ?? 0) . 'k']
+            );
+        }
+
+        // Data cap: honour is_unlimited flag; prefer voucher's own limit over plan's
+        if (! $voucher->is_unlimited) {
+            $planLimitMb = null;
+            if ($familyHead?->plan && $familyHead->plan->limit_unit !== 'Unlimited' && $familyHead->plan->data_limit) {
+                $planLimitMb = $familyHead->plan->limit_unit === 'GB'
+                    ? (int) ($familyHead->plan->data_limit * 1024)
+                    : (int) $familyHead->plan->data_limit;
+            }
+            $limitMb = $voucher->data_limit_mb ?? $planLimitMb;
             if ($limitMb) {
                 RadCheck::updateOrCreate(
                     ['username' => $code, 'attribute' => 'Mikrotik-Total-Limit'],
-                    ['op' => ':=', 'value' => (string) ($limitMb * 1024 * 1024)]
+                    ['op' => ':=', 'value' => (string) ($limitMb * 1048576)]
                 );
             }
+        } else {
+            // Unlimited — remove any stale cap from a previous redemption
+            RadCheck::where('username', $code)->where('attribute', 'Mikrotik-Total-Limit')->delete();
         }
 
         $voucher->consume();

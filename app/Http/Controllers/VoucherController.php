@@ -11,23 +11,26 @@ use Illuminate\Http\Request;
 class VoucherController extends Controller
 {
     /**
-     * Show the family head's voucher management page.
+     * Voucher management page — accessible to family heads and app admins.
      */
     public function index(Request $request)
     {
         $user = $request->user();
 
-        // Safety check: Only family admins should see this
-        if (! $user->is_family_admin) {
-            abort(403, 'Only family heads can manage vouchers.');
+        if (! $user->is_family_admin && ! $user->isAdmin()) {
+            abort(403, 'Only family heads or admins can manage vouchers.');
         }
 
-        // Get vouchers created by this user, ordered by newest first
         $vouchers = \App\Models\Voucher::where('created_by', $user->id)
+            ->with('plan')
             ->latest()
-            ->paginate(10);
+            ->paginate(15);
 
-        return view('vouchers.index', compact('vouchers'));
+        $plans = \App\Models\Plan::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'validity_days', 'data_limit', 'limit_unit', 'price']);
+
+        return view('vouchers.index', compact('vouchers', 'plans'));
     }
 
     /**
@@ -44,57 +47,112 @@ class VoucherController extends Controller
     }
 
     /**
-     * Family head voucher generation.
+     * Generate vouchers — supports "quick" (inherits plan) and "custom" modes.
      */
     public function generate(Request $request)
     {
         $user = $request->user();
 
-        // 1. Identify the Limit (Priority: Plan > User Column > Default 10)
-        $maxAllowed = $user->plan->family_limit
-                      ?? $user->family_limit
-                      ?? 10;
+        if (! $user->is_family_admin && ! $user->isAdmin()) {
+            return back()->with('error', 'You do not have permission to create vouchers.');
+        }
 
-        // 2. Count ACTIVE vouchers (not expired, not fully used)
-        $activeVoucherCount = Voucher::where('created_by', $user->id)->count();
+        $mode = $request->input('mode', 'quick');
 
-        // 3. Calculate remaining guest slots (Total - 1 for Head - Active Vouchers)
-        $remainingSlots = $maxAllowed - 1 - $activeVoucherCount;
+        if ($mode === 'custom') {
+            return $this->generateCustom($request, $user);
+        }
 
-        // 4. Validate the request
-        $quantityRequested = (int) $request->input('quantity', 1);
+        return $this->generateQuick($request, $user);
+    }
+
+    private function generateQuick(Request $request, $user)
+    {
+        $maxAllowed       = $user->plan->family_limit ?? $user->family_limit ?? 10;
+        $activeCount      = Voucher::where('created_by', $user->id)->count();
+        $remainingSlots   = $maxAllowed - 1 - $activeCount;
+        $quantity         = (int) $request->input('quantity', 1);
 
         if ($remainingSlots <= 0) {
-            return back()->with('error', 'Limit reached! Your plan allows '.($maxAllowed - 1).' guests. Remove old vouchers to add more.');
+            return back()->with('error', 'Slot limit reached. Remove old vouchers to add more.');
+        }
+        if ($quantity > $remainingSlots) {
+            return back()->with('error', "Only {$remainingSlots} slot(s) remaining.");
         }
 
-        if ($quantityRequested > $remainingSlots) {
-            return back()->with('error', "You only have {$remainingSlots} guest slots left.");
-        }
+        $duration    = $user->plan->duration_hours ?? 24;
+        $rawLimit    = $user->plan->data_limit ?? 0;
+        $dataLimitMb = $rawLimit > 1000000 ? (int) ($rawLimit / 1048576) : (int) $rawLimit;
 
-        // 5. Inherit Plan Details
-        $duration = $user->plan->duration_hours ?? 24;
-
-        // Convert data_limit to MB if it's currently in bytes (common for RADIUS)
-        $rawLimit = $user->plan->data_limit ?? 0;
-        $dataLimitMb = $rawLimit > 1000000 ? (int) ($rawLimit / 1048576) : $rawLimit;
-
-        // 6. Create the Vouchers
-        for ($i = 0; $i < $quantityRequested; $i++) {
-            \App\Models\Voucher::create([
-                'code' => \App\Models\Voucher::generateCode(),
-                'plan_id' => $user->plan_id,
-                'created_by' => $user->id,
-                'router_id' => $user->router_id,
-                'duration_hours' => $duration,
-                'data_limit_mb' => $dataLimitMb,
-                'max_uses' => 1, // 1 device per guest voucher
-                'expires_at' => now()->addHours($duration),
-                'is_used' => false,
+        for ($i = 0; $i < $quantity; $i++) {
+            Voucher::create([
+                'code'         => Voucher::generateCode(),
+                'plan_id'      => $user->plan_id,
+                'created_by'   => $user->id,
+                'router_id'    => $user->router_id,
+                'duration_hours'=> $duration,
+                'data_limit_mb'=> $dataLimitMb ?: null,
+                'max_uses'     => 1,
+                'expires_at'   => now()->addHours($duration),
+                'is_used'      => false,
             ]);
         }
 
-        return back()->with('success', "{$quantityRequested} voucher(s) created. You have ".($remainingSlots - $quantityRequested).' slots remaining.');
+        return back()->with('success', "{$quantity} voucher(s) created. {$remainingSlots} slot(s) remaining.");
+    }
+
+    private function generateCustom(Request $request, $user)
+    {
+        $request->validate([
+            'quantity'             => 'required|integer|min:1|max:100',
+            'validity_days'        => 'required|integer|min:1|max:365',
+            'max_uses'             => 'required|integer|min:1|max:500',
+            'data_limit_mb'        => 'nullable|integer|min:1',
+            'speed_limit_upload'   => 'nullable|integer|min:0',
+            'speed_limit_download' => 'nullable|integer|min:0',
+            'plan_id'              => 'nullable|exists:plans,id',
+            'label'                => 'nullable|string|max:100',
+        ]);
+
+        $isUnlimited  = $request->boolean('is_unlimited');
+        $validityDays = (int) $request->input('validity_days');
+        $quantity     = (int) $request->input('quantity');
+
+        // Convert data limit to MB if user selected GB
+        $rawDataLimit = $request->input('data_limit_mb');
+        if ($rawDataLimit && $request->input('data_unit') === 'GB') {
+            $rawDataLimit = (int) ($rawDataLimit * 1024);
+        }
+
+        // Admins bypass slot limits for custom vouchers; family heads are still capped
+        if (! $user->isAdmin()) {
+            $maxAllowed     = $user->plan->family_limit ?? $user->family_limit ?? 10;
+            $activeCount    = Voucher::where('created_by', $user->id)->count();
+            $remainingSlots = $maxAllowed - 1 - $activeCount;
+            if ($quantity > $remainingSlots) {
+                return back()->with('error', "Only {$remainingSlots} slot(s) remaining in your plan.");
+            }
+        }
+
+        for ($i = 0; $i < $quantity; $i++) {
+            Voucher::create([
+                'code'                 => Voucher::generateCode(),
+                'plan_id'              => $request->input('plan_id') ?: null,
+                'created_by'           => $user->id,
+                'router_id'            => $user->router_id,
+                'duration_hours'       => $validityDays * 24,
+                'data_limit_mb'        => $isUnlimited ? null : ($rawDataLimit ?: null),
+                'is_unlimited'         => $isUnlimited,
+                'speed_limit_upload'   => $request->input('speed_limit_upload') ?: null,
+                'speed_limit_download' => $request->input('speed_limit_download') ?: null,
+                'max_uses'             => (int) $request->input('max_uses', 1),
+                'expires_at'           => now()->addDays($validityDays),
+                'label'                => $request->input('label') ?: null,
+                'is_used'              => false,
+            ]);
+        }
+
+        return back()->with('success', "{$quantity} custom voucher(s) created.");
     }
 
     /**

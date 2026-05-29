@@ -45,6 +45,30 @@ class PlanSyncService
                     return;
                 }
 
+                // Temporary access granted by a custom voucher (plan_expiry set, no plan_id)
+                if ($user->plan_expiry && $user->plan_expiry->isFuture()) {
+                    RadCheck::updateOrCreate(
+                        ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
+                        ['op' => ':=', 'value' => $user->radius_password ?? $user->username]
+                    );
+                    RadCheck::updateOrCreate(
+                        ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
+                        ['op' => ':=', 'value' => '1']
+                    );
+                    if ($user->data_limit) {
+                        RadCheck::updateOrCreate(
+                            ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
+                            ['op' => ':=', 'value' => (string) $user->data_limit]
+                        );
+                    } else {
+                        RadCheck::where('username', $user->username)
+                            ->where('attribute', 'Mikrotik-Total-Limit')
+                            ->delete();
+                    }
+                    $user->saveQuietly();
+                    return;
+                }
+
                 // Non-admin without a plan: remove credentials so they cannot connect
                 RadCheck::where('username', $user->username)
                     ->whereIn('attribute', ['Cleartext-Password', 'Simultaneous-Use'])

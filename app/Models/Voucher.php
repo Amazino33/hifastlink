@@ -18,6 +18,10 @@ class Voucher extends Model
         'router_id',
         'duration_hours',
         'data_limit_mb',
+        'label',
+        'is_unlimited',
+        'speed_limit_upload',
+        'speed_limit_download',
         'max_uses',
         'used_count',
         'expires_at',
@@ -27,13 +31,16 @@ class Voucher extends Model
     ];
 
     protected $casts = [
-        'is_used'        => 'boolean',
-        'used_at'        => 'datetime',
-        'expires_at'     => 'datetime',
-        'duration_hours' => 'integer',
-        'data_limit_mb'  => 'integer',
-        'max_uses'       => 'integer',
-        'used_count'     => 'integer',
+        'is_used'              => 'boolean',
+        'is_unlimited'         => 'boolean',
+        'used_at'              => 'datetime',
+        'expires_at'           => 'datetime',
+        'duration_hours'       => 'integer',
+        'data_limit_mb'        => 'integer',
+        'max_uses'             => 'integer',
+        'used_count'           => 'integer',
+        'speed_limit_upload'   => 'integer',
+        'speed_limit_download' => 'integer',
     ];
 
     // ─── Relationships ────────────────────────────────────────────────
@@ -81,11 +88,15 @@ class Voucher extends Model
     }
 
     /**
-     * Find a valid, usable voucher by code.
+     * Find a voucher that is still usable: not fully consumed and not expired.
      */
     public static function findValid(string $code): ?self
     {
         return static::where('code', strtoupper(trim($code)))
+            ->whereColumn('used_count', '<', 'max_uses')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
             ->first();
     }
 
