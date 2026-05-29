@@ -179,8 +179,8 @@
             </div>
         @endif
 
-        {{-- Low data / expiry warning banners --}}
-        @if($subscriptionStatus === 'active')
+        {{-- Low data / expiry warning banners — never shown for admin accounts --}}
+        @if($subscriptionStatus === 'active' && !$isAdminUser)
             @if(($dataUsagePercentage ?? 0) >= 90)
                 <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-4 flex items-center gap-3">
                     <i class="fa-solid fa-circle-exclamation text-red-500 text-xl flex-shrink-0"></i>
@@ -296,7 +296,15 @@
                         </div>
 
                         <div class="mb-6">
-                            @if($subscriptionStatus === 'active')
+                            @if($isAdminUser)
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="text-6xl font-black text-white">∞</span>
+                                    <span class="self-center px-3 py-1 rounded-full text-xs font-bold bg-purple-500 text-white tracking-widest uppercase">Admin</span>
+                                </div>
+                                <div class="text-sm text-white/80 font-semibold mb-3">Unlimited access — no restrictions</div>
+                                <div class="text-blue-100 text-lg">Unlimited Data</div>
+                                <div class="text-xs text-blue-200 mt-1 font-medium tracking-wide uppercase">No plan required</div>
+                            @elseif($subscriptionStatus === 'active')
                                 <div class="text-6xl font-black text-white mb-2">{{ $subscriptionDays }}</div>
                                 <div class="text-sm text-white/80 font-semibold mb-3">
                                     {{ $subscriptionDays === 1 ? 'day remaining' : 'days remaining' }}</div>

@@ -27,7 +27,25 @@ class PlanSyncService
             $plan = $user->plan;
 
             if (! $plan) {
-                // No plan: remove auth credentials so the user cannot connect
+                if ($user->isAdmin()) {
+                    // Admin with no plan: give unlimited RADIUS access, no data cap
+                    RadCheck::updateOrCreate(
+                        ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
+                        ['op' => ':=', 'value' => $user->radius_password ?? $user->username]
+                    );
+                    RadCheck::updateOrCreate(
+                        ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
+                        ['op' => ':=', 'value' => '10']
+                    );
+                    // Remove any stale data-cap or expiry attributes
+                    RadCheck::where('username', $user->username)
+                        ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets', 'Expiration'])
+                        ->delete();
+                    $user->saveQuietly();
+                    return;
+                }
+
+                // Non-admin without a plan: remove credentials so they cannot connect
                 RadCheck::where('username', $user->username)
                     ->whereIn('attribute', ['Cleartext-Password', 'Simultaneous-Use'])
                     ->delete();

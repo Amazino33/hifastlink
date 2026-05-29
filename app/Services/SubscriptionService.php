@@ -133,6 +133,11 @@ class SubscriptionService
      */
     public function canConnectToHotspot(User $user): bool
     {
+        // Admins always have unrestricted hotspot access — no plan required
+        if ($user->isAdmin()) {
+            return true;
+        }
+
         $masterId = $user->parent_id ?? $user->id;
 
         // If application uses a Subscription model, prefer that authoritative source

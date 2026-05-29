@@ -370,14 +370,22 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // 1. Always let the "Boss" email in (The Master Key)
         if ($this->email === 'amazino33@gmail.com') {
             return true;
         }
 
-        // 2. For everyone else, check if they are active or have a role
-        // (Adjust this logic later for your staff)
         return $this->hasRole('super_admin') || $this->hasRole('cashier');
+    }
+
+    /**
+     * Returns true for users who should have unrestricted hotspot access (no plan required).
+     * Used by SubscriptionService, PlanSyncService, and the user dashboard.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->hasRole(['super_admin', 'admin'])
+            || $this->email === 'amazino33@gmail.com'
+            || (!empty($this->is_admin) && $this->is_admin);
     }
 
     /**
