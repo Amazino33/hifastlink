@@ -101,11 +101,21 @@ class Voucher extends Model
     }
 
     /**
-     * Mark voucher as consumed and register who used it.
+     * Mark voucher as consumed. Sets expires_at on first use so the clock
+     * starts when the voucher is redeemed, not when it was created.
      */
     public function consume(?int $userId = null): void
     {
-        $this->increment('used_count'); // Just tracks how many times they've logged in
-        $this->update(['used_at' => now()]);
+        $this->increment('used_count');
+
+        $updates = ['used_at' => now()];
+
+        if (is_null($this->expires_at) && $this->duration_hours) {
+            $expiresAt = now()->addHours($this->duration_hours);
+            $updates['expires_at'] = $expiresAt;
+            $this->expires_at = $expiresAt;
+        }
+
+        $this->update($updates);
     }
 }

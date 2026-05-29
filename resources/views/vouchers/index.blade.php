@@ -289,11 +289,11 @@
                             @forelse($vouchers as $v)
                             @php
                                 $expired   = $v->expires_at && $v->expires_at->isPast();
-                                $exhausted = $v->used_count >= $v->max_uses;
-                                $active    = !$expired && !$exhausted;
-                                if ($expired)        { $badge = ['bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',    'Expired'];   }
-                                elseif ($exhausted)  { $badge = ['bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400', 'Exhausted']; }
-                                else                 { $badge = ['bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400', 'Active'];   }
+                                $redeemed  = !$expired && $v->used_count >= $v->max_uses;
+                                $active    = !$expired && !$redeemed;
+                                if ($expired)        { $badge = ['bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',      'Expired'];  }
+                                elseif ($redeemed)   { $badge = ['bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',   'Redeemed']; }
+                                else                 { $badge = ['bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400', 'Active']; }
                             @endphp
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                 <td class="px-4 py-3 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
@@ -333,7 +333,14 @@
                                     {{ $v->used_count }} / {{ $v->max_uses }}
                                 </td>
                                 <td class="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">
-                                    {{ $v->expires_at ? $v->expires_at->format('d M Y') : 'No expiry' }}
+                                    @if($v->expires_at)
+                                        {{ $v->expires_at->format('d M Y') }}
+                                    @elseif($v->duration_hours)
+                                        @php $days = round($v->duration_hours / 24); @endphp
+                                        <span class="italic text-gray-400">{{ $days }}d from use</span>
+                                    @else
+                                        No expiry
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap">
                                     <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ $badge[0] }}">{{ $badge[1] }}</span>

@@ -80,21 +80,20 @@ class VoucherController extends Controller
             return back()->with('error', "Only {$remainingSlots} slot(s) remaining.");
         }
 
-        $duration    = $user->plan->duration_hours ?? 24;
+        $duration    = ($user->plan->validity_days ?? 1) * 24;
         $rawLimit    = $user->plan->data_limit ?? 0;
         $dataLimitMb = $rawLimit > 1000000 ? (int) ($rawLimit / 1048576) : (int) $rawLimit;
 
         for ($i = 0; $i < $quantity; $i++) {
             Voucher::create([
-                'code'         => Voucher::generateCode(),
-                'plan_id'      => $user->plan_id,
-                'created_by'   => $user->id,
-                'router_id'    => $user->router_id,
+                'code'          => Voucher::generateCode(),
+                'plan_id'       => $user->plan_id,
+                'created_by'    => $user->id,
+                'router_id'     => $user->router_id,
                 'duration_hours'=> $duration,
-                'data_limit_mb'=> $dataLimitMb ?: null,
-                'max_uses'     => 1,
-                'expires_at'   => now()->addHours($duration),
-                'is_used'      => false,
+                'data_limit_mb' => $dataLimitMb ?: null,
+                'max_uses'      => 1,
+                'is_used'       => false,
             ]);
         }
 
@@ -146,7 +145,6 @@ class VoucherController extends Controller
                 'speed_limit_upload'   => $request->input('speed_limit_upload') ?: null,
                 'speed_limit_download' => $request->input('speed_limit_download') ?: null,
                 'max_uses'             => (int) $request->input('max_uses', 1),
-                'expires_at'           => now()->addDays($validityDays),
                 'label'                => $request->input('label') ?: null,
                 'is_used'              => false,
             ]);

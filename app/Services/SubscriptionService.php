@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\RadAcct;
+use App\Models\RadCheck;
 use App\Models\User;
 use App\Models\Plan;
 use App\Models\RadReply;
@@ -52,6 +53,9 @@ class SubscriptionService
             $user->connection_status = 'inactive';
             $user->save();
 
+            // Revoke all vouchers created by this user so beneficiaries lose access
+            $this->revokeUserVouchers($user);
+
             // Immediately disconnect active RADIUS sessions for this user
             try {
                 $radius = new RadiusService();
@@ -94,9 +98,31 @@ class SubscriptionService
                 ['groupname' => 'default_group', 'priority' => 10]
             );
 
+            // Revoke all vouchers created by this user so beneficiaries lose access
+            $this->revokeUserVouchers($user);
+
             Log::info("Expired exhausted subscription for {$user->username} - rollover cleared");
         } catch (\Exception $e) {
             Log::error('Failed to expire exhausted subscription for user ' . $user->username . ': ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete all vouchers created by a user and remove their RADIUS entries
+     * so beneficiaries immediately lose hotspot access.
+     */
+    private function revokeUserVouchers(User $user): void
+    {
+        $vouchers = Voucher::where('created_by', $user->id)->get();
+
+        foreach ($vouchers as $voucher) {
+            RadCheck::where('username', $voucher->code)->delete();
+            RadReply::where('username', $voucher->code)->delete();
+            $voucher->delete();
+        }
+
+        if ($vouchers->isNotEmpty()) {
+            Log::info("Revoked {$vouchers->count()} voucher(s) for {$user->username} on subscription expiry");
         }
     }
 

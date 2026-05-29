@@ -240,6 +240,10 @@ class AuthenticatedSessionController extends Controller
 
         $code = strtoupper(trim($code));
 
+        // Consume first so expires_at is calculated from redemption time (not creation time)
+        // and is available for the RADIUS Expiration attribute below.
+        $voucher->consume();
+
         // Always upsert so concurrent redemptions never produce duplicate rows
         RadCheck::updateOrCreate(
             ['username' => $code, 'attribute' => 'Cleartext-Password'],
@@ -288,8 +292,6 @@ class AuthenticatedSessionController extends Controller
             // Unlimited — remove any stale cap from a previous redemption
             RadCheck::where('username', $code)->where('attribute', 'Mikrotik-Total-Limit')->delete();
         }
-
-        $voucher->consume();
 
         // Store MAC so this device can auto-reconnect after router reboots
         if ($request->filled('mac')) {
