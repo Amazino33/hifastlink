@@ -288,6 +288,32 @@ class AuthenticatedSessionController extends Controller
         }
 
         $request->session()->forget('skip_auto_login');
+        $request->session()->save();
+
+        // If the request came through the MikroTik captive portal, push the credentials
+        // straight to the router so the user gets online immediately — same flow as regular login.
+        $linkLogin = $request->input('link_login')
+            ?? $request->input('link-login')
+            ?? $request->input('link-login-only');
+
+        if ($linkLogin) {
+            // After MikroTik authenticates, send the user to the success page so they
+            // see confirmation (and the page is reachable now that they're online).
+            $linkOrig = route('voucher.success', ['code' => $code]);
+
+            return response()->view('hotspot.redirect_to_router', [
+                'username'   => $code,
+                'password'   => $code,
+                'link_login' => $linkLogin,
+                'link_orig'  => $linkOrig,
+                'mac'        => $request->input('mac'),
+                'ip'         => $request->input('ip'),
+                'router'     => $request->input('router'),
+            ]);
+        }
+
+        // No captive portal link — user opened the login page directly in a browser.
+        // Just show the success page; they can connect manually from the dashboard.
         return redirect()->route('voucher.success')->with('voucher_code', $code);
     }
 

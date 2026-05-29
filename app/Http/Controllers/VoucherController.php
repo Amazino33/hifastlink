@@ -98,12 +98,14 @@ class VoucherController extends Controller
     }
 
     /**
-     * Simple success page shown when a voucher is used
-     * outside the captive portal context.
+     * Success page shown after a voucher connects the user to the router.
+     * The code arrives as a session flash (direct browser) or query param
+     * (captive portal — session may not survive the MikroTik redirect hop).
      */
-    public function success()
+    public function success(\Illuminate\Http\Request $request)
     {
-        return view('vouchers.success');
+        $code = session('voucher_code') ?? $request->query('code');
+        return view('vouchers.success', compact('code'));
     }
 
     public function destroy(Voucher $voucher)

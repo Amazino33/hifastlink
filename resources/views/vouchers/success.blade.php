@@ -6,7 +6,11 @@
         </div>
         <h2 class="text-3xl font-black text-gray-900 mb-2">Connected!</h2>
         <p class="text-gray-600 mb-8">
-            Your voucher <strong>{{ session('voucher_code') }}</strong> has been activated.
+            @if($code)
+                Voucher <strong class="font-mono">{{ $code }}</strong> has been activated.
+            @else
+                Your voucher has been activated.
+            @endif
         </p>
         
         <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl text-sm text-blue-800 mb-8 max-w-md mx-auto">
