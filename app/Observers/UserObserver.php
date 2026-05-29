@@ -18,14 +18,13 @@ class UserObserver
         PlanSyncService::syncUserPlan($user);
 
         // Sync Login-Time restriction
-        RadCheck::where('username', $user->username)->where('attribute', 'Login-Time')->delete();
         if ($user->plan && ! empty($user->plan->allowed_login_time)) {
-            RadCheck::create([
-                'username' => $user->username,
-                'attribute' => 'Login-Time',
-                'op' => ':=',
-                'value' => $user->plan->allowed_login_time,
-            ]);
+            RadCheck::updateOrCreate(
+                ['username' => $user->username, 'attribute' => 'Login-Time'],
+                ['op' => ':=', 'value' => $user->plan->allowed_login_time]
+            );
+        } else {
+            RadCheck::where('username', $user->username)->where('attribute', 'Login-Time')->delete();
         }
     }
 
@@ -39,14 +38,13 @@ class UserObserver
             PlanSyncService::syncUserPlan($user);
 
             // Sync Login-Time restriction
-            RadCheck::where('username', $user->username)->where('attribute', 'Login-Time')->delete();
             if ($user->plan && ! empty($user->plan->allowed_login_time)) {
-                RadCheck::create([
-                    'username' => $user->username,
-                    'attribute' => 'Login-Time',
-                    'op' => ':=',
-                    'value' => $user->plan->allowed_login_time,
-                ]);
+                RadCheck::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Login-Time'],
+                    ['op' => ':=', 'value' => $user->plan->allowed_login_time]
+                );
+            } else {
+                RadCheck::where('username', $user->username)->where('attribute', 'Login-Time')->delete();
             }
         }
     }

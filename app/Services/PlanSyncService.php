@@ -21,36 +21,34 @@ class PlanSyncService
         }
 
         DB::transaction(function () use ($user) {
-            // Clear previous records for this username
-            RadCheck::where('username', $user->username)->delete();
+            // RadReply is fully rebuilt — safe to clear
             RadReply::where('username', $user->username)->delete();
 
             $plan = $user->plan;
 
             if (! $plan) {
-                // No plan assigned: clear expiry and finish
+                // No plan: remove auth credentials so the user cannot connect
+                RadCheck::where('username', $user->username)
+                    ->whereIn('attribute', ['Cleartext-Password', 'Simultaneous-Use'])
+                    ->delete();
                 $user->plan_expiry = null;
                 $user->saveQuietly();
 
                 return;
             }
 
-            // Always add Cleartext-Password so the user can authenticate.
-            RadCheck::create([
-                'username' => $user->username,
-                'attribute' => 'Cleartext-Password',
-                'op' => ':=',
-                'value' => $user->radius_password ?? $user->username,
-            ]);
+            // Upsert password — never duplicate (username+attribute is the unique key)
+            RadCheck::updateOrCreate(
+                ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
+                ['op' => ':=', 'value' => $user->radius_password ?? $user->username]
+            );
 
-            // Add Simultaneous-Use limit based on plan's max_devices
+            // Upsert Simultaneous-Use limit based on plan's max_devices
             $maxDevices = $plan->max_devices ?? 1;
-            RadCheck::create([
-                'username' => $user->username,
-                'attribute' => 'Simultaneous-Use',
-                'op' => ':=',
-                'value' => (string) $maxDevices,
-            ]);
+            RadCheck::updateOrCreate(
+                ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
+                ['op' => ':=', 'value' => (string) $maxDevices]
+            );
 
             // Calculate family usage
             $masterId = $user->parent_id ?? $user->id;

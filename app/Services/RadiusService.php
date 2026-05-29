@@ -21,35 +21,30 @@ class RadiusService
         try {
             DB::connection('radius')->beginTransaction();
 
-            // Delete existing entries
-            RadCheck::where('username', $user->username)->delete();
+            // RadReply is fully rebuilt on every sync — safe to clear
             RadReply::where('username', $user->username)->delete();
 
-            // Add password check (Cleartext-Password)
-            RadCheck::create([
-                'username' => $user->username,
-                'attribute' => 'Cleartext-Password',
-                'op' => ':=',
-                'value' => $user->radius_password ?? $user->username, // Use radius_password or fallback
-            ]);
+            // Upsert password (never duplicate — username+attribute is the unique key)
+            RadCheck::updateOrCreate(
+                ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
+                ['op' => ':=', 'value' => $user->radius_password ?? $user->username]
+            );
 
-            // Add Simultaneous-Use limit
+            // Upsert Simultaneous-Use limit
             $maxDevices = ($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1;
-            RadCheck::create([
-                'username' => $user->username,
-                'attribute' => 'Simultaneous-Use',
-                'op' => ':=',
-                'value' => (string) $maxDevices,
-            ]);
+            RadCheck::updateOrCreate(
+                ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
+                ['op' => ':=', 'value' => (string) $maxDevices]
+            );
 
-            // Add data limit check if applicable
+            // Upsert or remove Max-Octets depending on data_limit
             if ($user->data_limit > 0) {
-                RadCheck::create([
-                    'username' => $user->username,
-                    'attribute' => 'Max-Octets',
-                    'op' => ':=',
-                    'value' => (string)$user->data_limit,
-                ]);
+                RadCheck::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Max-Octets'],
+                    ['op' => ':=', 'value' => (string) $user->data_limit]
+                );
+            } else {
+                RadCheck::where('username', $user->username)->where('attribute', 'Max-Octets')->delete();
             }
 
             // Add reply attributes if user has a data plan

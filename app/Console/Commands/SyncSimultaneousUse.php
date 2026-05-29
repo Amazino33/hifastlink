@@ -22,26 +22,17 @@ class SyncSimultaneousUse extends Command
         foreach ($users as $user) {
             $maxDevices = ($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1;
 
-            // Check if Simultaneous-Use already exists
-            $existing = RadCheck::where('username', $user->username)
-                ->where('attribute', 'Simultaneous-Use')
-                ->first();
+            $result = RadCheck::updateOrCreate(
+                ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
+                ['op' => ':=', 'value' => (string) $maxDevices]
+            );
 
-            if ($existing) {
-                // Update existing
-                $existing->update(['value' => (string) $maxDevices]);
-                $updated++;
-                $this->line("Updated {$user->username}: {$maxDevices} device(s)");
-            } else {
-                // Create new entry
-                RadCheck::create([
-                    'username' => $user->username,
-                    'attribute' => 'Simultaneous-Use',
-                    'op' => ':=',
-                    'value' => (string) $maxDevices,
-                ]);
+            if ($result->wasRecentlyCreated) {
                 $created++;
                 $this->line("Created {$user->username}: {$maxDevices} device(s)");
+            } else {
+                $updated++;
+                $this->line("Updated {$user->username}: {$maxDevices} device(s)");
             }
         }
 

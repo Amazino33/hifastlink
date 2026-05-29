@@ -240,44 +240,31 @@ class AuthenticatedSessionController extends Controller
 
         $code = strtoupper(trim($code));
 
-        $existingRad = RadCheck::where('username', $code)
-            ->where('attribute', 'Cleartext-Password')
-            ->first();
+        // Always upsert so concurrent redemptions never produce duplicate rows
+        RadCheck::updateOrCreate(
+            ['username' => $code, 'attribute' => 'Cleartext-Password'],
+            ['op' => ':=', 'value' => $code]
+        );
 
-        if (! $existingRad) {
-            RadCheck::create([
-                'username' => $code,
-                'attribute' => 'Cleartext-Password',
-                'op' => ':=',
-                'value' => $code,
-            ]);
+        RadCheck::updateOrCreate(
+            ['username' => $code, 'attribute' => 'Simultaneous-Use'],
+            ['op' => ':=', 'value' => (string) $voucher->max_uses]
+        );
 
-            RadCheck::create([
-                'username' => $code,
-                'attribute' => 'Simultaneous-Use',
-                'op' => ':=',
-                'value' => (string) $voucher->max_uses,
-            ]);
+        if ($familyHead?->plan) {
+            if ($familyHead->plan->bandwidth) {
+                \App\Models\RadReply::updateOrCreate(
+                    ['username' => $code, 'attribute' => 'Mikrotik-Rate-Limit'],
+                    ['op' => ':=', 'value' => $familyHead->plan->bandwidth]
+                );
+            }
 
-            if ($familyHead?->plan) {
-                if ($familyHead->plan->bandwidth) {
-                    \App\Models\RadReply::create([
-                        'username' => $code,
-                        'attribute' => 'Mikrotik-Rate-Limit',
-                        'op' => ':=',
-                        'value' => $familyHead->plan->bandwidth,
-                    ]);
-                }
-
-                $limitMb = $voucher->data_limit_mb ?? ($familyHead->plan->data_limit ?? null);
-                if ($limitMb) {
-                    RadCheck::create([
-                        'username' => $code,
-                        'attribute' => 'Mikrotik-Total-Limit',
-                        'op' => ':=',
-                        'value' => (string) ($limitMb * 1024 * 1024),
-                    ]);
-                }
+            $limitMb = $voucher->data_limit_mb ?? ($familyHead->plan->data_limit ?? null);
+            if ($limitMb) {
+                RadCheck::updateOrCreate(
+                    ['username' => $code, 'attribute' => 'Mikrotik-Total-Limit'],
+                    ['op' => ':=', 'value' => (string) ($limitMb * 1024 * 1024)]
+                );
             }
         }
 

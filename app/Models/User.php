@@ -386,25 +386,19 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
      */
     protected static function booted()
     {
-        // 1. When a User is CREATED -> Create a RadCheck entry
+        // 1. When a User is CREATED -> upsert RadCheck entries
         static::created(function ($user) {
-            // Only proceed if they have a username
             if (!empty($user->username)) {
-                \App\Models\RadCheck::create([
-                    'username'  => $user->username,
-                    'attribute' => 'Cleartext-Password',
-                    'op'        => ':=',
-                    'value'     => $user->radius_password ?? '123456', // Default if empty
-                ]);
-                
-                // Add Simultaneous-Use limit
+                \App\Models\RadCheck::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
+                    ['op' => ':=', 'value' => $user->radius_password ?? '123456']
+                );
+
                 $maxDevices = ($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1;
-                \App\Models\RadCheck::create([
-                    'username'  => $user->username,
-                    'attribute' => 'Simultaneous-Use',
-                    'op'        => ':=',
-                    'value'     => (string) $maxDevices,
-                ]);
+                \App\Models\RadCheck::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
+                    ['op' => ':=', 'value' => (string) $maxDevices]
+                );
             }
         });
 
