@@ -402,7 +402,8 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
                     ['op' => ':=', 'value' => $user->radius_password ?? '123456']
                 );
 
-                $maxDevices = ($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1;
+                // Admins get 0 (unlimited); everyone else is capped by their plan
+                $maxDevices = $user->isAdmin() ? 0 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
                 \App\Models\RadCheck::updateOrCreate(
                     ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
                     ['op' => ':=', 'value' => (string) $maxDevices]
@@ -420,8 +421,8 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
             
             // If plan_id changed, sync RADIUS attributes
             if ($user->isDirty('plan_id') && !empty($user->username)) {
-                // Update or create Simultaneous-Use based on new plan
-                $maxDevices = ($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1;
+                // Admins get 0 (unlimited); everyone else is capped by their plan
+                $maxDevices = $user->isAdmin() ? 0 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
                 \App\Models\RadCheck::updateOrCreate(
                     [
                         'username' => $user->username,

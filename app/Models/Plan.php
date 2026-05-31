@@ -186,8 +186,8 @@ class Plan extends Model
                 $users = \App\Models\User::where('plan_id', $plan->id)->get();
                 foreach ($users as $user) {
                     if ($user->username && $hasRadCheck) {
-                        // Update or create Simultaneous-Use in radcheck for this user
-                        $maxDevices = $plan->max_devices ?? 1;
+                        // Admins keep unlimited (0); everyone else follows the plan cap
+                        $maxDevices = $user->isAdmin() ? 0 : ($plan->max_devices ?? 1);
                         \App\Models\RadCheck::updateOrCreate(
                             [
                                 'username' => $user->username,
