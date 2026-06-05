@@ -38,20 +38,29 @@ class SubscriptionService
             // Persist
             $user->save();
 
-            // Ensure Mikrotik enforces 0 limit
-            RadReply::updateOrCreate(
-                ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
-                ['op' => ':=', 'value' => '0']
-            );
+            // Admins retain full RADIUS access even after a plan expires
+            if (! $user->isAdmin()) {
+                // Ensure Mikrotik enforces 0 limit
+                RadReply::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
+                    ['op' => ':=', 'value' => '0']
+                );
 
-            // Move user back to default group
-            RadUserGroup::updateOrCreate(
-                ['username' => $user->username],
-                ['groupname' => 'default_group', 'priority' => 10]
-            );
+                // Move user back to default group
+                RadUserGroup::updateOrCreate(
+                    ['username' => $user->username],
+                    ['groupname' => 'default_group', 'priority' => 10]
+                );
 
-            $user->connection_status = 'inactive';
-            $user->save();
+                $user->connection_status = 'inactive';
+                $user->save();
+            } else {
+                // For admins, wipe any stale cap so RADIUS never restricts them
+                RadReply::where('username', $user->username)
+                    ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets'])
+                    ->delete();
+                $user->save();
+            }
 
             // Revoke all vouchers created by this user so beneficiaries lose access
             $this->revokeUserVouchers($user);
@@ -85,18 +94,27 @@ class SubscriptionService
             // Clear plan
             $user->plan_id = null;
             $user->plan_expiry = null;
-            $user->connection_status = 'exhausted';
             $user->save();
 
-            RadReply::updateOrCreate(
-                ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
-                ['op' => ':=', 'value' => '0']
-            );
+            if (! $user->isAdmin()) {
+                $user->connection_status = 'exhausted';
+                $user->save();
 
-            RadUserGroup::updateOrCreate(
-                ['username' => $user->username],
-                ['groupname' => 'default_group', 'priority' => 10]
-            );
+                RadReply::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
+                    ['op' => ':=', 'value' => '0']
+                );
+
+                RadUserGroup::updateOrCreate(
+                    ['username' => $user->username],
+                    ['groupname' => 'default_group', 'priority' => 10]
+                );
+            } else {
+                // Admins: wipe any stale cap so RADIUS never restricts them
+                RadReply::where('username', $user->username)
+                    ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets'])
+                    ->delete();
+            }
 
             // Revoke all vouchers created by this user so beneficiaries lose access
             $this->revokeUserVouchers($user);

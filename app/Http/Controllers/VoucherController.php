@@ -60,6 +60,9 @@ class VoucherController extends Controller
         $mode = $request->input('mode', 'quick');
 
         if ($mode === 'custom') {
+            if (! $user->isAdmin()) {
+                return back()->with('error', 'Only admins can create custom vouchers.');
+            }
             return $this->generateCustom($request, $user);
         }
 

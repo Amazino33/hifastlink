@@ -37,9 +37,12 @@ class PlanSyncService
                         ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
                         ['op' => ':=', 'value' => '10']
                     );
-                    // Remove any stale data-cap or expiry attributes
+                    // Remove any stale data-cap or expiry attributes from both radcheck AND radreply
                     RadCheck::where('username', $user->username)
                         ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets', 'Expiration'])
+                        ->delete();
+                    RadReply::where('username', $user->username)
+                        ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets'])
                         ->delete();
                     $user->saveQuietly();
                     return;

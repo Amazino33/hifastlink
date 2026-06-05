@@ -58,6 +58,7 @@
                         class="flex-1 py-4 text-sm transition-colors">
                         <i class="fa-solid fa-bolt mr-2"></i>Quick Create
                     </button>
+                    @if($isAdmin)
                     <button @click="tab = 'custom'"
                         :class="tab === 'custom'
                             ? 'border-b-2 border-purple-600 text-purple-600 dark:text-purple-400 font-bold'
@@ -65,6 +66,7 @@
                         class="flex-1 py-4 text-sm transition-colors">
                         <i class="fa-solid fa-sliders mr-2"></i>Custom Create
                     </button>
+                    @endif
                 </div>
 
                 {{-- Quick tab --}}
@@ -96,7 +98,8 @@
                     </form>
                 </div>
 
-                {{-- Custom tab --}}
+                {{-- Custom tab (admin only) --}}
+                @if($isAdmin)
                 <div x-show="tab === 'custom'" x-transition class="p-6"
                      x-data="{
                          isUnlimited: false,
@@ -262,6 +265,7 @@
                         </div>
                     </form>
                 </div>
+                @endif
             </div>
 
             {{-- Vouchers table --}}

@@ -18,6 +18,7 @@ use App\Models\Router;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Get;
 use Filament\Panel;
 use Filament\Resources\RelationManagers\RelationGroup;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -85,8 +86,10 @@ class PlanResource extends Resource
                             TextInput::make('data_limit')
                                 ->label('Data Allowance')
                                 ->numeric()
-                                ->required()
-                                ->placeholder('0')
+                                ->required(fn (Get $get): bool => $get('limit_unit') !== 'Unlimited')
+                                ->hidden(fn (Get $get): bool => $get('limit_unit') === 'Unlimited')
+                                ->dehydrateStateUsing(fn ($state, Get $get) => $get('limit_unit') === 'Unlimited' ? null : $state)
+                                ->placeholder('e.g. 10')
                                 ->columnSpan(1),
                             Select::make('limit_unit')
                                 ->label('Unit')
@@ -97,6 +100,8 @@ class PlanResource extends Resource
                                 ])
                                 ->required()
                                 ->default('GB')
+                                ->live()
+                                ->afterStateUpdated(fn ($state, \Filament\Forms\Set $set) => $state === 'Unlimited' ? $set('data_limit', null) : null)
                                 ->columnSpan(1),
                         ])->columns(2),
                         TextInput::make('time_limit')
