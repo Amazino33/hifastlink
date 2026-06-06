@@ -237,16 +237,21 @@ class DashboardController extends Controller
         // Family-aware subscription check: allow connect when either the user or their family master has an active plan.
         $masterUser = $user->parent_id ? $user->parent : $user;
 
-        $validSubscription = null;
-        $hasExpiry = $masterUser->plan_expiry && $masterUser->plan_expiry->isFuture();
-        $dataRemaining = is_null($masterUser->data_limit) ? null : max(0, ($masterUser->data_limit ?? 0) - ($masterUser->data_used ?? 0));
+        // Admins always have access — no plan required
+        if ($user->isAdmin()) {
+            $validSubscription = (object) ['plan_id' => $user->plan_id, 'expires_at' => null, 'owner_id' => $user->id];
+        } else {
+            $validSubscription = null;
+            $hasExpiry = $masterUser->plan_expiry && $masterUser->plan_expiry->isFuture();
+            $dataRemaining = is_null($masterUser->data_limit) ? null : max(0, ($masterUser->data_limit ?? 0) - ($masterUser->data_used ?? 0));
 
-        if ($hasExpiry && (is_null($masterUser->data_limit) || $dataRemaining > 0)) {
-            $validSubscription = (object) ['plan_id' => $masterUser->plan_id, 'expires_at' => $masterUser->plan_expiry, 'owner_id' => $masterUser->id];
-        }
+            if ($hasExpiry && (is_null($masterUser->data_limit) || $dataRemaining > 0)) {
+                $validSubscription = (object) ['plan_id' => $masterUser->plan_id, 'expires_at' => $masterUser->plan_expiry, 'owner_id' => $masterUser->id];
+            }
 
-        if (! $validSubscription) {
-            return response()->json(['message' => 'No active subscription. Please renew to connect.'], 422);
+            if (! $validSubscription) {
+                return response()->json(['message' => 'No active subscription. Please renew to connect.'], 422);
+            }
         }
 
         // If user's own plan_id is missing but family master has one, do not overwrite user's plan_id.
