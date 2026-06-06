@@ -87,9 +87,12 @@ class UserDashboard extends Component
                     ->whereNull('acctstoptime')
                     ->exists();
 
-                $hasActivePlan = $masterUser->plan_id
-                    && $masterUser->plan_expiry
-                    && $masterUser->plan_expiry->isFuture();
+                $hasActivePlan = $masterUser->isAdmin()
+                    || (
+                        $masterUser->plan_id
+                        && $masterUser->plan_expiry
+                        && $masterUser->plan_expiry->isFuture()
+                    );
 
                 if (!$alreadyOnline && $hasActivePlan) {
                     return redirect()->route('connect.bridge', ['router' => $routerIdentifier]);

@@ -16,26 +16,31 @@ class RouterController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $validSubscription = null;
+        // Admins bypass subscription validation
+        $validSubscription = $user->isAdmin()
+            ? (object) ['plan_id' => $user->plan_id, 'expires_at' => null]
+            : null;
 
-        if (class_exists(\App\Models\Subscription::class)) {
-            $validSubscription = \App\Models\Subscription::where('user_id', $user->id)
-                ->where('status', 'ACTIVE')
-                ->where('expires_at', '>', now())
-                ->where(function ($q) {
-                    $q->where('data_remaining', '>', 0)->orWhereNull('data_limit');
-                })
-                ->orderBy('expires_at', 'desc')
-                ->first();
-        } else {
-            $hasExpiry     = $user->plan_expiry && $user->plan_expiry->isFuture();
-            $dataRemaining = is_null($user->data_limit) ? null : max(0, ($user->data_limit ?? 0) - ($user->data_used ?? 0));
-            if ($hasExpiry && (is_null($user->data_limit) || $dataRemaining > 0)) {
-                $validSubscription = (object)['plan_id' => $user->plan_id, 'expires_at' => $user->plan_expiry];
+        if (! $validSubscription) {
+            if (class_exists(\App\Models\Subscription::class)) {
+                $validSubscription = \App\Models\Subscription::where('user_id', $user->id)
+                    ->where('status', 'ACTIVE')
+                    ->where('expires_at', '>', now())
+                    ->where(function ($q) {
+                        $q->where('data_remaining', '>', 0)->orWhereNull('data_limit');
+                    })
+                    ->orderBy('expires_at', 'desc')
+                    ->first();
+            } else {
+                $hasExpiry     = $user->plan_expiry && $user->plan_expiry->isFuture();
+                $dataRemaining = is_null($user->data_limit) ? null : max(0, ($user->data_limit ?? 0) - ($user->data_used ?? 0));
+                if ($hasExpiry && (is_null($user->data_limit) || $dataRemaining > 0)) {
+                    $validSubscription = (object) ['plan_id' => $user->plan_id, 'expires_at' => $user->plan_expiry];
+                }
             }
         }
 
-        if (!$validSubscription) {
+        if (! $validSubscription) {
             return response()->json(['message' => 'No active subscription. Please renew to connect.'], 422);
         }
 

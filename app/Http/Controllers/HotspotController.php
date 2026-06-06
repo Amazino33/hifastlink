@@ -38,17 +38,22 @@ class HotspotController extends Controller
             return redirect()->route('dashboard')->with('error', 'Please buy a plan.');
         }
 
-        // Determine if user has an active subscription
-        $validSubscription = null;
-        if (class_exists(\App\Models\Subscription::class) && \Illuminate\Support\Facades\Schema::hasTable('subscriptions')) {
-            $validSubscription = \App\Models\Subscription::where('user_id', $user->id)
-                ->where('status', 'ACTIVE')
-                ->where('expires_at', '>', now())
-                ->where(function ($q) {
-                    $q->where('data_remaining', '>', 0)->orWhereNull('data_limit');
-                })
-                ->orderBy('expires_at', 'desc')
-                ->first();
+        // Admins bypass subscription validation — canConnectToHotspot() already confirmed access
+        $validSubscription = $user->isAdmin()
+            ? (object) ['plan_id' => $user->plan_id, 'expires_at' => null]
+            : null;
+
+        if (! $validSubscription) {
+            if (class_exists(\App\Models\Subscription::class) && \Illuminate\Support\Facades\Schema::hasTable('subscriptions')) {
+                $validSubscription = \App\Models\Subscription::where('user_id', $user->id)
+                    ->where('status', 'ACTIVE')
+                    ->where('expires_at', '>', now())
+                    ->where(function ($q) {
+                        $q->where('data_remaining', '>', 0)->orWhereNull('data_limit');
+                    })
+                    ->orderBy('expires_at', 'desc')
+                    ->first();
+            }
         }
 
         if (! $validSubscription) {
