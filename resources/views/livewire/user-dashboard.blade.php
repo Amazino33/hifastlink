@@ -216,6 +216,105 @@
 
         <div class="grid lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-6">
+                @if($isAdminUser)
+                {{-- ══════════════════════════════════════════ --}}
+                {{-- ADMIN HERO — Network Control Center       --}}
+                {{-- ══════════════════════════════════════════ --}}
+                <div class="bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 rounded-3xl p-8 shadow-2xl relative overflow-hidden border border-purple-900/40">
+                    <div class="absolute inset-0 pointer-events-none overflow-hidden">
+                        <div class="absolute -top-32 -right-32 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl"></div>
+                        <div class="absolute -bottom-32 -left-32 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl"></div>
+                    </div>
+
+                    <div class="relative z-10">
+                        {{-- Header --}}
+                        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
+                            <div class="flex items-center gap-4">
+                                <div class="w-16 h-16 bg-purple-500/20 border border-purple-400/30 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-900/50">
+                                    <i class="fa-solid fa-shield-halved text-purple-300 text-2xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-purple-400 text-xs font-bold uppercase tracking-widest mb-1">Network Control Center</p>
+                                    <h2 class="text-white text-2xl font-black leading-tight">{{ $user->name }}</h2>
+                                    <div class="flex flex-wrap items-center gap-2 mt-2">
+                                        <span class="px-2.5 py-1 bg-purple-600 text-white text-xs font-bold rounded-full uppercase tracking-wider">Administrator</span>
+                                        <span class="flex items-center gap-1.5 text-xs font-semibold {{ $radiusReachable ? 'text-green-400' : 'text-red-400' }}">
+                                            <span class="w-2 h-2 rounded-full {{ $radiusReachable ? 'bg-green-400 animate-pulse' : 'bg-red-500' }}"></span>
+                                            RADIUS {{ $radiusReachable ? 'Online' : 'Offline' }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Connection controls --}}
+                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                @if($isDeviceOnline)
+                                    <span class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-full text-xs font-bold bg-green-500/20 border border-green-400/30 text-green-300">
+                                        <span class="relative flex h-2 w-2">
+                                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                            <span class="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
+                                        </span>
+                                        ONLINE
+                                    </span>
+                                    <form id="disconnect-form" action="{{ route('user.disconnect') }}" method="POST">
+                                        @csrf
+                                        @if(session('current_device_mac'))
+                                            <input type="hidden" name="mac" value="{{ session('current_device_mac') }}">
+                                        @endif
+                                        <button type="submit" id="disconnect-btn"
+                                            class="w-full sm:w-auto px-4 py-2 text-xs font-semibold rounded-lg bg-red-600/80 hover:bg-red-600 text-white transition-all">
+                                            <i class="fa-solid fa-power-off mr-1"></i>Disconnect
+                                        </button>
+                                    </form>
+                                @elseif($connectedDevices > 0)
+                                    <span class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-full text-xs font-bold bg-yellow-500/20 border border-yellow-400/30 text-yellow-300">
+                                        <span class="relative flex h-2 w-2">
+                                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                                            <span class="relative inline-flex rounded-full h-2 w-2 bg-yellow-400"></span>
+                                        </span>
+                                        OTHER DEVICES
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-full text-xs font-bold bg-white/10 border border-white/10 text-white/40">
+                                        OFFLINE
+                                    </span>
+                                @endif
+
+                                @if(!$showDisconnectButton)
+                                    <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self"
+                                        class="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-lg shadow-purple-900/50">
+                                        <i class="fa-solid fa-wifi"></i>Connect
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+
+                        {{-- Network stats grid --}}
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="bg-white/5 border border-white/8 rounded-2xl p-4 hover:bg-white/8 transition-colors group">
+                                <div class="text-3xl font-black text-white mb-1 group-hover:text-purple-300 transition-colors">{{ $networkStats['users_online'] }}</div>
+                                <div class="text-purple-400 text-xs font-bold uppercase tracking-wide">Users Online</div>
+                                <div class="text-white/30 text-xs mt-0.5">{{ $networkStats['active_sessions'] }} sessions</div>
+                            </div>
+                            <div class="bg-white/5 border border-white/8 rounded-2xl p-4 hover:bg-white/8 transition-colors group">
+                                <div class="text-3xl font-black text-white mb-1 group-hover:text-purple-300 transition-colors">{{ $networkStats['today_bytes_human'] }}</div>
+                                <div class="text-purple-400 text-xs font-bold uppercase tracking-wide">Data Today</div>
+                                <div class="text-white/30 text-xs mt-0.5">Network throughput</div>
+                            </div>
+                            <div class="bg-white/5 border border-white/8 rounded-2xl p-4 hover:bg-white/8 transition-colors group">
+                                <div class="text-3xl font-black text-white mb-1 group-hover:text-purple-300 transition-colors">{{ $networkStats['total_users'] }}</div>
+                                <div class="text-purple-400 text-xs font-bold uppercase tracking-wide">Total Users</div>
+                                <div class="text-white/30 text-xs mt-0.5">Registered accounts</div>
+                            </div>
+                            <div class="bg-white/5 border border-white/8 rounded-2xl p-4 hover:bg-white/8 transition-colors group">
+                                <div class="text-3xl font-black text-white mb-1 group-hover:text-purple-300 transition-colors">{{ $networkStats['active_vouchers'] }}</div>
+                                <div class="text-purple-400 text-xs font-bold uppercase tracking-wide">Vouchers</div>
+                                <div class="text-white/30 text-xs mt-0.5">Unused / available</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @else
                 <div
                     class="bg-gradient-to-r from-blue-600 to-blue-400 rounded-3xl p-8 shadow-2xl relative overflow-hidden transform hover:scale-[1.02] transition-all duration-300">
                     <div class="absolute inset-0 opacity-20">
@@ -370,7 +469,103 @@
                         </div>
                     </div>
                 </div>
+                @endif
 
+                @if($isAdminUser)
+                {{-- ══════════════════════════════════════════ --}}
+                {{-- ADMIN QUICK ACTIONS + MY ACTIVITY         --}}
+                {{-- ══════════════════════════════════════════ --}}
+                <div class="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-900 rounded-3xl shadow-2xl relative overflow-hidden border border-white/5">
+                    <div class="absolute inset-0 pointer-events-none overflow-hidden">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-purple-600/5 rounded-full blur-3xl"></div>
+                    </div>
+                    <div class="relative z-10 p-8">
+                        <p class="text-white/40 text-xs font-bold uppercase tracking-widest mb-4">Quick Actions</p>
+                        <div class="grid grid-cols-2 gap-3 mb-8">
+                            <a href="/admin"
+                                class="flex items-center gap-3 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-xl px-4 py-3 transition-all group">
+                                <div class="w-9 h-9 bg-purple-500/30 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-purple-500/50 transition-colors">
+                                    <i class="fa-solid fa-gauge-high text-purple-300 text-sm"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-white text-xs font-bold">Admin Panel</div>
+                                    <div class="text-white/40 text-xs">Filament dashboard</div>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-white/20 ml-auto text-xs group-hover:text-purple-300 transition-colors flex-shrink-0"></i>
+                            </a>
+                            <a href="/admin/users"
+                                class="flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-3 transition-all group">
+                                <div class="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-white/20 transition-colors">
+                                    <i class="fa-solid fa-users text-white/60 text-sm"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-white text-xs font-bold">Manage Users</div>
+                                    <div class="text-white/40 text-xs">Accounts & roles</div>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-white/20 ml-auto text-xs flex-shrink-0"></i>
+                            </a>
+                            <a href="{{ route('vouchers.index') }}"
+                                class="flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-3 transition-all group">
+                                <div class="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-white/20 transition-colors">
+                                    <i class="fa-solid fa-ticket text-white/60 text-sm"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-white text-xs font-bold">Vouchers</div>
+                                    <div class="text-white/40 text-xs">Create & manage</div>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-white/20 ml-auto text-xs flex-shrink-0"></i>
+                            </a>
+                            <a href="/admin/plans"
+                                class="flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-3 transition-all group">
+                                <div class="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-white/20 transition-colors">
+                                    <i class="fa-solid fa-layer-group text-white/60 text-sm"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-white text-xs font-bold">Data Plans</div>
+                                    <div class="text-white/40 text-xs">Packages & pricing</div>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-white/20 ml-auto text-xs flex-shrink-0"></i>
+                            </a>
+                        </div>
+
+                        <div class="border-t border-white/10 pt-6">
+                            <p class="text-white/40 text-xs font-bold uppercase tracking-widest mb-4">My Activity</p>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="flex items-center gap-2 text-white/60 text-sm">
+                                        <i class="fa-solid fa-database text-purple-400 w-4 text-center text-xs"></i>
+                                        Data Used (RADIUS)
+                                    </span>
+                                    <span class="text-white font-bold text-sm">{{ $formattedTotalUsed }}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="flex items-center gap-2 text-white/60 text-sm">
+                                        <i class="fa-solid fa-mobile-screen-button text-purple-400 w-4 text-center text-xs"></i>
+                                        Connected Devices
+                                    </span>
+                                    <span class="text-white font-bold text-sm">{{ $connectedDevices }} <span class="text-white/30 font-normal">/ ∞</span></span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="flex items-center gap-2 text-white/60 text-sm">
+                                        <i class="fa-solid fa-clock text-purple-400 w-4 text-center text-xs"></i>
+                                        Session Uptime
+                                    </span>
+                                    <span class="text-white font-bold text-sm">{{ $uptime }}</span>
+                                </div>
+                                @if($isDeviceOnline && $currentIp && $currentIp !== 'N/A')
+                                <div class="flex items-center justify-between">
+                                    <span class="flex items-center gap-2 text-white/60 text-sm">
+                                        <i class="fa-solid fa-network-wired text-purple-400 w-4 text-center text-xs"></i>
+                                        IP Address
+                                    </span>
+                                    <span class="text-white font-mono font-bold text-sm">{{ $currentIp }}</span>
+                                </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @else
                 <div
                     class="bg-gradient-to-br from-indigo-600 via-blue-500 to-teal-400 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
                     <div class="absolute inset-0 opacity-20">
@@ -456,6 +651,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
 
                 @if($user->pendingSubscriptions->count() > 0)
                     <div class="col-span-2 mt-6">

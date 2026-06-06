@@ -626,11 +626,24 @@ class UserDashboard extends Component
             $daysBadgeClass = 'bg-gray-500 text-white';
         }
 
-        // Admin override: no expiry concern, no device cap, purple badge
+        // Admin override: no expiry concern, no device cap, purple badge + live network stats
+        $networkStats = null;
         if ($isAdminUser) {
             $subscriptionDays = null;
             $daysBadgeClass   = 'bg-purple-600 text-white';
             $maxDevices       = PHP_INT_MAX;
+
+            $todayBytes = (int) (\App\Models\RadAcct::whereDate('acctstarttime', today())
+                ->selectRaw('COALESCE(SUM(acctinputoctets + acctoutputoctets), 0) as total')
+                ->value('total') ?? 0);
+
+            $networkStats = [
+                'active_sessions'  => \App\Models\RadAcct::whereNull('acctstoptime')->count(),
+                'users_online'     => \App\Models\RadAcct::whereNull('acctstoptime')->distinct('username')->count('username'),
+                'total_users'      => \App\Models\User::count(),
+                'active_vouchers'  => \App\Models\Voucher::where('is_used', false)->count(),
+                'today_bytes_human' => Number::fileSize($todayBytes),
+            ];
         }
 
         // Staff override: no expiry concern, 2-device cap, blue badge
@@ -775,6 +788,7 @@ class UserDashboard extends Component
             'sessionHistory'  => $sessionHistory,
             'isAdminUser'     => $isAdminUser,
             'isStaffUser'     => $isStaffUser,
+            'networkStats'    => $networkStats,
         ]);
     }
 
