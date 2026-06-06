@@ -10,11 +10,11 @@
 
             {{-- Stats bar --}}
             @php
-                $totalLimit   = auth()->user()->plan->family_limit ?? auth()->user()->family_limit ?? 10;
-                $activeCount  = \App\Models\Voucher::where('created_by', auth()->id())->count();
-                $usedSlots    = $totalLimit - 1;
-                $remaining    = max(0, $usedSlots - $activeCount);
-                $isAdmin      = auth()->user()->isAdmin();
+                $totalLimit      = auth()->user()->plan->family_limit ?? auth()->user()->family_limit ?? 10;
+                $activeCount     = \App\Models\Voucher::where('created_by', auth()->id())->count();
+                $usedSlots       = $totalLimit - 1;
+                $remaining       = max(0, $usedSlots - $activeCount);
+                $canCustomCreate = $isAdmin || $isFamilyAdmin;
             @endphp
 
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -58,7 +58,7 @@
                         class="flex-1 py-4 text-sm transition-colors">
                         <i class="fa-solid fa-bolt mr-2"></i>Quick Create
                     </button>
-                    @if($isAdmin)
+                    @if($canCustomCreate)
                     <button @click="tab = 'custom'"
                         :class="tab === 'custom'
                             ? 'border-b-2 border-purple-600 text-purple-600 dark:text-purple-400 font-bold'
@@ -98,11 +98,11 @@
                     </form>
                 </div>
 
-                {{-- Custom tab (admin only) --}}
-                @if($isAdmin)
+                {{-- Custom tab --}}
+                @if($canCustomCreate)
                 <div x-show="tab === 'custom'" x-transition class="p-6"
                      x-data="{
-                         isUnlimited: false,
+                         isUnlimited: {{ (!$isAdmin && $planLimits && $planLimits['is_unlimited']) ? 'false' : 'false' }},
                          dataUnit: 'MB',
                          hasSpeed: false,
                          hasPlan: false
@@ -110,6 +110,40 @@
                     <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
                         Set your own validity, data cap, speed limits, and number of uses. Perfect for welcome gifts, trials, or one-off access.
                     </p>
+
+                    {{-- Plan limits notice for non-admins --}}
+                    @if(!$isAdmin && $planLimits)
+                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4 mb-6">
+                        <div class="flex items-center gap-2 mb-3">
+                            <i class="fa-solid fa-circle-info text-blue-500"></i>
+                            <span class="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
+                                Your Plan Limits — {{ $planLimits['plan_name'] }}
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                            <div>
+                                <span class="text-gray-500 dark:text-gray-400 block">Max Validity</span>
+                                <span class="font-semibold text-gray-800 dark:text-white">{{ $planLimits['validity_days'] }} days</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-500 dark:text-gray-400 block">Data Cap</span>
+                                <span class="font-semibold text-gray-800 dark:text-white">{{ $planLimits['data_human'] }}</span>
+                            </div>
+                            @if($planLimits['speed_limit_download'])
+                            <div>
+                                <span class="text-gray-500 dark:text-gray-400 block">Max Download</span>
+                                <span class="font-semibold text-gray-800 dark:text-white">{{ $planLimits['speed_limit_download'] }} Kbps</span>
+                            </div>
+                            @endif
+                            @if($planLimits['speed_limit_upload'])
+                            <div>
+                                <span class="text-gray-500 dark:text-gray-400 block">Max Upload</span>
+                                <span class="font-semibold text-gray-800 dark:text-white">{{ $planLimits['speed_limit_upload'] }} Kbps</span>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                    @endif
 
                     <form action="{{ route('vouchers.generate') }}" method="POST">
                         @csrf
@@ -134,7 +168,9 @@
                                     Validity
                                 </label>
                                 <div class="relative">
-                                    <input type="number" name="validity_days" min="1" max="365" value="3" required
+                                    <input type="number" name="validity_days" min="1"
+                                           max="{{ $isAdmin ? 365 : ($planLimits['validity_days'] ?? 365) }}"
+                                           value="{{ $isAdmin ? 3 : min(3, $planLimits['validity_days'] ?? 3) }}" required
                                            class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 pr-14">
                                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">days</span>
                                 </div>
@@ -166,6 +202,7 @@
                                 </label>
                                 <div class="flex items-center gap-3">
                                     {{-- Unlimited toggle --}}
+                                    @if($isAdmin || ($planLimits && $planLimits['is_unlimited']))
                                     <label class="flex items-center gap-2 cursor-pointer select-none flex-shrink-0">
                                         <div class="relative">
                                             <input type="checkbox" class="sr-only" x-model="isUnlimited">
@@ -176,9 +213,21 @@
                                         </div>
                                         <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Unlimited</span>
                                     </label>
+                                    @else
+                                    <label class="flex items-center gap-2 opacity-40 cursor-not-allowed select-none flex-shrink-0" title="Your plan has a data cap — unlimited vouchers not available">
+                                        <div class="relative">
+                                            <input type="checkbox" class="sr-only" disabled>
+                                            <div class="w-10 h-5 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+                                            <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow"></div>
+                                        </div>
+                                        <span class="text-sm font-medium text-gray-500">Unlimited</span>
+                                        <span class="text-xs text-gray-400">(not on your plan)</span>
+                                    </label>
+                                    @endif
 
                                     <div x-show="!isUnlimited" class="flex flex-1 gap-2">
                                         <input type="number" name="data_limit_mb" min="1"
+                                               @if(!$isAdmin && $planLimits && $planLimits['data_limit_mb']) max="{{ $planLimits['data_limit_mb'] }}" @endif
                                                placeholder="e.g. 500"
                                                :required="!isUnlimited"
                                                class="flex-1 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500">
@@ -211,6 +260,7 @@
                                         <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Download Speed</label>
                                         <div class="relative">
                                             <input type="number" name="speed_limit_download" min="0" placeholder="e.g. 2048"
+                                                   @if(!$isAdmin && $planLimits && $planLimits['speed_limit_download']) max="{{ $planLimits['speed_limit_download'] }}" @endif
                                                    class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 pr-14">
                                             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Kbps</span>
                                         </div>
@@ -219,6 +269,7 @@
                                         <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Upload Speed</label>
                                         <div class="relative">
                                             <input type="number" name="speed_limit_upload" min="0" placeholder="e.g. 512"
+                                                   @if(!$isAdmin && $planLimits && $planLimits['speed_limit_upload']) max="{{ $planLimits['speed_limit_upload'] }}" @endif
                                                    class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 pr-14">
                                             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Kbps</span>
                                         </div>

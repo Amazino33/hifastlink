@@ -2,15 +2,16 @@
 
 namespace App\Filament\Resources\Vouchers\Tables;
 
-use Filament\Tables\Table;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\IconColumn;
-use Filament\Tables\Filters\SelectFilter;
+use App\Models\Plan;
 use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
-use App\Models\Plan;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class VouchersTable
 {
@@ -19,52 +20,139 @@ class VouchersTable
         return $table
             ->columns([
                 TextColumn::make('code')
+                    ->label('Code')
                     ->searchable()
                     ->copyable()
-                    ->copyMessage('Voucher code copied to clipboard')
-                    ->copyMessageDuration(1500),
+                    ->copyMessage('Copied!')
+                    ->fontFamily('mono')
+                    ->weight('bold'),
+
+                TextColumn::make('status')
+                    ->label('Status')
+                    ->badge()
+                    ->getStateUsing(function ($record): string {
+                        if ($record->expires_at && $record->expires_at->isPast()) {
+                            return 'Expired';
+                        }
+                        if ($record->used_count >= $record->max_uses) {
+                            return 'Redeemed';
+                        }
+                        return 'Active';
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'Active'   => 'success',
+                        'Redeemed' => 'info',
+                        'Expired'  => 'danger',
+                        default    => 'gray',
+                    }),
 
                 TextColumn::make('plan.name')
                     ->label('Plan')
                     ->badge()
                     ->color('info')
+                    ->placeholder('Custom')
                     ->sortable(),
 
-                IconColumn::make('is_used')
-                    ->label('Used')
-                    ->boolean()
-                    ->trueIcon('heroicon-o-check-circle')
-                    ->falseIcon('heroicon-o-x-circle')
-                    ->trueColor('success')
-                    ->falseColor('gray'),
+                TextColumn::make('label')
+                    ->label('Label')
+                    ->placeholder('—')
+                    ->limit(25)
+                    ->searchable(),
 
-                TextColumn::make('user.username')
-                    ->label('Used By')
-                    ->getStateUsing(fn ($record) => $record->is_used ? $record->user?->username : '-'),
+                TextColumn::make('data')
+                    ->label('Data')
+                    ->badge()
+                    ->getStateUsing(function ($record): string {
+                        if ($record->is_unlimited) {
+                            return 'Unlimited';
+                        }
+                        if ($record->data_limit_mb) {
+                            return $record->data_limit_mb >= 1024
+                                ? round($record->data_limit_mb / 1024, 1) . ' GB'
+                                : $record->data_limit_mb . ' MB';
+                        }
+                        if ($record->plan) {
+                            return $record->plan->limit_unit === 'Unlimited'
+                                ? 'Unlimited'
+                                : ($record->plan->data_limit . ' ' . $record->plan->limit_unit);
+                        }
+                        return '—';
+                    })
+                    ->color(fn (string $state): string => $state === 'Unlimited' ? 'warning' : 'gray'),
+
+                TextColumn::make('usage')
+                    ->label('Uses')
+                    ->getStateUsing(fn ($record): string => $record->used_count . ' / ' . $record->max_uses),
+
+                TextColumn::make('duration_hours')
+                    ->label('Duration')
+                    ->getStateUsing(function ($record): string {
+                        if (! $record->duration_hours) {
+                            return '—';
+                        }
+                        $days = round($record->duration_hours / 24);
+                        return $days . ($days === 1 ? ' day' : ' days');
+                    }),
+
+                TextColumn::make('expires_at')
+                    ->label('Expires')
+                    ->since()
+                    ->placeholder('On first use')
+                    ->sortable(),
+
+                TextColumn::make('creator.name')
+                    ->label('Created By')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('created_at')
-                    ->date()
-                    ->sortable(),
+                    ->label('Created')
+                    ->date('d M Y')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('created_at', 'desc')
             ->filters([
-                SelectFilter::make('plan_id')
-                    ->label('Plan')
-                    ->options(Plan::pluck('name', 'id')),
-
-                SelectFilter::make('is_used')
+                SelectFilter::make('status')
                     ->label('Status')
                     ->options([
-                        '0' => 'Unused',
-                        '1' => 'Used',
+                        'active'   => 'Active',
+                        'redeemed' => 'Redeemed',
+                        'expired'  => 'Expired',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return match ($data['value'] ?? null) {
+                            'active'   => $query->where(function ($q) {
+                                $q->whereColumn('used_count', '<', 'max_uses')
+                                  ->where(fn ($q2) => $q2->whereNull('expires_at')
+                                                         ->orWhere('expires_at', '>', now()));
+                            }),
+                            'redeemed' => $query->whereColumn('used_count', '>=', 'max_uses'),
+                            'expired'  => $query->where('expires_at', '<=', now()),
+                            default    => $query,
+                        };
+                    }),
+
+                SelectFilter::make('plan_id')
+                    ->label('Plan')
+                    ->options(Plan::pluck('name', 'id'))
+                    ->placeholder('All plans'),
+
+                SelectFilter::make('is_unlimited')
+                    ->label('Data Type')
+                    ->options([
+                        '1' => 'Unlimited only',
+                        '0' => 'Capped only',
                     ]),
             ])
             ->actions([
                 ViewAction::make(),
                 EditAction::make(),
+                DeleteAction::make()->label('Revoke'),
             ])
             ->bulkActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()->label('Revoke Selected'),
                 ]),
             ]);
     }

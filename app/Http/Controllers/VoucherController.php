@@ -30,7 +30,32 @@ class VoucherController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'validity_days', 'data_limit', 'limit_unit', 'price']);
 
-        return view('vouchers.index', compact('vouchers', 'plans'));
+        $isAdmin       = $user->isAdmin();
+        $isFamilyAdmin = (bool) $user->is_family_admin;
+
+        // Compute plan limits for non-admin family heads so the view can enforce caps
+        $planLimits = null;
+        if (! $isAdmin && $isFamilyAdmin && $user->plan) {
+            $plan            = $user->plan;
+            $planIsUnlimited = $plan->limit_unit === 'Unlimited';
+            $planDataMb      = null;
+            if (! $planIsUnlimited && $plan->data_limit) {
+                $planDataMb = $plan->limit_unit === 'GB'
+                    ? (int) ($plan->data_limit * 1024)
+                    : (int) $plan->data_limit;
+            }
+            $planLimits = [
+                'plan_name'            => $plan->name,
+                'validity_days'        => (int) $plan->validity_days,
+                'is_unlimited'         => $planIsUnlimited,
+                'data_limit_mb'        => $planDataMb,
+                'data_human'           => $planIsUnlimited ? 'Unlimited' : ($plan->data_limit . ' ' . $plan->limit_unit),
+                'speed_limit_download' => (int) ($plan->speed_limit_download ?? 0),
+                'speed_limit_upload'   => (int) ($plan->speed_limit_upload ?? 0),
+            ];
+        }
+
+        return view('vouchers.index', compact('vouchers', 'plans', 'isAdmin', 'isFamilyAdmin', 'planLimits'));
     }
 
     /**
@@ -60,9 +85,6 @@ class VoucherController extends Controller
         $mode = $request->input('mode', 'quick');
 
         if ($mode === 'custom') {
-            if (! $user->isAdmin()) {
-                return back()->with('error', 'Only admins can create custom vouchers.');
-            }
             return $this->generateCustom($request, $user);
         }
 
@@ -126,9 +148,45 @@ class VoucherController extends Controller
             $rawDataLimit = (int) ($rawDataLimit * 1024);
         }
 
-        // Admins bypass slot limits for custom vouchers; family heads are still capped
+        // Non-admins: enforce plan caps on specs and slot count
         if (! $user->isAdmin()) {
-            $maxAllowed     = $user->plan->family_limit ?? $user->family_limit ?? 10;
+            $plan = $user->plan;
+
+            if (! $plan) {
+                return back()->with('error', 'You need an active plan to create custom vouchers.');
+            }
+
+            // Validity
+            if ($validityDays > (int) $plan->validity_days) {
+                return back()->with('error', "Validity cannot exceed your plan limit of {$plan->validity_days} days.");
+            }
+
+            // Unlimited data
+            if ($isUnlimited && $plan->limit_unit !== 'Unlimited') {
+                return back()->with('error', 'You cannot create unlimited vouchers — your plan has a data cap.');
+            }
+
+            // Data allowance
+            if (! $isUnlimited && $plan->limit_unit !== 'Unlimited' && $rawDataLimit) {
+                $planDataMb = $plan->limit_unit === 'GB'
+                    ? (int) ($plan->data_limit * 1024)
+                    : (int) $plan->data_limit;
+                if ((int) $rawDataLimit > $planDataMb) {
+                    $humanLimit = $plan->data_limit . ' ' . $plan->limit_unit;
+                    return back()->with('error', "Data allowance cannot exceed your plan limit ({$humanLimit}).");
+                }
+            }
+
+            // Speed limits
+            if ($plan->speed_limit_download && (int) $request->input('speed_limit_download') > $plan->speed_limit_download) {
+                return back()->with('error', "Download speed cannot exceed your plan limit of {$plan->speed_limit_download} Kbps.");
+            }
+            if ($plan->speed_limit_upload && (int) $request->input('speed_limit_upload') > $plan->speed_limit_upload) {
+                return back()->with('error', "Upload speed cannot exceed your plan limit of {$plan->speed_limit_upload} Kbps.");
+            }
+
+            // Slot count
+            $maxAllowed     = $plan->family_limit ?? $user->family_limit ?? 10;
             $activeCount    = Voucher::where('created_by', $user->id)->count();
             $remainingSlots = $maxAllowed - 1 - $activeCount;
             if ($quantity > $remainingSlots) {
