@@ -504,9 +504,10 @@ class UserDashboard extends Component
         }
 
         $isAdminUser = $user->isAdmin();
+        $isStaffUser = $user->isStaff();
 
-        // Admins are always 'active' regardless of plan; everyone else needs a valid plan
-        if ($isAdminUser) {
+        // Admins and staff are always 'active' regardless of plan
+        if ($isAdminUser || $isStaffUser) {
             $subscriptionStatus = 'active';
         } elseif (!$masterUser->plan_id) {
             $subscriptionStatus = 'inactive';
@@ -520,8 +521,8 @@ class UserDashboard extends Component
             $connectionStatus = 'unknown';
         }
 
-        // Force offline when there is no plan — admins bypass this because they have access without one
-        if (!$masterUser->plan_id && !$isAdminUser) {
+        // Force offline when there is no plan — admins and staff bypass this
+        if (!$masterUser->plan_id && !$isAdminUser && !$isStaffUser) {
             $connectionStatus = 'offline';
         }
 
@@ -625,11 +626,18 @@ class UserDashboard extends Component
             $daysBadgeClass = 'bg-gray-500 text-white';
         }
 
-        // Admin override: no expiry concern, unlimited devices, distinctive badge
+        // Admin override: no expiry concern, no device cap, purple badge
         if ($isAdminUser) {
             $subscriptionDays = null;
             $daysBadgeClass   = 'bg-purple-600 text-white';
-            $maxDevices       = 10; // matches Simultaneous-Use set by PlanSyncService for admins
+            $maxDevices       = PHP_INT_MAX;
+        }
+
+        // Staff override: no expiry concern, 2-device cap, blue badge
+        if ($isStaffUser) {
+            $subscriptionDays = null;
+            $daysBadgeClass   = 'bg-blue-600 text-white';
+            $maxDevices       = 2;
         }
 
         // Calculate data usage percentage based on totalUsed and effective quota (plan + rollover when applicable)
@@ -766,6 +774,7 @@ class UserDashboard extends Component
             'sessionUpload'   => $sessionUpload,
             'sessionHistory'  => $sessionHistory,
             'isAdminUser'     => $isAdminUser,
+            'isStaffUser'     => $isStaffUser,
         ]);
     }
 

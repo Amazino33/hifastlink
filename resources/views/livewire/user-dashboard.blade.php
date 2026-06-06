@@ -30,7 +30,7 @@
                             <i class="fa-solid fa-mobile-screen-button text-xs text-gray-500 dark:text-gray-400"></i>
                             <p class="text-xs text-gray-500 dark:text-gray-400">
                                 Connected Devices: <span
-                                    class="font-semibold text-gray-700 dark:text-gray-300">{{ $connectedDevices }}/{{ $maxDevices }}</span>
+                                    class="font-semibold text-gray-700 dark:text-gray-300">{{ $connectedDevices }}/{{ $isAdminUser ? '∞' : $maxDevices }}</span>
                                 <span class="text-green-600 dark:text-green-400 font-semibold">(This device is
                                     connected)</span>
                             </p>
@@ -59,7 +59,7 @@
                             <i class="fa-solid fa-mobile-screen-button text-xs text-gray-500 dark:text-gray-400"></i>
                             <p class="text-xs text-gray-500 dark:text-gray-400">
                                 Connected Devices: <span
-                                    class="font-semibold text-gray-700 dark:text-gray-300">{{ $connectedDevices }}/{{ $maxDevices }}</span>
+                                    class="font-semibold text-gray-700 dark:text-gray-300">{{ $connectedDevices }}/{{ $isAdminUser ? '∞' : $maxDevices }}</span>
                                 <span class="text-gray-500 dark:text-gray-400">(Not this device)</span>
                             </p>
                         </div>
@@ -89,7 +89,7 @@
                             <i class="fa-solid fa-mobile-screen-button text-xs text-gray-500 dark:text-gray-400"></i>
                             <p class="text-xs text-gray-500 dark:text-gray-400">
                                 Connected Devices: <span
-                                    class="font-semibold text-gray-700 dark:text-gray-300">{{ $connectedDevices }}/{{ $maxDevices }}</span>
+                                    class="font-semibold text-gray-700 dark:text-gray-300">{{ $connectedDevices }}/{{ $isAdminUser ? '∞' : $maxDevices }}</span>
                             </p>
                         </div>
                         @if($currentLocation)
@@ -273,7 +273,7 @@
                                         </form>
                                     @else
                                         @if($subscriptionStatus === 'active')
-                                            @if($connectedDevices < $maxDevices)
+                                            @if($isAdminUser || $connectedDevices < $maxDevices)
                                                 <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self"
                                                     class="w-full sm:w-auto inline-block text-center px-4 py-2 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-blue-600">
                                                     <i class="fa-solid fa-wifi mr-1"></i>Connect to Router
@@ -304,6 +304,14 @@
                                 <div class="text-sm text-white/80 font-semibold mb-3">Unlimited access — no restrictions</div>
                                 <div class="text-blue-100 text-lg">Unlimited Data</div>
                                 <div class="text-xs text-blue-200 mt-1 font-medium tracking-wide uppercase">No plan required</div>
+                            @elseif($isStaffUser)
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="text-6xl font-black text-white">∞</span>
+                                    <span class="self-center px-3 py-1 rounded-full text-xs font-bold bg-blue-500 text-white tracking-widest uppercase">Staff</span>
+                                </div>
+                                <div class="text-sm text-white/80 font-semibold mb-3">Unlimited data — up to 2 devices</div>
+                                <div class="text-blue-100 text-lg">Unlimited Data</div>
+                                <div class="text-xs text-blue-200 mt-1 font-medium tracking-wide uppercase">Staff access</div>
                             @elseif($subscriptionStatus === 'active')
                                 <div class="text-6xl font-black text-white mb-2">{{ $subscriptionDays }}</div>
                                 <div class="text-sm text-white/80 font-semibold mb-3">
@@ -376,10 +384,24 @@
                                 <div class="text-blue-100 text-sm font-semibold uppercase tracking-wide mb-2">
                                     {{ $connectionStatus === 'active' ? 'Live Data Usage' : 'Data Usage' }}
                                 </div>
-                                <div class="text-white text-lg font-bold mb-1">
-                                    {{ $user->plan->name ?? 'No Active Plan' }}</div>
-                                <div class="text-white/80 text-xs">Valid Until: {{ $validUntil }}
-                                    ({{ $planValidityHuman }})</div>
+                                @if($isAdminUser)
+                                    <div class="text-white text-lg font-bold mb-1 flex items-center gap-2">
+                                        Administrator
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-500 text-white">Admin</span>
+                                    </div>
+                                    <div class="text-white/80 text-xs">Unrestricted access — no plan required</div>
+                                @elseif($isStaffUser)
+                                    <div class="text-white text-lg font-bold mb-1 flex items-center gap-2">
+                                        Staff Member
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500 text-white">Staff</span>
+                                    </div>
+                                    <div class="text-white/80 text-xs">Unlimited data — 2 device limit</div>
+                                @else
+                                    <div class="text-white text-lg font-bold mb-1">
+                                        {{ $user->plan->name ?? 'No Active Plan' }}</div>
+                                    <div class="text-white/80 text-xs">Valid Until: {{ $validUntil }}
+                                        ({{ $planValidityHuman }})</div>
+                                @endif
                             </div>
                         </div>
 

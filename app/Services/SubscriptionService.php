@@ -38,27 +38,24 @@ class SubscriptionService
             // Persist
             $user->save();
 
-            // Admins retain full RADIUS access even after a plan expires
-            if (! $user->isAdmin()) {
-                // Ensure Mikrotik enforces 0 limit
+            // Admins and staff retain full RADIUS access even after a plan expires
+            if ($user->isAdmin() || $user->isStaff()) {
+                RadReply::where('username', $user->username)
+                    ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets'])
+                    ->delete();
+                $user->save();
+            } else {
                 RadReply::updateOrCreate(
                     ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
                     ['op' => ':=', 'value' => '0']
                 );
 
-                // Move user back to default group
                 RadUserGroup::updateOrCreate(
                     ['username' => $user->username],
                     ['groupname' => 'default_group', 'priority' => 10]
                 );
 
                 $user->connection_status = 'inactive';
-                $user->save();
-            } else {
-                // For admins, wipe any stale cap so RADIUS never restricts them
-                RadReply::where('username', $user->username)
-                    ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets'])
-                    ->delete();
                 $user->save();
             }
 
@@ -96,7 +93,12 @@ class SubscriptionService
             $user->plan_expiry = null;
             $user->save();
 
-            if (! $user->isAdmin()) {
+            if ($user->isAdmin() || $user->isStaff()) {
+                // Admins and staff: wipe any stale cap so RADIUS never restricts them
+                RadReply::where('username', $user->username)
+                    ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets'])
+                    ->delete();
+            } else {
                 $user->connection_status = 'exhausted';
                 $user->save();
 
@@ -109,11 +111,6 @@ class SubscriptionService
                     ['username' => $user->username],
                     ['groupname' => 'default_group', 'priority' => 10]
                 );
-            } else {
-                // Admins: wipe any stale cap so RADIUS never restricts them
-                RadReply::where('username', $user->username)
-                    ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets'])
-                    ->delete();
             }
 
             // Revoke all vouchers created by this user so beneficiaries lose access
@@ -177,8 +174,8 @@ class SubscriptionService
      */
     public function canConnectToHotspot(User $user): bool
     {
-        // Admins always have unrestricted hotspot access — no plan required
-        if ($user->isAdmin()) {
+        // Admins and staff always have unrestricted hotspot access — no plan required
+        if ($user->isAdmin() || $user->isStaff()) {
             return true;
         }
 

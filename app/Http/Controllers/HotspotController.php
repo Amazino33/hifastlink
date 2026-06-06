@@ -38,8 +38,8 @@ class HotspotController extends Controller
             return redirect()->route('dashboard')->with('error', 'Please buy a plan.');
         }
 
-        // Admins bypass subscription validation — canConnectToHotspot() already confirmed access
-        $validSubscription = $user->isAdmin()
+        // Admins and staff bypass subscription validation — canConnectToHotspot() already confirmed access
+        $validSubscription = ($user->isAdmin() || $user->isStaff())
             ? (object) ['plan_id' => $user->plan_id, 'expires_at' => null]
             : null;
 

@@ -237,8 +237,8 @@ class DashboardController extends Controller
         // Family-aware subscription check: allow connect when either the user or their family master has an active plan.
         $masterUser = $user->parent_id ? $user->parent : $user;
 
-        // Admins always have access — no plan required
-        if ($user->isAdmin()) {
+        // Admins and staff always have access — no plan required
+        if ($user->isAdmin() || $user->isStaff()) {
             $validSubscription = (object) ['plan_id' => $user->plan_id, 'expires_at' => null, 'owner_id' => $user->id];
         } else {
             $validSubscription = null;

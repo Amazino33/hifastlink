@@ -388,6 +388,11 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
             || (!empty($this->is_admin) && $this->is_admin);
     }
 
+    public function isStaff(): bool
+    {
+        return $this->hasRole('staff');
+    }
+
     /**
      * The "booted" method of the model.
      * Automates creating/updating the Radius user.
@@ -402,12 +407,17 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
                     ['op' => ':=', 'value' => $user->radius_password ?? '123456']
                 );
 
-                // Admins get 0 (unlimited); everyone else is capped by their plan
-                $maxDevices = $user->isAdmin() ? 0 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
-                \App\Models\RadCheck::updateOrCreate(
-                    ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
-                    ['op' => ':=', 'value' => (string) $maxDevices]
-                );
+                if ($user->isAdmin()) {
+                    \App\Models\RadCheck::where('username', $user->username)
+                        ->where('attribute', 'Simultaneous-Use')
+                        ->delete();
+                } else {
+                    $maxDevices = $user->isStaff() ? 2 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
+                    \App\Models\RadCheck::updateOrCreate(
+                        ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
+                        ['op' => ':=', 'value' => (string) $maxDevices]
+                    );
+                }
             }
         });
 
@@ -421,18 +431,17 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
             
             // If plan_id changed, sync RADIUS attributes
             if ($user->isDirty('plan_id') && !empty($user->username)) {
-                // Admins get 0 (unlimited); everyone else is capped by their plan
-                $maxDevices = $user->isAdmin() ? 0 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
-                \App\Models\RadCheck::updateOrCreate(
-                    [
-                        'username' => $user->username,
-                        'attribute' => 'Simultaneous-Use',
-                    ],
-                    [
-                        'op' => ':=',
-                        'value' => (string) $maxDevices,
-                    ]
-                );
+                if ($user->isAdmin()) {
+                    \App\Models\RadCheck::where('username', $user->username)
+                        ->where('attribute', 'Simultaneous-Use')
+                        ->delete();
+                } else {
+                    $maxDevices = $user->isStaff() ? 2 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
+                    \App\Models\RadCheck::updateOrCreate(
+                        ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
+                        ['op' => ':=', 'value' => (string) $maxDevices]
+                    );
+                }
                 
                 // Trigger full plan sync to update all RADIUS attributes
                 \App\Services\PlanSyncService::syncUserPlan($user);

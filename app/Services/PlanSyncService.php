@@ -33,11 +33,31 @@ class PlanSyncService
                         ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
                         ['op' => ':=', 'value' => $user->radius_password ?? $user->username]
                     );
+                    // Remove Simultaneous-Use so RADIUS imposes no session/device limit for admins
+                    RadCheck::where('username', $user->username)
+                        ->where('attribute', 'Simultaneous-Use')
+                        ->delete();
+                    // Remove any stale data-cap or expiry attributes from both radcheck AND radreply
+                    RadCheck::where('username', $user->username)
+                        ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets', 'Expiration'])
+                        ->delete();
+                    RadReply::where('username', $user->username)
+                        ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets'])
+                        ->delete();
+                    $user->saveQuietly();
+                    return;
+                }
+
+                if ($user->isStaff()) {
+                    // Staff with no plan: give RADIUS access, 2 devices, no data cap
+                    RadCheck::updateOrCreate(
+                        ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
+                        ['op' => ':=', 'value' => $user->radius_password ?? $user->username]
+                    );
                     RadCheck::updateOrCreate(
                         ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
-                        ['op' => ':=', 'value' => '10']
+                        ['op' => ':=', 'value' => '2']
                     );
-                    // Remove any stale data-cap or expiry attributes from both radcheck AND radreply
                     RadCheck::where('username', $user->username)
                         ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets', 'Expiration'])
                         ->delete();
