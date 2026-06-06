@@ -10,6 +10,7 @@ use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Number;
 
 class OverviewStatsWidget extends BaseWidget
@@ -21,22 +22,25 @@ class OverviewStatsWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        $router = $this->getSelectedRouter();
-        $tz     = 'Africa/Lagos';
-        $today  = now($tz)->toDateString();
+        $router        = $this->getSelectedRouter();
+        $tz            = 'Africa/Lagos';
+        $today         = now($tz)->toDateString();
+        $radacctExists = Schema::hasTable('radacct');
 
         // ── Online users ──────────────────────────────────────────────────────
-        $onlineUsers = RadAcct::whereNull('acctstoptime')
-            ->when($router, fn($q) => $this->applyRouterFilter($q, $router))
-            ->distinct('username')
-            ->count('username');
+        $onlineUsers = $radacctExists
+            ? RadAcct::whereNull('acctstoptime')
+                ->when($router, fn($q) => $this->applyRouterFilter($q, $router))
+                ->distinct('username')
+                ->count('username')
+            : 0;
 
         // ── Active subscribers ────────────────────────────────────────────────
         $activeSubsQuery = User::whereNotNull('plan_id')
             ->whereNotNull('plan_expiry')
             ->where('plan_expiry', '>', now());
 
-        if ($router) {
+        if ($router && $radacctExists) {
             $usernames = RadAcct::where(fn($q) => $this->applyRouterFilter($q, $router))
                 ->distinct('username')->pluck('username');
             $activeSubsQuery->when(

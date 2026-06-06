@@ -22,7 +22,7 @@ trait HasRouterFilter
 
         $query->where(function ($q) use ($router, $ips) {
             $q->whereIn('nasipaddress', $ips);
-            if (Schema::hasColumn('radacct', 'nasidentifier')) {
+            if (Schema::hasTable('radacct') && Schema::hasColumn('radacct', 'nasidentifier')) {
                 $q->orWhere('nasidentifier', $router->nas_identifier);
                 if (! empty($router->identity)) {
                     $q->orWhere('nasidentifier', $router->identity);
