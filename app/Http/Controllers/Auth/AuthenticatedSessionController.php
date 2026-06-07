@@ -230,6 +230,13 @@ class AuthenticatedSessionController extends Controller
 
         $familyHead = $voucher->creator;
 
+        if (! $familyHead) {
+            $request->session()->put('skip_auto_login', true);
+            return back()
+                ->withInput()
+                ->withErrors(['login' => 'This voucher is no longer valid (creator account not found).']);
+        }
+
         $subscriptionService = new \App\Services\SubscriptionService;
         if (! $subscriptionService->canConnectToHotspot($familyHead)) {
             $request->session()->put('skip_auto_login', true);
