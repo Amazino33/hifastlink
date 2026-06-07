@@ -68,11 +68,11 @@ class Voucher extends Model
     // ─── Static Helpers ───────────────────────────────────────────────
 
     /**
-     * Detect if a string looks like a voucher code (VCH-XXXXXXXX).
+     * Detect if a string looks like a voucher code (VCH- followed by 1+ alphanumeric chars).
      */
     public static function isVoucherCode(string $input): bool
     {
-        return (bool) preg_match('/^VCH-[A-Z0-9]{8}$/i', trim($input));
+        return (bool) preg_match('/^VCH-[A-Z0-9]+$/i', trim($input));
     }
 
     /**

@@ -7,6 +7,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use App\Models\Voucher;
 use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
@@ -27,7 +28,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         $login = trim($this->input('login', ''));
-        $isVoucher = (bool) preg_match('/^VCH-[A-Z0-9]{8}$/i', $login);
+        $isVoucher = Voucher::isVoucherCode($login);
 
         return [
             'login'    => ['required', 'string'],
