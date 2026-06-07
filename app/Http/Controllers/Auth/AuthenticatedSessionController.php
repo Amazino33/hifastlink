@@ -247,10 +247,21 @@ class AuthenticatedSessionController extends Controller
         // If so, we allow reconnect even if the voucher's used_count has reached max_uses,
         // and we skip consume() so reconnecting devices don't exhaust the slot limit.
         $mac = $request->filled('mac') ? strtoupper($request->input('mac')) : null;
-        $alreadyRegistered = $mac && \App\Models\Device::where('mac', $mac)
+
+        // Primary check: MAC + voucher pairing in devices table
+        $macKnown = $mac && \App\Models\Device::where('mac', $mac)
             ->whereNull('user_id')
             ->where('meta->voucher_code', $normalCode)
             ->exists();
+
+        // Fallback: if no MAC was sent, treat as a reconnect when RADIUS credentials
+        // already exist — the Simultaneous-Use RADIUS attribute enforces the actual
+        // device cap, so we don't need used_count to gate this.
+        $radExists = ! $mac && RadCheck::where('username', $normalCode)
+            ->where('attribute', 'Cleartext-Password')
+            ->exists();
+
+        $alreadyRegistered = $macKnown || $radExists;
 
         if ($alreadyRegistered) {
             // Returning device: skip used_count gate but still enforce expiry
