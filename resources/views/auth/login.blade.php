@@ -36,7 +36,7 @@
         class="space-y-6"
         x-data="{
             isVoucher: false,
-            voucherPattern: /^VCH-[A-Z0-9]{8}$/i,
+            voucherPattern: /^VCH-[A-Z0-9]+$/i,
             checkTimer: null,
 
             onLoginInput(val) {
@@ -98,7 +98,7 @@
                     required
                     autofocus
                     autocomplete="username"
-                    placeholder="Email, phone, username or VCH-XXXXXXXX"
+                    placeholder="Email, phone, username or voucher code"
                     class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('login') border-red-500 ring-4 ring-red-100 @enderror"
                     @input="onLoginInput($event.target.value)"
                 >
