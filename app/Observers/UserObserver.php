@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\PlanSyncService;
 use App\Models\RadReply;
 use App\Models\RadCheck;
+use Illuminate\Support\Facades\Log;
 
 class UserObserver
 {
@@ -14,17 +15,22 @@ class UserObserver
      */
     public function created(User $user): void
     {
-        // Sync RADIUS for new users
-        PlanSyncService::syncUserPlan($user);
+        try {
+            PlanSyncService::syncUserPlan($user);
 
-        // Sync Login-Time restriction
-        if ($user->plan && ! empty($user->plan->allowed_login_time)) {
-            RadCheck::updateOrCreate(
-                ['username' => $user->username, 'attribute' => 'Login-Time'],
-                ['op' => ':=', 'value' => $user->plan->allowed_login_time]
-            );
-        } else {
-            RadCheck::where('username', $user->username)->where('attribute', 'Login-Time')->delete();
+            if ($user->plan && ! empty($user->plan->allowed_login_time)) {
+                RadCheck::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Login-Time'],
+                    ['op' => ':=', 'value' => $user->plan->allowed_login_time]
+                );
+            } else {
+                RadCheck::where('username', $user->username)->where('attribute', 'Login-Time')->delete();
+            }
+        } catch (\Throwable $e) {
+            Log::error('UserObserver created: RADIUS sync failed', [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage(),
+            ]);
         }
     }
 
@@ -49,16 +55,22 @@ class UserObserver
 
         // Sync RADIUS when plan, radius_password, or username changes
         if ($user->wasChanged('plan_id') || $user->wasChanged('radius_password') || $user->wasChanged('username')) {
-            PlanSyncService::syncUserPlan($user);
+            try {
+                PlanSyncService::syncUserPlan($user);
 
-            // Sync Login-Time restriction
-            if ($user->plan && ! empty($user->plan->allowed_login_time)) {
-                RadCheck::updateOrCreate(
-                    ['username' => $user->username, 'attribute' => 'Login-Time'],
-                    ['op' => ':=', 'value' => $user->plan->allowed_login_time]
-                );
-            } else {
-                RadCheck::where('username', $user->username)->where('attribute', 'Login-Time')->delete();
+                if ($user->plan && ! empty($user->plan->allowed_login_time)) {
+                    RadCheck::updateOrCreate(
+                        ['username' => $user->username, 'attribute' => 'Login-Time'],
+                        ['op' => ':=', 'value' => $user->plan->allowed_login_time]
+                    );
+                } else {
+                    RadCheck::where('username', $user->username)->where('attribute', 'Login-Time')->delete();
+                }
+            } catch (\Throwable $e) {
+                Log::error('UserObserver updated: RADIUS sync failed', [
+                    'user_id' => $user->id,
+                    'error'   => $e->getMessage(),
+                ]);
             }
         }
     }

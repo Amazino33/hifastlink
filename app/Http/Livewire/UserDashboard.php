@@ -856,6 +856,23 @@ class UserDashboard extends Component
         $voucher = \App\Models\Voucher::where('code', $this->voucherCode)->first();
         $user    = Auth::user();
 
+        try {
+            return $this->processVoucherRedemption($voucher, $user);
+        } catch (\Throwable $e) {
+            Log::error('redeemVoucher: unexpected error', [
+                'user_id' => $user?->id,
+                'voucher' => $this->voucherCode,
+                'error'   => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+            $this->addError('voucherCode', 'An error occurred while activating your voucher. Please try again or contact support.');
+            return null;
+        }
+    }
+
+    private function processVoucherRedemption(\App\Models\Voucher $voucher, $user): mixed
+    {
+
         // Enforce limits and per-user uniqueness
         if ($voucher->used_count >= $voucher->max_uses) {
             $this->addError('voucherCode', 'This voucher has reached its usage limit.');
@@ -907,15 +924,23 @@ class UserDashboard extends Component
             $user->connection_status = 'active';
             $user->save();
 
-            // plan_id didn't change so UserObserver won't auto-sync; call explicitly
-            \App\Services\PlanSyncService::syncUserPlan($user);
+            // Explicit sync needed when user had no plan (plan_id didn't change, so observer skips it).
+            // For users who had a plan, the observer already synced — this is a harmless second pass.
+            try {
+                \App\Services\PlanSyncService::syncUserPlan($user);
 
-            // Apply custom speed limits if the voucher specifies them
-            if ($voucher->speed_limit_upload || $voucher->speed_limit_download) {
-                \App\Models\RadReply::updateOrCreate(
-                    ['username' => $user->username, 'attribute' => 'Mikrotik-Rate-Limit'],
-                    ['op' => ':=', 'value' => ($voucher->speed_limit_upload ?? 0) . 'k/' . ($voucher->speed_limit_download ?? 0) . 'k']
-                );
+                if ($voucher->speed_limit_upload || $voucher->speed_limit_download) {
+                    \App\Models\RadReply::updateOrCreate(
+                        ['username' => $user->username, 'attribute' => 'Mikrotik-Rate-Limit'],
+                        ['op' => ':=', 'value' => ($voucher->speed_limit_upload ?? 0) . 'k/' . ($voucher->speed_limit_download ?? 0) . 'k']
+                    );
+                }
+            } catch (\Throwable $e) {
+                Log::error('redeemVoucher: RADIUS sync failed', [
+                    'user_id' => $user->id,
+                    'voucher' => $voucher->code,
+                    'error'   => $e->getMessage(),
+                ]);
             }
 
             $this->recordVoucherTransaction($user, null, $voucher);
