@@ -92,6 +92,27 @@ class AuthenticatedSessionController extends Controller
                     ->where('attribute', 'Cleartext-Password')
                     ->exists();
 
+                if (! $radExists) {
+                    // Credentials were wiped (router restart, manual clear, etc.).
+                    // Re-create them from the voucher WITHOUT consuming another slot.
+                    $storedVoucher = \App\Models\Voucher::where('code', $storedCode)->first();
+                    $storedCreator = $storedVoucher?->creator;
+                    $canRestore    = $storedCreator
+                        && (new \App\Services\SubscriptionService)->canConnectToHotspot($storedCreator);
+
+                    if ($storedVoucher && $canRestore) {
+                        RadCheck::updateOrCreate(
+                            ['username' => $storedCode, 'attribute' => 'Cleartext-Password'],
+                            ['op' => ':=', 'value' => $storedCode]
+                        );
+                        RadCheck::updateOrCreate(
+                            ['username' => $storedCode, 'attribute' => 'Simultaneous-Use'],
+                            ['op' => ':=', 'value' => (string) $storedVoucher->max_uses]
+                        );
+                        $radExists = true;
+                    }
+                }
+
                 if ($radExists) {
                     $voucherDevice->update([
                         'last_seen' => now(),
@@ -218,8 +239,30 @@ class AuthenticatedSessionController extends Controller
 
     private function handleVoucherLogin(LoginRequest $request, string $code): RedirectResponse|Response
     {
-        $voucher = Voucher::findValid($code);
         $request->session()->forget('skip_auto_login');
+
+        $normalCode = strtoupper(trim($code));
+
+        // Check if this device's MAC is already registered for this voucher.
+        // If so, we allow reconnect even if the voucher's used_count has reached max_uses,
+        // and we skip consume() so reconnecting devices don't exhaust the slot limit.
+        $mac = $request->filled('mac') ? strtoupper($request->input('mac')) : null;
+        $alreadyRegistered = $mac && \App\Models\Device::where('mac', $mac)
+            ->whereNull('user_id')
+            ->where('meta->voucher_code', $normalCode)
+            ->exists();
+
+        if ($alreadyRegistered) {
+            // Returning device: skip used_count gate but still enforce expiry
+            $voucher = Voucher::where('code', $normalCode)
+                ->where(function ($q) {
+                    $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+                })
+                ->first();
+        } else {
+            // New device: full validity check (used_count < max_uses + not expired)
+            $voucher = Voucher::findValid($code);
+        }
 
         if (! $voucher) {
             $request->session()->put('skip_auto_login', true);
@@ -245,11 +288,13 @@ class AuthenticatedSessionController extends Controller
                 ->withErrors(['login' => 'The Family Head\'s plan has expired or run out of data.']);
         }
 
-        $code = strtoupper(trim($code));
+        $code = $normalCode;
 
-        // Consume first so expires_at is calculated from redemption time (not creation time)
-        // and is available for the RADIUS Expiration attribute below.
-        $voucher->consume();
+        if (! $alreadyRegistered) {
+            // Consume first so expires_at is calculated from redemption time (not creation time)
+            // and is available for the RADIUS Expiration attribute below.
+            $voucher->consume();
+        }
 
         // Always upsert so concurrent redemptions never produce duplicate rows
         RadCheck::updateOrCreate(
@@ -280,7 +325,10 @@ class AuthenticatedSessionController extends Controller
             );
         }
 
-        // Data cap: honour is_unlimited flag; prefer voucher's own limit over plan's
+        // Data cap: honour is_unlimited flag; prefer voucher's own limit over plan's.
+        // Mikrotik-Total-Limit goes into radREPLY (sent to MikroTik as a per-session cap),
+        // NOT radcheck (which FreeRADIUS sqlcounter would treat as a cumulative shared cap
+        // across all devices using this username, blocking device 4+ once the total is hit).
         if (! $voucher->is_unlimited) {
             $planLimitMb = null;
             if ($familyHead?->plan && $familyHead->plan->limit_unit !== 'Unlimited' && $familyHead->plan->data_limit) {
@@ -290,14 +338,19 @@ class AuthenticatedSessionController extends Controller
             }
             $limitMb = $voucher->data_limit_mb ?? $planLimitMb;
             if ($limitMb) {
-                RadCheck::updateOrCreate(
+                \App\Models\RadReply::updateOrCreate(
                     ['username' => $code, 'attribute' => 'Mikrotik-Total-Limit'],
                     ['op' => ':=', 'value' => (string) ($limitMb * 1048576)]
                 );
+            } else {
+                \App\Models\RadReply::where('username', $code)->where('attribute', 'Mikrotik-Total-Limit')->delete();
             }
-        } else {
-            // Unlimited — remove any stale cap from a previous redemption
+            // Remove any stale radcheck entry from before this fix
             RadCheck::where('username', $code)->where('attribute', 'Mikrotik-Total-Limit')->delete();
+        } else {
+            // Unlimited — remove any stale cap from either table
+            RadCheck::where('username', $code)->where('attribute', 'Mikrotik-Total-Limit')->delete();
+            \App\Models\RadReply::where('username', $code)->where('attribute', 'Mikrotik-Total-Limit')->delete();
         }
 
         // Store MAC so this device can auto-reconnect after router reboots

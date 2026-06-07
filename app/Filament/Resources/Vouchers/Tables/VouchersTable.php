@@ -3,15 +3,19 @@
 namespace App\Filament\Resources\Vouchers\Tables;
 
 use App\Models\Plan;
+use App\Models\RadCheck;
+use App\Models\RadReply;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 
 class VouchersTable
 {
@@ -148,6 +152,62 @@ class VouchersTable
             ->actions([
                 ViewAction::make(),
                 EditAction::make(),
+                Action::make('resync_radius')
+                    ->label('Resync RADIUS')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('Resync RADIUS for this voucher?')
+                    ->modalDescription('This updates the Simultaneous-Use limit in FreeRADIUS to match the voucher\'s current max_uses. Use this after changing max_uses if devices are being rejected.')
+                    ->action(function ($record): void {
+                        try {
+                            // Ensure Cleartext-Password exists
+                            RadCheck::updateOrCreate(
+                                ['username' => $record->code, 'attribute' => 'Cleartext-Password'],
+                                ['op' => ':=', 'value' => $record->code]
+                            );
+
+                            // Update Simultaneous-Use to match current max_uses
+                            RadCheck::updateOrCreate(
+                                ['username' => $record->code, 'attribute' => 'Simultaneous-Use'],
+                                ['op' => ':=', 'value' => (string) $record->max_uses]
+                            );
+
+                            // Move Mikrotik-Total-Limit from radcheck → radreply if it was set wrong
+                            $staleCheckLimit = RadCheck::where('username', $record->code)
+                                ->where('attribute', 'Mikrotik-Total-Limit')
+                                ->first();
+
+                            if ($staleCheckLimit) {
+                                RadReply::updateOrCreate(
+                                    ['username' => $record->code, 'attribute' => 'Mikrotik-Total-Limit'],
+                                    ['op' => ':=', 'value' => $staleCheckLimit->value]
+                                );
+                                $staleCheckLimit->delete();
+                            }
+
+                            // Sync expiry if the voucher has an active expires_at
+                            if ($record->expires_at && $record->expires_at->isFuture()) {
+                                RadCheck::updateOrCreate(
+                                    ['username' => $record->code, 'attribute' => 'Expiration'],
+                                    ['op' => ':=', 'value' => $record->expires_at->format('d M Y H:i')]
+                                );
+                            }
+                        } catch (\Throwable $e) {
+                            Log::error('Voucher RADIUS resync failed', ['code' => $record->code, 'error' => $e->getMessage()]);
+                            \Filament\Notifications\Notification::make()
+                                ->title('RADIUS resync failed — check logs')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('RADIUS resynced for ' . $record->code)
+                            ->body('Simultaneous-Use set to ' . $record->max_uses . '. Devices can reconnect.')
+                            ->success()
+                            ->send();
+                    }),
                 DeleteAction::make()->label('Revoke'),
             ])
             ->bulkActions([
