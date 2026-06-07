@@ -4,12 +4,12 @@
     "name": "module.esm"
   },
   "resources/css/app.css": {
-    "file": "assets/app-90D1YfcV.css",
+    "file": "assets/app-Csan0F1t.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/css/filament-overrides.css": {
-    "file": "assets/filament-overrides-UfYSOD_Z.css",
+    "file": "assets/filament-overrides-BrEevJTQ.css",
     "src": "resources/css/filament-overrides.css",
     "isEntry": true
   },
