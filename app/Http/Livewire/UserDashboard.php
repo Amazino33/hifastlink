@@ -87,14 +87,9 @@ class UserDashboard extends Component
                     ->whereNull('acctstoptime')
                     ->exists();
 
-                $hasActivePlan = $masterUser->isAdmin()
-                    || (
-                        $masterUser->plan_id
-                        && $masterUser->plan_expiry
-                        && $masterUser->plan_expiry->isFuture()
-                    );
+                $canConnect = (new \App\Services\SubscriptionService())->canConnectToHotspot($user);
 
-                if (!$alreadyOnline && $hasActivePlan) {
+                if (!$alreadyOnline && $canConnect) {
                     return redirect()->route('connect.bridge', ['router' => $routerIdentifier]);
                 }
             }
