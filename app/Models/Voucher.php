@@ -65,6 +65,12 @@ class Voucher extends Model
         return $this->belongsTo(Router::class);
     }
 
+    public function connectedDevices(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        // Filtered in ConnectedDevicesRelationManager::getTableQuery() via JSON path.
+        return $this->hasMany(Device::class)->whereNull('user_id');
+    }
+
     // ─── Static Helpers ───────────────────────────────────────────────
 
     /**

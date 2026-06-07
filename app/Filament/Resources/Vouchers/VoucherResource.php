@@ -6,6 +6,7 @@ use App\Filament\Resources\Vouchers\Pages\CreateVoucher;
 use App\Filament\Resources\Vouchers\Pages\EditVoucher;
 use App\Filament\Resources\Vouchers\Pages\ListVouchers;
 use App\Filament\Resources\Vouchers\Pages\ViewVoucher;
+use App\Filament\Resources\Vouchers\RelationManagers\ConnectedDevicesRelationManager;
 use App\Filament\Resources\Vouchers\Schemas\VoucherForm;
 use App\Filament\Resources\Vouchers\Schemas\VoucherInfolist;
 use App\Filament\Resources\Vouchers\Tables\VouchersTable;
@@ -44,7 +45,7 @@ class VoucherResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            ConnectedDevicesRelationManager::class,
         ];
     }
 
