@@ -19,23 +19,18 @@ class ConnectedDevicesRelationManager extends RelationManager
 
     protected static ?string $title = 'Connected Devices';
 
-    // Override the relationship query so Filament uses a JSON-path filter
-    // instead of the stub hasMany on the Voucher model.
-    /** @return Builder<Device> */
-    public function getRelationship(): Builder
+    public function table(Table $table): Table
     {
+        // ->query() is checked before getRelationshipQuery() in Filament's HasQuery::getQuery(),
+        // so this bypasses the stub hasMany on Voucher and uses the JSON-path filter directly.
         /** @var \App\Models\Voucher $owner */
         $owner = $this->getOwnerRecord();
 
-        return Device::query()
-            ->whereNull('user_id')
-            ->where('meta->voucher_code', $owner->code)
-            ->orderByDesc('last_seen');
-    }
-
-    public function table(Table $table): Table
-    {
         return $table
+            ->query(fn (): Builder => Device::query()
+                ->whereNull('user_id')
+                ->where('meta->voucher_code', $owner->code)
+                ->orderByDesc('last_seen'))
             ->columns([
                 TextColumn::make('mac')
                     ->label('MAC Address')
