@@ -68,32 +68,39 @@ class CaptiveAuth extends Component
 
         $this->isVoucher = false;
 
-        if (empty($input) || ! preg_match('/^[\d\+]{7,15}$/', preg_replace('/[\s\-]/', '', $input))) {
+        $digits = preg_replace('/[\s\-\(\)]/', '', $input);
+
+        if (empty($digits) || ! preg_match('/^\+?[\d]{7,15}$/', $digits)) {
             $this->error = 'Please enter a valid phone number.';
             return;
         }
 
-        $normalized = User::normalizePhone($input);
+        try {
+            $normalized = User::normalizePhone($digits);
 
-        $wa = new WhatsAppService();
+            $wa = new WhatsAppService();
 
-        if (! $wa->checkOtpRateLimit($normalized)) {
-            $this->error = 'Too many attempts. Please wait a few minutes.';
-            return;
+            if (! $wa->checkOtpRateLimit($normalized)) {
+                $this->error = 'Too many attempts. Please wait a few minutes.';
+                return;
+            }
+
+            $code = $wa->sendOtp($normalized);
+
+            if (! $code) {
+                $this->error = 'Could not send OTP. Please try again.';
+                return;
+            }
+
+            $this->phone = $normalized;
+            $this->step = 'otp';
+            $this->error = '';
+            $this->success = 'A verification code has been sent to your WhatsApp.';
+            $this->resendCountdown = 60;
+        } catch (\Throwable $e) {
+            Log::error('CaptiveAuth sendOtp failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            $this->error = 'Something went wrong. Please try again.';
         }
-
-        $code = $wa->sendOtp($normalized);
-
-        if (! $code) {
-            $this->error = 'Could not send OTP. Please try again.';
-            return;
-        }
-
-        $this->phone = $normalized;
-        $this->step = 'otp';
-        $this->error = '';
-        $this->success = 'A verification code has been sent to your WhatsApp.';
-        $this->resendCountdown = 60;
     }
 
     public function verifyOtp()
@@ -202,23 +209,28 @@ class CaptiveAuth extends Component
 
     public function resendOtp()
     {
-        $wa = new WhatsAppService();
+        try {
+            $wa = new WhatsAppService();
 
-        if (! $wa->checkOtpRateLimit($this->phone)) {
-            $this->error = 'Too many attempts. Please wait a few minutes.';
-            return;
+            if (! $wa->checkOtpRateLimit($this->phone)) {
+                $this->error = 'Too many attempts. Please wait a few minutes.';
+                return;
+            }
+
+            $code = $wa->sendOtp($this->phone);
+
+            if (! $code) {
+                $this->error = 'Could not resend. Please try again.';
+                return;
+            }
+
+            $this->success = 'A new code has been sent.';
+            $this->error = '';
+            $this->resendCountdown = 60;
+        } catch (\Throwable $e) {
+            Log::error('CaptiveAuth resendOtp failed: ' . $e->getMessage());
+            $this->error = 'Something went wrong. Please try again.';
         }
-
-        $code = $wa->sendOtp($this->phone);
-
-        if (! $code) {
-            $this->error = 'Could not resend. Please try again.';
-            return;
-        }
-
-        $this->success = 'A new code has been sent.';
-        $this->error = '';
-        $this->resendCountdown = 60;
     }
 
     public function goBack()
