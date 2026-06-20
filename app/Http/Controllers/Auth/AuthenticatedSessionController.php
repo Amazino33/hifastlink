@@ -64,6 +64,8 @@ class AuthenticatedSessionController extends Controller
                             Log::warning('Device upsert failed during MAC auto-reconnect: '.$e->getMessage());
                         }
 
+                        session(['bridge_completed' => true]);
+
                         return response()->view('hotspot.redirect_to_router', [
                             'username' => $user->username,
                             'password' => $password,
@@ -120,6 +122,8 @@ class AuthenticatedSessionController extends Controller
                         'ip' => request()->get('ip') ?? request()->ip(),
                     ]);
 
+                    session(['bridge_completed' => true]);
+
                     return response()->view('hotspot.redirect_to_router', [
                         'username' => $storedCode,
                         'password' => $storedCode,
@@ -161,6 +165,8 @@ class AuthenticatedSessionController extends Controller
                     }
 
                     if ($password) {
+                        session(['bridge_completed' => true]);
+
                         return response()->view('hotspot.redirect_to_router', [
                             'username' => $user->username,
                             'password' => $password,
@@ -238,6 +244,8 @@ class AuthenticatedSessionController extends Controller
             if (! $password) {
                 return redirect()->route('dashboard')->withErrors(['error' => 'Missing router password. Please contact support.']);
             }
+
+            session(['bridge_completed' => true]);
 
             return response()->view('hotspot.redirect_to_router', [
                 'username' => $user->username,
@@ -409,9 +417,9 @@ class AuthenticatedSessionController extends Controller
             ?? $request->input('link-login-only');
 
         if ($linkLogin) {
-            // After MikroTik authenticates, send the user to the success page so they
-            // see confirmation (and the page is reachable now that they're online).
             $linkOrig = route('voucher.success', ['code' => $code]);
+
+            session(['bridge_completed' => true]);
 
             return response()->view('hotspot.redirect_to_router', [
                 'username'   => $code,

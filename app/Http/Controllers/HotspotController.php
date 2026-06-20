@@ -126,6 +126,8 @@ class HotspotController extends Controller
             }
         }
         
+        session(['bridge_completed' => true]);
+
         return view('hotspot.redirect_to_router', [
             'username' => $user->username,
             'password' => $password,
