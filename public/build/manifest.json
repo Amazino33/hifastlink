@@ -4,17 +4,17 @@
     "name": "module.esm"
   },
   "resources/css/app.css": {
-    "file": "assets/app-Csan0F1t.css",
+    "file": "assets/app-BFDQ_qmn.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/css/filament-overrides.css": {
-    "file": "assets/filament-overrides-BrEevJTQ.css",
+    "file": "assets/filament-overrides-Da8IZL-H.css",
     "src": "resources/css/filament-overrides.css",
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-BSxpsE7W.js",
+    "file": "assets/app-wggI1SP_.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
