@@ -370,6 +370,46 @@ class User extends Authenticatable implements FilamentUser
         return max(0, $this->data_limit - $this->data_used);
     }
 
+    public function getDisplayNameAttribute(): string
+    {
+        if (! empty($this->name) && $this->name !== 'User') {
+            return $this->name;
+        }
+
+        if (! empty($this->username) && ! str_starts_with($this->username, 'user_')) {
+            return $this->username;
+        }
+
+        if (! empty($this->phone)) {
+            $digits = preg_replace('/\D/', '', $this->phone);
+            return substr($digits, -4) ? '****' . substr($digits, -4) : $this->phone;
+        }
+
+        return 'User';
+    }
+
+    public function getInitialsAttribute(): string
+    {
+        if (! empty($this->name) && $this->name !== 'User') {
+            $words = explode(' ', $this->name);
+            if (count($words) >= 2) {
+                return strtoupper(mb_substr($words[0], 0, 1) . mb_substr($words[1], 0, 1));
+            }
+            return strtoupper(mb_substr($this->name, 0, 2));
+        }
+
+        if (! empty($this->username) && ! str_starts_with($this->username, 'user_')) {
+            return strtoupper(mb_substr($this->username, 0, 2));
+        }
+
+        if (! empty($this->phone)) {
+            $digits = preg_replace('/\D/', '', $this->phone);
+            return substr($digits, -2) ?: '##';
+        }
+
+        return '?';
+    }
+
     public static function normalizePhone(string $phone): string
     {
         $digits = preg_replace('/\D/', '', $phone);

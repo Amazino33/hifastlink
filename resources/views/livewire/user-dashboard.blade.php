@@ -4,7 +4,7 @@
             <div class="flex items-center justify-between flex-wrap gap-4">
                 <div>
                     <h1 class="text-3xl font-black text-gray-900 dark:text-white mb-2">
-                        Hi, {{ $user->name }} 👋
+                        Hi, {{ $user->display_name }} 👋
                     </h1>
                     <p class="text-gray-600 dark:text-gray-400">Welcome back to your dashboard</p>
                     @if($isDeviceOnline)

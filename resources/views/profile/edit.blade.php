@@ -13,15 +13,17 @@
                     {{-- Avatar --}}
                     <div class="flex-shrink-0">
                         <div class="w-32 h-32 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-6xl font-black border-4 border-white/30">
-                            {{ strtoupper(substr($user->name, 0, 1)) }}
+                            {{ $user->initials }}
                         </div>
                     </div>
 
                     {{-- User Info --}}
                     <div class="flex-1 text-center md:text-left">
-                        <h3 class="text-3xl font-black mb-2">{{ $user->name }}</h3>
-                        <p class="text-blue-100 mb-1">@<span class="font-semibold">{{ $user->username }}</span></p>
-                        <p class="text-blue-100 mb-4">{{ $user->email }}</p>
+                        <h3 class="text-3xl font-black mb-2">{{ $user->display_name }}</h3>
+                        @if($user->username)
+                            <p class="text-blue-100 mb-1">@<span class="font-semibold">{{ $user->username }}</span></p>
+                        @endif
+                        <p class="text-blue-100 mb-4">{{ $user->email ?? $user->phone }}</p>
                         
                         <div class="flex flex-wrap gap-3 justify-center md:justify-start">
                             @if($user->plan)

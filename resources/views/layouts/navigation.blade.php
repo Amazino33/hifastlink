@@ -66,9 +66,9 @@
                         <x-slot name="trigger">
                             <button class="inline-flex items-center gap-2 px-4 py-2.5 border-2 border-white/30 text-sm font-semibold rounded-full text-white bg-white/10 backdrop-blur-sm hover:bg-white/20 hover:border-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all duration-300 hover:scale-105 shadow-lg">
                                 <span class="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center text-gray-900 font-bold text-sm">
-                                    {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
+                                    {{ Auth::user()->initials }}
                                 </span>
-                                <span>{{ Auth::user()->name }}</span>
+                                <span>{{ Auth::user()->display_name }}</span>
                                 <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                 </svg>
@@ -183,11 +183,11 @@
                 {{-- User card --}}
                 <div class="flex items-center gap-3 bg-white/10 rounded-lg p-3 mb-4">
                     <div class="w-11 h-11 bg-blue-400 rounded-full flex items-center justify-center text-gray-900 font-bold text-lg flex-shrink-0">
-                        {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
+                        {{ Auth::user()->initials }}
                     </div>
                     <div class="min-w-0">
-                        <div class="font-bold text-white truncate">{{ Auth::user()->name }}</div>
-                        <div class="text-xs text-blue-100 truncate">{{ Auth::user()->email }}</div>
+                        <div class="font-bold text-white truncate">{{ Auth::user()->display_name }}</div>
+                        <div class="text-xs text-blue-100 truncate">{{ Auth::user()->email ?? Auth::user()->phone }}</div>
                     </div>
                 </div>
 
