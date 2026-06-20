@@ -281,7 +281,7 @@
                                 @endif
 
                                 @if(!$showDisconnectButton)
-                                    <a href="{{ route('connect.bridge') }}"
+                                    <a href="{{ route('connect.bridge') }}" data-connect-btn
                                         class="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-900/50">
                                         <i class="fa-solid fa-wifi"></i>Connect
                                     </a>
@@ -373,7 +373,7 @@
                                     @else
                                         @if($subscriptionStatus === 'active')
                                             @if($isAdminUser || $connectedDevices < $maxDevices)
-                                                <a href="{{ route('connect.bridge') }}"
+                                                <a href="{{ route('connect.bridge') }}" data-connect-btn
                                                     class="w-full sm:w-auto inline-block text-center px-4 py-2 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-blue-600">
                                                     <i class="fa-solid fa-wifi mr-1"></i>Connect to Router
                                                 </a>
@@ -1189,8 +1189,46 @@
         </div>
     </div>
 
+    {{-- Connecting overlay — shown instantly on click, navigation happens in background --}}
+    <div id="connecting-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" aria-hidden="true">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-8 relative z-10 text-center">
+            <div class="mb-5">
+                <div class="w-16 h-16 mx-auto bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-wifi text-blue-600 dark:text-blue-400 text-2xl animate-pulse"></i>
+                </div>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Connecting...</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Setting up your connection, please wait.</p>
+            <div class="space-y-2 text-left">
+                <div class="flex items-center gap-3 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs text-gray-600 dark:text-gray-300">
+                    <i class="fa-solid fa-check-circle text-green-500 flex-shrink-0"></i>
+                    Make sure you're connected to the WiFi network
+                </div>
+                <div class="flex items-center gap-3 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs text-gray-600 dark:text-gray-300">
+                    <i class="fa-solid fa-check-circle text-green-500 flex-shrink-0"></i>
+                    Turn off Mobile Data for best results
+                </div>
+                <div class="flex items-center gap-3 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs text-gray-600 dark:text-gray-300">
+                    <i class="fa-solid fa-spinner fa-spin text-blue-500 flex-shrink-0"></i>
+                    Authenticating with router...
+                </div>
+            </div>
+        </div>
+    </div>
+
 @once
 <script>
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-connect-btn]');
+        if (!btn) return;
+        var modal = document.getElementById('connecting-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    });
+
     // Use event delegation on the document so this survives Livewire wire:poll re-renders.
     // This is intentionally outside the Livewire poll wrapper — it only runs once on page load.
     document.addEventListener('submit', async function (e) {
