@@ -14,7 +14,7 @@
 
     <!-- Scripts -->
     {{-- Alpine is started here (not in app.js) to avoid conflicting with Filament's CDN Alpine on admin pages --}}
-    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/guest.js'])
+    @vite(['resources/css/app.css'])
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     @livewireStyles
 </head>
