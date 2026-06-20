@@ -170,12 +170,9 @@
             </button>
 
             {{-- Resend --}}
-            <div class="text-center text-sm text-gray-500" x-data="{ countdown: @entangle('resendCountdown') }" x-init="
-                let timer = setInterval(() => {
-                    if (countdown > 0) countdown--;
-                }, 1000);
-                $cleanup(() => clearInterval(timer));
-            ">
+            <div class="text-center text-sm text-gray-500" x-data="{ countdown: @entangle('resendCountdown'), _timer: null }" x-init="
+                _timer = setInterval(() => { if (countdown > 0) countdown--; }, 1000);
+            " x-on:remove.window="clearInterval(_timer)">
                 <template x-if="countdown > 0">
                     <p>Resend code in <span class="font-semibold text-gray-700" x-text="countdown"></span>s</p>
                 </template>
