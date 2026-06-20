@@ -254,15 +254,13 @@ class CaptiveAuth extends Component
 
         $familyHead = $voucher->creator;
 
-        if (! $familyHead) {
-            $this->error = 'This voucher is no longer valid.';
-            return;
-        }
-
-        $subscriptionService = new \App\Services\SubscriptionService();
-        if (! $subscriptionService->canConnectToHotspot($familyHead)) {
-            $this->error = "The voucher owner's plan has expired or run out of data.";
-            return;
+        // Admin-created vouchers have no creator — they're standalone and always valid
+        if ($familyHead) {
+            $subscriptionService = new \App\Services\SubscriptionService();
+            if (! $subscriptionService->canConnectToHotspot($familyHead)) {
+                $this->error = "The voucher owner's plan has expired or run out of data.";
+                return;
+            }
         }
 
         // Consume and set up RADIUS

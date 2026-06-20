@@ -304,19 +304,15 @@ class AuthenticatedSessionController extends Controller
 
         $familyHead = $voucher->creator;
 
-        if (! $familyHead) {
-            $request->session()->put('skip_auto_login', true);
-            return back()
-                ->withInput()
-                ->withErrors(['login' => 'This voucher is no longer valid (creator account not found).']);
-        }
-
-        $subscriptionService = new \App\Services\SubscriptionService;
-        if (! $subscriptionService->canConnectToHotspot($familyHead)) {
-            $request->session()->put('skip_auto_login', true);
-            return back()
-                ->withInput()
-                ->withErrors(['login' => 'The Family Head\'s plan has expired or run out of data.']);
+        // Admin-created vouchers have no creator — they're standalone and always valid
+        if ($familyHead) {
+            $subscriptionService = new \App\Services\SubscriptionService;
+            if (! $subscriptionService->canConnectToHotspot($familyHead)) {
+                $request->session()->put('skip_auto_login', true);
+                return back()
+                    ->withInput()
+                    ->withErrors(['login' => 'The voucher owner\'s plan has expired or run out of data.']);
+            }
         }
 
         $code = $normalCode;
@@ -346,9 +342,10 @@ class AuthenticatedSessionController extends Controller
             );
         }
 
-        // Speed limits: prefer voucher's own settings, fall back to creator's plan
-        $uploadKbps   = $voucher->speed_limit_upload   ?? $familyHead?->plan?->speed_limit_upload;
-        $downloadKbps = $voucher->speed_limit_download ?? $familyHead?->plan?->speed_limit_download;
+        // Speed limits: prefer voucher's own settings, fall back to linked plan or creator's plan
+        $fallbackPlan = $voucher->plan ?? $familyHead?->plan;
+        $uploadKbps   = $voucher->speed_limit_upload   ?? $fallbackPlan?->speed_limit_upload;
+        $downloadKbps = $voucher->speed_limit_download ?? $fallbackPlan?->speed_limit_download;
         if ($uploadKbps || $downloadKbps) {
             \App\Models\RadReply::updateOrCreate(
                 ['username' => $code, 'attribute' => 'Mikrotik-Rate-Limit'],
@@ -362,10 +359,11 @@ class AuthenticatedSessionController extends Controller
         // across all devices using this username, blocking device 4+ once the total is hit).
         if (! $voucher->is_unlimited) {
             $planLimitMb = null;
-            if ($familyHead?->plan && $familyHead->plan->limit_unit !== 'Unlimited' && $familyHead->plan->data_limit) {
-                $planLimitMb = $familyHead->plan->limit_unit === 'GB'
-                    ? (int) ($familyHead->plan->data_limit * 1024)
-                    : (int) $familyHead->plan->data_limit;
+            $refPlan = $voucher->plan ?? $familyHead?->plan;
+            if ($refPlan && $refPlan->limit_unit !== 'Unlimited' && $refPlan->data_limit) {
+                $planLimitMb = $refPlan->limit_unit === 'GB'
+                    ? (int) ($refPlan->data_limit * 1024)
+                    : (int) $refPlan->data_limit;
             }
             $limitMb = $voucher->data_limit_mb ?? $planLimitMb;
             if ($limitMb) {

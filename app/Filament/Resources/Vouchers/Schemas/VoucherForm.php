@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Vouchers\Schemas;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Hidden;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -35,9 +36,10 @@ class VoucherForm
                         Select::make('plan_id')
                             ->relationship('plan', 'name')
                             ->searchable()
+                            ->live()
                             ->label('Linked Plan')
                             ->placeholder('None — custom specs below')
-                            ->helperText('Linking to a plan lets users activate that plan when they redeem this code'),
+                            ->helperText('When a plan is linked, duration/data/speed are inherited from the plan'),
 
                         Select::make('router_id')
                             ->relationship('router', 'name')
@@ -45,6 +47,9 @@ class VoucherForm
                             ->label('Router')
                             ->placeholder('Any router')
                             ->helperText('Restrict this voucher to a specific access point'),
+
+                        Hidden::make('created_by')
+                            ->default(fn () => auth()->id()),
                     ])
                     ->columns(2),
 
@@ -52,14 +57,6 @@ class VoucherForm
                     ->description('Validity, data cap, and speed limits for this voucher')
                     ->icon('heroicon-o-adjustments-horizontal')
                     ->schema([
-                        TextInput::make('duration_hours')
-                            ->label('Duration (hours)')
-                            ->numeric()
-                            ->minValue(1)
-                            ->default(72)
-                            ->required()
-                            ->helperText('24 h = 1 day · 168 h = 1 week · 720 h = 30 days'),
-
                         TextInput::make('max_uses')
                             ->label('Uses per Code')
                             ->numeric()
@@ -69,10 +66,20 @@ class VoucherForm
                             ->required()
                             ->helperText('How many devices can redeem this code'),
 
+                        TextInput::make('duration_hours')
+                            ->label('Duration (hours)')
+                            ->numeric()
+                            ->minValue(1)
+                            ->default(72)
+                            ->required()
+                            ->helperText('24 h = 1 day · 168 h = 1 week · 720 h = 30 days')
+                            ->hidden(fn (Get $get): bool => (bool) $get('plan_id')),
+
                         Toggle::make('is_unlimited')
                             ->label('Unlimited Data')
                             ->live()
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->hidden(fn (Get $get): bool => (bool) $get('plan_id')),
 
                         TextInput::make('data_limit_mb')
                             ->label('Data Allowance (MB)')
@@ -80,21 +87,23 @@ class VoucherForm
                             ->minValue(1)
                             ->placeholder('e.g. 5120 for 5 GB')
                             ->helperText('1 GB = 1024 MB')
-                            ->hidden(fn (Get $get): bool => (bool) $get('is_unlimited')),
+                            ->hidden(fn (Get $get): bool => (bool) $get('is_unlimited') || (bool) $get('plan_id')),
 
                         TextInput::make('speed_limit_download')
                             ->label('Download Speed (Kbps)')
                             ->numeric()
                             ->minValue(0)
                             ->placeholder('e.g. 2048')
-                            ->helperText('0 or empty = no limit'),
+                            ->helperText('0 or empty = no limit')
+                            ->hidden(fn (Get $get): bool => (bool) $get('plan_id')),
 
                         TextInput::make('speed_limit_upload')
                             ->label('Upload Speed (Kbps)')
                             ->numeric()
                             ->minValue(0)
                             ->placeholder('e.g. 512')
-                            ->helperText('0 or empty = no limit'),
+                            ->helperText('0 or empty = no limit')
+                            ->hidden(fn (Get $get): bool => (bool) $get('plan_id')),
                     ])
                     ->columns(2),
 
