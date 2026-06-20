@@ -281,7 +281,7 @@
                                 @endif
 
                                 @if(!$showDisconnectButton)
-                                    <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self"
+                                    <a href="{{ route('connect.bridge') }}"
                                         class="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-900/50">
                                         <i class="fa-solid fa-wifi"></i>Connect
                                     </a>
@@ -373,7 +373,7 @@
                                     @else
                                         @if($subscriptionStatus === 'active')
                                             @if($isAdminUser || $connectedDevices < $maxDevices)
-                                                <a id="connect-to-router-btn" href="{{ route('connect.bridge') }}" target="_self"
+                                                <a href="{{ route('connect.bridge') }}"
                                                     class="w-full sm:w-auto inline-block text-center px-4 py-2 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-blue-600">
                                                     <i class="fa-solid fa-wifi mr-1"></i>Connect to Router
                                                 </a>
@@ -1185,120 +1185,6 @@
                 </div>
             </div>
 
-            <div id="connect-router-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4"
-                aria-hidden="true" role="dialog" aria-labelledby="connect-router-title">
-                <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" data-close-modal></div>
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full p-6 relative z-10">
-                    <h3 id="connect-router-title" class="text-lg font-bold text-gray-900 dark:text-white mb-3">Connect
-                        to Router</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Please follow the steps below before
-                        attempting to connect:</p>
-                    <ol class="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 space-y-2 mb-4">
-                        <li>Connect to the WiFi network.</li>
-                        <li>Turn off Mobile Data.</li>
-                        <li>Ensure you have an active subscription.</li>
-                    </ol>
-
-                    <div id="connect-router-error" class="hidden text-sm text-red-500 mb-3"></div>
-
-                    <div class="flex items-center justify-end space-x-3">
-                        <button data-close-modal
-                            class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors">Cancel</button>
-                        <button id="connect-router-confirm"
-                            class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-500 transition-colors">Confirm
-                            &amp; Connect</button>
-                    </div>
-                </div>
-            </div>
-
-            <script>
-                (function () {
-                    const openBtn = document.getElementById('connect-to-router-btn');
-                    const modal = document.getElementById('connect-router-modal');
-                    const closeBtns = modal ? modal.querySelectorAll('[data-close-modal]') : [];
-                    const confirmBtn = document.getElementById('connect-router-confirm');
-                    const errorBox = document.getElementById('connect-router-error');
-
-                    function showModal() {
-                        if (!modal) return;
-                        modal.classList.remove('hidden');
-                        modal.classList.add('flex');
-                    }
-                    function hideModal() {
-                        if (!modal) return;
-                        modal.classList.add('hidden');
-                        modal.classList.remove('flex');
-                        if (errorBox) { errorBox.classList.add('hidden'); errorBox.textContent = ''; }
-                    }
-
-                    openBtn && openBtn.addEventListener('click', function (e) {
-                        e.preventDefault();
-                        showModal();
-                    });
-
-                    closeBtns.forEach(btn => btn.addEventListener('click', hideModal));
-
-                    // Helper to get CSRF
-                    function getCsrfToken() {
-                        const m = document.querySelector('meta[name="csrf-token"]');
-                        return m ? m.getAttribute('content') : '';
-                    }
-
-                    // Timeout helper
-                    function promiseTimeout(promise, ms) {
-                        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
-                        return Promise.race([promise, timeout]);
-                    }
-
-                    confirmBtn && confirmBtn.addEventListener('click', async function () {
-                        if (!confirmBtn) return;
-                        confirmBtn.disabled = true;
-                        confirmBtn.textContent = 'Connecting...';
-                        if (errorBox) { errorBox.classList.add('hidden'); errorBox.textContent = ''; }
-
-                        try {
-                            const resp = await fetch("{{ route('dashboard.connect') }}", {
-                                method: 'POST',
-                                headers: {
-                                    'Accept': 'application/json',
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': getCsrfToken()
-                                },
-                                body: JSON.stringify({})
-                            });
-
-                            if (!resp.ok) {
-                                const err = await resp.json().catch(() => ({}));
-                                const message = err.message || (err.error ? err.error : 'Unable to build router login URL');
-                                if (errorBox) { errorBox.textContent = message; errorBox.classList.remove('hidden'); }
-                                confirmBtn.disabled = false;
-                                confirmBtn.textContent = 'Confirm & Connect';
-                                return;
-                            }
-
-                            const data = await resp.json();
-
-                            // Redirect the browser to the router login URL (GET)
-                            // Server already builds the complete URL with username, password, and dst parameters
-                            if (data.redirect_url) {
-                                window.location.href = data.redirect_url;
-                                return;
-                            }
-
-                            // If no redirect_url provided, show error
-                            if (errorBox) { errorBox.textContent = 'Router login URL not returned by server.'; errorBox.classList.remove('hidden'); }
-                            confirmBtn.disabled = false;
-                            confirmBtn.textContent = 'Confirm & Connect';
-
-                        } catch (e) {
-                            console.error('Error during connect to router flow', e);
-                            if (errorBox) { errorBox.textContent = 'Unexpected error. Please try again.'; errorBox.classList.remove('hidden'); }
-                            confirmBtn.disabled = false;
-                            confirmBtn.textContent = 'Confirm & Connect';
-                        }
-                    });
-                })();
-            </script>
 
         </div>
     </div>
