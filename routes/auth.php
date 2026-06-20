@@ -16,14 +16,15 @@ use Illuminate\Support\Facades\Route;
 Route::get('auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
+// Login GET has no guest middleware — authenticated users hitting the captive portal
+// must reach the auto-bridge logic instead of being bounced to dashboard.
+Route::get('login', [AuthenticatedSessionController::class, 'create'])
+    ->name('login');
+
+Route::get('register', fn () => redirect()->route('login'))
+    ->name('register');
+
 Route::middleware('guest')->group(function () {
-    // Registration now happens via the captive portal OTP flow on /login
-    Route::get('register', fn () => redirect()->route('login'))
-        ->name('register');
-
-    Route::get('login', [AuthenticatedSessionController::class, 'create'])
-        ->name('login');
-
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
     // Router magic link flows

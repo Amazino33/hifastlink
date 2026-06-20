@@ -134,28 +134,48 @@ class AuthenticatedSessionController extends Controller
         }
 
         // ── Layer 2: Active Laravel session ───────────────────────────────
-        if (auth()->check() && $linkLogin) {
+        if (auth()->check()) {
             $user = auth()->user();
-            $subscriptionService = new \App\Services\SubscriptionService;
 
-            if ($subscriptionService->canConnectToHotspot($user)) {
-                $rad = RadCheck::where('username', $user->username)
-                    ->where('attribute', 'Cleartext-Password')
-                    ->first();
-                $password = $rad?->value ?? $user->radius_password;
+            if ($linkLogin) {
+                $subscriptionService = new \App\Services\SubscriptionService;
 
-                if ($password) {
-                    return response()->view('hotspot.redirect_to_router', [
-                        'username' => $user->username,
-                        'password' => $password,
-                        'link_login' => $linkLogin,
-                        'link_orig' => route('dashboard'),
-                        'mac' => $mac,
-                        'ip' => request()->get('ip'),
-                        'router' => request()->get('router'),
-                    ]);
+                if ($subscriptionService->canConnectToHotspot($user)) {
+                    $rad = RadCheck::where('username', $user->username)
+                        ->where('attribute', 'Cleartext-Password')
+                        ->first();
+                    $password = $rad?->value ?? $user->radius_password;
+
+                    if ($mac) {
+                        try {
+                            \App\Models\Device::upsertFromLogin(
+                                $user,
+                                $mac,
+                                request()->get('router'),
+                                request()->get('ip') ?? request()->ip(),
+                                request()->userAgent()
+                            );
+                        } catch (\Throwable $e) {
+                            Log::warning('Device upsert failed during session auto-reconnect: '.$e->getMessage());
+                        }
+                    }
+
+                    if ($password) {
+                        return response()->view('hotspot.redirect_to_router', [
+                            'username' => $user->username,
+                            'password' => $password,
+                            'link_login' => $linkLogin,
+                            'link_orig' => route('dashboard'),
+                            'mac' => $mac,
+                            'ip' => request()->get('ip'),
+                            'router' => request()->get('router'),
+                        ]);
+                    }
                 }
             }
+
+            // Authenticated but no captive portal params — go to dashboard
+            return redirect()->route('dashboard');
         }
 
         // ── Layer 3: Unknown — show captive auth (phone + OTP flow) ──────
