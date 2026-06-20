@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Number;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVerifyEmail, FilamentUser
+class User extends Authenticatable implements FilamentUser
 {
     use HasFactory, Notifiable, HasRoles, SoftDeletes;
 
@@ -49,6 +49,7 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
         'router_id',
         'google_id',
         'email_verified_at',
+        'phone_verified_at',
     ];
 
     /**
@@ -107,6 +108,7 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
     {
         return [
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
             'password' => 'hashed',
             'online_status' => 'boolean',
             'plan_expiry' => 'datetime',
@@ -366,6 +368,40 @@ class User extends Authenticatable implements \Illuminate\Contracts\Auth\MustVer
 
         // Return remaining data (ensure not negative)
         return max(0, $this->data_limit - $this->data_used);
+    }
+
+    public static function normalizePhone(string $phone): string
+    {
+        $digits = preg_replace('/\D/', '', $phone);
+
+        if (strlen($digits) === 11 && str_starts_with($digits, '0')) {
+            return '+234' . substr($digits, 1);
+        }
+
+        if (str_starts_with($digits, '234')) {
+            return '+' . $digits;
+        }
+
+        return '+' . $digits;
+    }
+
+    public function isPhoneVerified(): bool
+    {
+        return ! is_null($this->phone_verified_at);
+    }
+
+    public function profileCompletionPercentage(): int
+    {
+        $fields = [
+            'name'     => ! empty($this->name) && $this->name !== 'User',
+            'username' => ! empty($this->username) && ! str_starts_with($this->username, 'user_'),
+            'email'    => ! empty($this->email),
+            'password' => ! empty($this->password),
+        ];
+
+        $filled = count(array_filter($fields));
+
+        return (int) round(($filled / count($fields)) * 100);
     }
 
     public function canAccessPanel(Panel $panel): bool

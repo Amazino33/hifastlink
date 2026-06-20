@@ -34,9 +34,19 @@ class PaymentController extends Controller
 
         $amount = (int) round($plan->price * 100); // amount in Kobo
 
+        // Paystack requires email — use real email or generate from phone
+        $paystackEmail = $user->email;
+        if (empty($paystackEmail) && $user->phone) {
+            $digits = preg_replace('/\D/', '', $user->phone);
+            $paystackEmail = $digits . '@hifastlink.ng';
+        }
+        if (empty($paystackEmail)) {
+            return back()->with('error', 'Please add an email or phone to your profile before purchasing.');
+        }
+
         $reference = 'PaystackRef_' . Str::random(12);
         $payload = [
-            'email' => $user->email,
+            'email' => $paystackEmail,
             'amount' => $amount,
             'reference' => $reference,
             'callback_url' => route('payment.callback'),
@@ -289,8 +299,46 @@ class PaymentController extends Controller
             // RadUserGroup will be set by PlanSyncService when the user's plan changes.
 
             $rolloverMessage = $rolloverData > 0 ? " with " . Number::fileSize($rolloverData) . " rollover data!" : "!";
+
+            // If user came from captive portal, bridge to MikroTik
+            if ($bridge = $this->buildCaptiveBridge($user)) {
+                return $bridge;
+            }
+
             return redirect()->route('dashboard')->with('success', "Payment successful — you are now subscribed to {$plan->name}{$rolloverMessage}");
         }
+    }
+
+    private function buildCaptiveBridge($user)
+    {
+        $linkLogin = session()->pull('captive_link_login');
+
+        if (! $linkLogin) {
+            return null;
+        }
+
+        $mac    = session()->pull('captive_mac');
+        $ip     = session()->pull('captive_ip');
+        $router = session()->pull('captive_router');
+
+        $rad = RadCheck::where('username', $user->username)
+            ->where('attribute', 'Cleartext-Password')
+            ->first();
+        $password = $rad?->value ?? $user->radius_password;
+
+        if (! $password) {
+            return null;
+        }
+
+        return response()->view('hotspot.redirect_to_router', [
+            'username'   => $user->username,
+            'password'   => $password,
+            'link_login' => $linkLogin,
+            'link_orig'  => route('dashboard'),
+            'mac'        => $mac,
+            'ip'         => $ip,
+            'router'     => $router,
+        ]);
     }
 }
  

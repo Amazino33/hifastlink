@@ -19,6 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'payment/webhook', // OR 'paystack/webhook' - Check your route name
         ]);
+
+        $middleware->alias([
+            'verified' => \App\Http\Middleware\EnsurePhoneIsVerified::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Redirect invalid/expired email verification links to the notice page

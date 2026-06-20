@@ -41,8 +41,9 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\Subscription::observe(\App\Observers\SubscriptionObserver::class);
 
         // Ensure Livewire components are registered (explicit registration to avoid auto-discovery issues)
-        if (class_exists(\Livewire\Livewire::class) && class_exists(\App\Http\Livewire\UserDashboard::class)) {
+        if (class_exists(\Livewire\Livewire::class)) {
             \Livewire\Livewire::component('user-dashboard', \App\Http\Livewire\UserDashboard::class);
+            \Livewire\Livewire::component('captive-auth', \App\Http\Livewire\CaptiveAuth::class);
         }
     }
 }

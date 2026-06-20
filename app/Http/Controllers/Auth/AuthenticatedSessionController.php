@@ -27,7 +27,7 @@ class AuthenticatedSessionController extends Controller
         // Check if we should skip auto-login due to recent voucher failure
         if (session()->get('skip_auto_login')) {
             session()->forget('skip_auto_login');
-            return view('auth.login');
+            return view('auth.captive-portal');
         }
 
         // ── Layer 1: Regular user MAC auto-reconnect ──────────────────────
@@ -158,8 +158,8 @@ class AuthenticatedSessionController extends Controller
             }
         }
 
-        // ── Layer 3: Unknown — show login form ────────────────────────────
-        return view('auth.login');
+        // ── Layer 3: Unknown — show captive auth (phone + OTP flow) ──────
+        return view('auth.captive-portal');
     }
 
     public function store(LoginRequest $request): RedirectResponse|Response

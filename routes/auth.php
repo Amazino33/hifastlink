@@ -17,10 +17,9 @@ Route::get('auth/google', [SocialAuthController::class, 'redirectToGoogle'])->na
 Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
 Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
+    // Registration now happens via the captive portal OTP flow on /login
+    Route::get('register', fn () => redirect()->route('login'))
         ->name('register');
-
-    Route::post('register', [RegisteredUserController::class, 'store']);
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
