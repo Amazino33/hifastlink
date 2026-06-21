@@ -464,19 +464,14 @@ class User extends Authenticatable implements FilamentUser
             || (!empty($this->is_admin) && $this->is_admin);
     }
 
-    public function isStaff(): bool
-    {
-        return $this->hasRole('staff');
-    }
-
     public function isFreePass(): bool
     {
-        return $this->hasRole('free_pass');
+        return $this->hasRole(['staff', 'free_pass']);
     }
 
     public function hasUnrestrictedAccess(): bool
     {
-        return $this->isAdmin() || $this->isStaff() || $this->isFreePass();
+        return $this->isAdmin() || $this->isFreePass();
     }
 
     /**
@@ -498,7 +493,7 @@ class User extends Authenticatable implements FilamentUser
                         ->where('attribute', 'Simultaneous-Use')
                         ->delete();
                 } else {
-                    $maxDevices = ($user->isStaff() || $user->isFreePass()) ? 2 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
+                    $maxDevices = $user->isFreePass() ? 2 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
                     \App\Models\RadCheck::updateOrCreate(
                         ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
                         ['op' => ':=', 'value' => (string) $maxDevices]
@@ -522,7 +517,7 @@ class User extends Authenticatable implements FilamentUser
                         ->where('attribute', 'Simultaneous-Use')
                         ->delete();
                 } else {
-                    $maxDevices = ($user->isStaff() || $user->isFreePass()) ? 2 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
+                    $maxDevices = $user->isFreePass() ? 2 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
                     \App\Models\RadCheck::updateOrCreate(
                         ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
                         ['op' => ':=', 'value' => (string) $maxDevices]

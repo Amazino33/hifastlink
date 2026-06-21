@@ -48,7 +48,7 @@ class PlanSyncService
                     return;
                 }
 
-                if ($user->isStaff() || $user->isFreePass()) {
+                if ($user->isFreePass()) {
                     // Staff / free-pass with no plan: give RADIUS access, 2 devices, no data cap
                     RadCheck::updateOrCreate(
                         ['username' => $user->username, 'attribute' => 'Cleartext-Password'],

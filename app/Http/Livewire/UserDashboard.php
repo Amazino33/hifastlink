@@ -496,7 +496,6 @@ class UserDashboard extends Component
         }
 
         $isAdminUser = $user->isAdmin();
-        $isStaffUser = $user->isStaff();
         $isFreePass  = $user->isFreePass();
         $hasUnrestricted = $user->hasUnrestrictedAccess();
 
@@ -645,7 +644,7 @@ class UserDashboard extends Component
         }
 
         // Staff / free-pass override: no expiry concern, 2-device cap
-        if ($isStaffUser || $isFreePass) {
+        if ($isFreePass) {
             $subscriptionDays = null;
             $daysBadgeClass   = 'bg-blue-600 text-white';
             $maxDevices       = 2;
@@ -785,7 +784,6 @@ class UserDashboard extends Component
             'sessionUpload'   => $sessionUpload,
             'sessionHistory'  => $sessionHistory,
             'isAdminUser'     => $isAdminUser,
-            'isStaffUser'     => $isStaffUser,
             'isFreePass'      => $isFreePass,
             'hasUnrestricted' => $hasUnrestricted,
             'networkStats'    => $networkStats,

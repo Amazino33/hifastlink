@@ -403,14 +403,14 @@
                                 <div class="text-sm text-white/80 font-semibold mb-3">Unlimited access — no restrictions</div>
                                 <div class="text-blue-100 text-lg">Unlimited Data</div>
                                 <div class="text-xs text-blue-200 mt-1 font-medium tracking-wide uppercase">No plan required</div>
-                            @elseif($isStaffUser || $isFreePass)
+                            @elseif($isFreePass)
                                 <div class="flex items-center gap-3 mb-2">
                                     <span class="text-6xl font-black text-white">∞</span>
-                                    <span class="self-center px-3 py-1 rounded-full text-xs font-bold bg-blue-500 text-white tracking-widest uppercase">{{ $isFreePass ? 'Free Pass' : 'Staff' }}</span>
+                                    <span class="self-center px-3 py-1 rounded-full text-xs font-bold bg-blue-500 text-white tracking-widest uppercase">Free Pass</span>
                                 </div>
                                 <div class="text-sm text-white/80 font-semibold mb-3">Unlimited data — up to 2 devices</div>
                                 <div class="text-blue-100 text-lg">Unlimited Data</div>
-                                <div class="text-xs text-blue-200 mt-1 font-medium tracking-wide uppercase">{{ $isFreePass ? 'Free pass' : 'Staff access' }}</div>
+                                <div class="text-xs text-blue-200 mt-1 font-medium tracking-wide uppercase">Free pass</div>
                             @elseif($subscriptionStatus === 'active')
                                 <div class="text-6xl font-black text-white mb-2">{{ $subscriptionDays }}</div>
                                 <div class="text-sm text-white/80 font-semibold mb-3">
@@ -585,10 +585,10 @@
                                         <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30">Admin</span>
                                     </div>
                                     <div class="text-white/80 text-xs">Unrestricted access — no plan required</div>
-                                @elseif($isStaffUser || $isFreePass)
+                                @elseif($isFreePass)
                                     <div class="text-white text-lg font-bold mb-1 flex items-center gap-2">
-                                        {{ $isFreePass ? 'Free Pass' : 'Staff Member' }}
-                                        <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500 text-white">{{ $isFreePass ? 'Free Pass' : 'Staff' }}</span>
+                                        Free Pass
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500 text-white">Free Pass</span>
                                     </div>
                                     <div class="text-white/80 text-xs">Unlimited data — 2 device limit</div>
                                 @else
