@@ -497,9 +497,11 @@ class UserDashboard extends Component
 
         $isAdminUser = $user->isAdmin();
         $isStaffUser = $user->isStaff();
+        $isFreePass  = $user->isFreePass();
+        $hasUnrestricted = $user->hasUnrestrictedAccess();
 
-        // Admins and staff are always 'active' regardless of plan
-        if ($isAdminUser || $isStaffUser) {
+        // Unrestricted roles are always 'active' regardless of plan
+        if ($hasUnrestricted) {
             $subscriptionStatus = 'active';
         } elseif (!$masterUser->plan_id) {
             $subscriptionStatus = 'inactive';
@@ -514,7 +516,7 @@ class UserDashboard extends Component
         }
 
         // Force offline when there is no plan — admins and staff bypass this
-        if (!$masterUser->plan_id && !$isAdminUser && !$isStaffUser) {
+        if (!$masterUser->plan_id && !$hasUnrestricted) {
             $connectionStatus = 'offline';
         }
 
@@ -642,8 +644,8 @@ class UserDashboard extends Component
             ];
         }
 
-        // Staff override: no expiry concern, 2-device cap, blue badge
-        if ($isStaffUser) {
+        // Staff / free-pass override: no expiry concern, 2-device cap
+        if ($isStaffUser || $isFreePass) {
             $subscriptionDays = null;
             $daysBadgeClass   = 'bg-blue-600 text-white';
             $maxDevices       = 2;
@@ -784,6 +786,8 @@ class UserDashboard extends Component
             'sessionHistory'  => $sessionHistory,
             'isAdminUser'     => $isAdminUser,
             'isStaffUser'     => $isStaffUser,
+            'isFreePass'      => $isFreePass,
+            'hasUnrestricted' => $hasUnrestricted,
             'networkStats'    => $networkStats,
         ]);
     }

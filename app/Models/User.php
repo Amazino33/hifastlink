@@ -469,6 +469,16 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasRole('staff');
     }
 
+    public function isFreePass(): bool
+    {
+        return $this->hasRole('free_pass');
+    }
+
+    public function hasUnrestrictedAccess(): bool
+    {
+        return $this->isAdmin() || $this->isStaff() || $this->isFreePass();
+    }
+
     /**
      * The "booted" method of the model.
      * Automates creating/updating the Radius user.
@@ -488,7 +498,7 @@ class User extends Authenticatable implements FilamentUser
                         ->where('attribute', 'Simultaneous-Use')
                         ->delete();
                 } else {
-                    $maxDevices = $user->isStaff() ? 2 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
+                    $maxDevices = ($user->isStaff() || $user->isFreePass()) ? 2 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
                     \App\Models\RadCheck::updateOrCreate(
                         ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
                         ['op' => ':=', 'value' => (string) $maxDevices]
@@ -512,7 +522,7 @@ class User extends Authenticatable implements FilamentUser
                         ->where('attribute', 'Simultaneous-Use')
                         ->delete();
                 } else {
-                    $maxDevices = $user->isStaff() ? 2 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
+                    $maxDevices = ($user->isStaff() || $user->isFreePass()) ? 2 : (($user->plan && $user->plan->max_devices) ? $user->plan->max_devices : 1);
                     \App\Models\RadCheck::updateOrCreate(
                         ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
                         ['op' => ':=', 'value' => (string) $maxDevices]

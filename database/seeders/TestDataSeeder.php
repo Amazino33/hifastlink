@@ -37,7 +37,7 @@ class TestDataSeeder extends Seeder
 
     private function seedRoles(): void
     {
-        $roles = ['super_admin', 'admin', 'staff', 'cashier', 'affiliate', 'panel_user'];
+        $roles = ['super_admin', 'admin', 'staff', 'cashier', 'affiliate', 'panel_user', 'free_pass'];
 
         foreach ($roles as $role) {
             Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);

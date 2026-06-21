@@ -39,7 +39,7 @@ class HotspotController extends Controller
         }
 
         // Admins and staff bypass subscription validation — canConnectToHotspot() already confirmed access
-        $validSubscription = ($user->isAdmin() || $user->isStaff())
+        $validSubscription = $user->hasUnrestrictedAccess()
             ? (object) ['plan_id' => $user->plan_id, 'expires_at' => null]
             : null;
 

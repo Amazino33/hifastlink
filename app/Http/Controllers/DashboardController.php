@@ -238,7 +238,7 @@ class DashboardController extends Controller
         $masterUser = $user->parent_id ? $user->parent : $user;
 
         // Admins and staff always have access — no plan required
-        if ($user->isAdmin() || $user->isStaff()) {
+        if ($user->hasUnrestrictedAccess()) {
             $validSubscription = (object) ['plan_id' => $user->plan_id, 'expires_at' => null, 'owner_id' => $user->id];
         } else {
             $validSubscription = null;

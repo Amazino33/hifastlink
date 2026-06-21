@@ -39,7 +39,7 @@ class SubscriptionService
             $user->save();
 
             // Admins and staff retain full RADIUS access even after a plan expires
-            if ($user->isAdmin() || $user->isStaff()) {
+            if ($user->hasUnrestrictedAccess()) {
                 RadReply::where('username', $user->username)
                     ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets'])
                     ->delete();
@@ -93,7 +93,7 @@ class SubscriptionService
             $user->plan_expiry = null;
             $user->save();
 
-            if ($user->isAdmin() || $user->isStaff()) {
+            if ($user->hasUnrestrictedAccess()) {
                 // Admins and staff: wipe any stale cap so RADIUS never restricts them
                 RadReply::where('username', $user->username)
                     ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets'])
@@ -175,7 +175,7 @@ class SubscriptionService
     public function canConnectToHotspot(User $user): bool
     {
         // Admins and staff always have unrestricted hotspot access — no plan required
-        if ($user->isAdmin() || $user->isStaff()) {
+        if ($user->hasUnrestrictedAccess()) {
             return true;
         }
 

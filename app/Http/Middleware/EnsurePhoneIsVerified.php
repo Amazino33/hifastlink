@@ -17,7 +17,7 @@ class EnsurePhoneIsVerified
         }
 
         // Admins/staff bypass verification
-        if ($user->isAdmin() || $user->isStaff()) {
+        if ($user->hasUnrestrictedAccess()) {
             return $next($request);
         }
 
