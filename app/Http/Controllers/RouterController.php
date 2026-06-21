@@ -370,6 +370,10 @@ class RouterController extends Controller
 /ip/hotspot/walled-garden add dst-host=$DomainName           comment="HiFastLink Dashboard Root"
 /ip/hotspot/walled-garden add dst-host="*.paystack.com"      comment="Paystack"
 /ip/hotspot/walled-garden add dst-host="*.paystack.co"       comment="Paystack Alt"
+/ip/hotspot/walled-garden add dst-host="accounts.google.com" comment="Google OAuth"
+/ip/hotspot/walled-garden add dst-host="*.googleapis.com"    comment="Google APIs"
+/ip/hotspot/walled-garden add dst-host="*.gstatic.com"       comment="Google Static"
+/ip/hotspot/walled-garden add dst-host="*.googleusercontent.com" comment="Google User Content"
 /ip/hotspot/walled-garden add dst-host="*.sentry.io"         comment="Error Logs"
 
 /ip/hotspot/walled-garden/ip add action=accept protocol=udp dst-port=53                                comment="DNS"
