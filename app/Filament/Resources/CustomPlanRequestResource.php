@@ -59,7 +59,8 @@ class CustomPlanRequestResource extends Resource
                 Section::make('Request Details')
                     ->schema([
                         Select::make('user_id')
-                            ->relationship('user', 'name')
+                            ->relationship('user', 'username')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name . ' (' . $record->phone . ')')
                             ->required()
                             ->disabled(),
 
@@ -149,7 +150,8 @@ class CustomPlanRequestResource extends Resource
                             ->disabled(),
 
                         Select::make('reviewed_by')
-                            ->relationship('reviewer', 'name')
+                            ->relationship('reviewer', 'username')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name)
                             ->label('Reviewed By')
                             ->disabled(),
                     ])

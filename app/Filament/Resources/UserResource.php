@@ -227,7 +227,8 @@ class UserResource extends Resource
                             ->inline(false)
                             ->columnSpan(2),
                         Select::make('parent_id')
-                            ->relationship('parent', 'name')
+                            ->relationship('parent', 'username')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name . ' (' . ($record->phone ?? $record->email) . ')')
                             ->label('Parent Account')
                             ->searchable()
                             ->preload()

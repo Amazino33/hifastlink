@@ -54,7 +54,8 @@ class TransactionResource extends Resource
             ->schema([
                 Select::make('user_id')
                     ->label('Customer')
-                    ->relationship('user', 'name')
+                    ->relationship('user', 'username')
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name . ' (' . ($record->phone ?? $record->email) . ')')
                     ->searchable()
                     ->required()
                     ->columnSpan(1),
