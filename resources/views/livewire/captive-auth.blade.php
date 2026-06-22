@@ -59,8 +59,8 @@
                         wire:model.live.debounce.300ms="phone"
                         wire:keydown.enter="sendOtp"
                         autofocus
-                        autocomplete="tel"
-                        inputmode="{{ $isVoucher ? 'text' : 'tel' }}"
+                        autocomplete="off"
+                        inputmode="text"
                         placeholder="08012345678 or VCH-XXXXXXXX"
                         class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-primary focus:ring-4 focus:ring-blue-100 transition-all duration-300"
                     >
