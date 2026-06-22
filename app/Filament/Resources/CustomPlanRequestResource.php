@@ -66,6 +66,7 @@ class CustomPlanRequestResource extends Resource
 
                         Select::make('router_id')
                             ->relationship('router', 'name')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->name ?? 'Router #' . $record->id)
                             ->required()
                             ->disabled(),
 

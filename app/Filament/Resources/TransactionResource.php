@@ -63,6 +63,7 @@ class TransactionResource extends Resource
                 Select::make('plan_id')
                     ->label('Subscription Plan')
                     ->relationship('plan', 'name')
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->name ?? 'Plan #' . $record->id)
                     ->required()
                     ->columnSpan(1),
 

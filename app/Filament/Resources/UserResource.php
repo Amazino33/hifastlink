@@ -197,6 +197,7 @@ class UserResource extends Resource
                     ->schema([
                         Select::make('plan_id')
                             ->relationship('plan', 'name')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->name ?? '(unnamed plan #' . $record->id . ')')
                             ->label('Assigned Plan')
                             ->searchable()
                             ->preload()
@@ -211,6 +212,7 @@ class UserResource extends Resource
                             ->columnSpan(1),
                         Select::make('router_id')
                             ->relationship('router', 'name')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->name ?? '(unnamed router #' . $record->id . ')')
                             ->label('Associated Router')
                             ->searchable()
                             ->preload()

@@ -35,6 +35,7 @@ class VoucherForm
 
                         Select::make('plan_id')
                             ->relationship('plan', 'name')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->name ?? 'Plan #' . $record->id)
                             ->searchable()
                             ->live()
                             ->label('Linked Plan')
@@ -43,6 +44,7 @@ class VoucherForm
 
                         Select::make('router_id')
                             ->relationship('router', 'name')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->name ?? 'Router #' . $record->id)
                             ->searchable()
                             ->label('Router')
                             ->placeholder('Any router')
