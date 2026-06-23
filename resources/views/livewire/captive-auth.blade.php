@@ -4,6 +4,8 @@
         <h2 class="text-3xl font-black text-transparent bg-clip-text bg-primary mb-2">
             @if($step === 'phone')
                 Get Connected
+            @elseif($step === 'email')
+                Welcome Back
             @elseif($step === 'otp')
                 Verify Your Number
             @else
@@ -13,6 +15,8 @@
         <p class="text-gray-500 text-sm">
             @if($step === 'phone')
                 Enter your phone number to get started
+            @elseif($step === 'email')
+                Sign in with your email or username
             @elseif($step === 'otp')
                 Enter the code sent to your WhatsApp
             @endif
@@ -113,6 +117,84 @@
                 </svg>
                 Continue with Google
             </a>
+
+            {{-- Email login toggle --}}
+            <button wire:click="switchToEmail" class="w-full text-center text-sm text-gray-500 hover:text-primary font-medium transition-colors mt-2">
+                <i class="fa-solid fa-envelope mr-1"></i> Login with email or username
+            </button>
+        </div>
+
+    {{-- ══════════════════════════════════════════════════════════════
+         STEP: Email/password login (for existing users)
+         ══════════════════════════════════════════════════════════════ --}}
+    @elseif($step === 'email')
+        <div class="space-y-5">
+            {{-- Email/username input --}}
+            <div class="group">
+                <label for="email" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                    <i class="fa-solid fa-envelope mr-2 text-primary"></i>
+                    Email, Phone or Username
+                </label>
+                <div class="relative">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary transition-colors duration-300">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <input
+                        id="email"
+                        type="text"
+                        wire:model="email"
+                        wire:keydown.enter="emailLogin"
+                        autofocus
+                        autocomplete="username"
+                        placeholder="Email, phone or username"
+                        class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-primary focus:ring-4 focus:ring-blue-100 transition-all duration-300"
+                    >
+                </div>
+            </div>
+
+            {{-- Password input --}}
+            <div class="group" x-data="{ show: false }">
+                <label for="login-password" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                    <i class="fa-solid fa-lock mr-2 text-primary"></i>
+                    Password
+                </label>
+                <div class="relative">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary transition-colors duration-300">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                    <input
+                        id="login-password"
+                        :type="show ? 'text' : 'password'"
+                        wire:model="password"
+                        wire:keydown.enter="emailLogin"
+                        autocomplete="current-password"
+                        placeholder="Enter your password"
+                        class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-primary focus:ring-4 focus:ring-blue-100 transition-all duration-300"
+                    >
+                    <button type="button" @click="show = !show" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1" tabindex="-1">
+                        <i :class="show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'" class="text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Login button --}}
+            <button
+                wire:click="emailLogin"
+                wire:loading.attr="disabled"
+                class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:transform-none"
+            >
+                <span wire:loading.remove wire:target="emailLogin" class="flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket"></i> Log In
+                </span>
+                <span wire:loading wire:target="emailLogin" class="flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Logging in...
+                </span>
+            </button>
+
+            {{-- Back to phone --}}
+            <button wire:click="switchToPhone" class="w-full text-center text-sm text-gray-500 hover:text-primary font-medium transition-colors">
+                <i class="fa-solid fa-phone mr-1"></i> Login with phone number instead
+            </button>
         </div>
 
     {{-- ══════════════════════════════════════════════════════════════

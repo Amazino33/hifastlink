@@ -15,10 +15,12 @@ use Livewire\Component;
 
 class CaptiveAuth extends Component
 {
-    public string $step = 'phone'; // phone | otp | done
+    public string $step = 'phone'; // phone | email | otp | done
     public string $phone = '';
     public string $otp = '';
     public string $voucherCode = '';
+    public string $email = '';
+    public string $password = '';
     public string $error = '';
     public string $success = '';
     public bool $isVoucher = false;
@@ -151,60 +153,10 @@ class CaptiveAuth extends Component
             }
         }
 
-        // Log in
         Auth::login($user, remember: true);
         request()->session()->regenerate();
 
-        // Save device MAC
-        if ($this->mac) {
-            session(['current_device_mac' => $this->mac]);
-
-            try {
-                Device::upsertFromLogin(
-                    $user,
-                    $this->mac,
-                    $this->router,
-                    $this->ip ?? request()->ip(),
-                    request()->userAgent()
-                );
-            } catch (\Throwable $e) {
-                Log::warning('Device upsert failed during captive auth: ' . $e->getMessage());
-            }
-        }
-
-        if ($this->router) {
-            session(['current_router' => $this->router]);
-        }
-
-        // Store captive portal params in session for post-payment bridging
-        if ($this->linkLogin) {
-            session(['captive_link_login' => $this->linkLogin]);
-            session(['captive_mac' => $this->mac]);
-            session(['captive_ip' => $this->ip]);
-            session(['captive_router' => $this->router]);
-        }
-
-        // Check if user can connect (has active plan)
-        $subscriptionService = new \App\Services\SubscriptionService();
-
-        if ($subscriptionService->canConnectToHotspot($user) && $this->linkLogin) {
-            $rad = RadCheck::where('username', $user->username)
-                ->where('attribute', 'Cleartext-Password')
-                ->first();
-            $password = $rad?->value ?? $user->radius_password;
-
-            if ($password) {
-                $this->bridgeUsername = $user->username;
-                $this->bridgePassword = $password;
-                $this->bridgeLinkLogin = $this->linkLogin;
-                $this->bridgeLinkOrig = route('dashboard');
-                $this->step = 'done';
-                return;
-            }
-        }
-
-        // No plan or no captive portal — redirect to dashboard
-        $this->redirect(route('dashboard'));
+        $this->completeLogin($user);
     }
 
     public function resendOtp()
@@ -239,6 +191,108 @@ class CaptiveAuth extends Component
         $this->otp = '';
         $this->error = '';
         $this->success = '';
+    }
+
+    public function switchToEmail()
+    {
+        $this->step = 'email';
+        $this->error = '';
+        $this->success = '';
+    }
+
+    public function switchToPhone()
+    {
+        $this->step = 'phone';
+        $this->error = '';
+        $this->success = '';
+    }
+
+    public function emailLogin()
+    {
+        $login = trim($this->email);
+        $password = $this->password;
+
+        if (empty($login) || empty($password)) {
+            $this->error = 'Please enter your email/username and password.';
+            return;
+        }
+
+        try {
+            $authenticated = false;
+
+            if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
+                $authenticated = Auth::attempt(['email' => $login, 'password' => $password], true);
+            }
+
+            if (! $authenticated && is_numeric($login)) {
+                $authenticated = Auth::attempt(['phone' => $login, 'password' => $password], true);
+            }
+
+            if (! $authenticated) {
+                $authenticated = Auth::attempt(['username' => $login, 'password' => $password], true);
+            }
+
+            if (! $authenticated) {
+                $this->error = 'Invalid credentials. Please try again.';
+                return;
+            }
+
+            request()->session()->regenerate();
+            $this->completeLogin(Auth::user());
+        } catch (\Throwable $e) {
+            Log::error('CaptiveAuth emailLogin failed: ' . $e->getMessage());
+            $this->error = 'Something went wrong. Please try again.';
+        }
+    }
+
+    private function completeLogin($user): void
+    {
+        if ($this->mac) {
+            session(['current_device_mac' => $this->mac]);
+
+            try {
+                Device::upsertFromLogin(
+                    $user,
+                    $this->mac,
+                    $this->router,
+                    $this->ip ?? request()->ip(),
+                    request()->userAgent()
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Device upsert failed during captive auth: ' . $e->getMessage());
+            }
+        }
+
+        if ($this->router) {
+            session(['current_router' => $this->router]);
+        }
+
+        if ($this->linkLogin) {
+            session(['captive_link_login' => $this->linkLogin]);
+            session(['captive_mac' => $this->mac]);
+            session(['captive_ip' => $this->ip]);
+            session(['captive_router' => $this->router]);
+        }
+
+        $subscriptionService = new \App\Services\SubscriptionService();
+
+        if ($subscriptionService->canConnectToHotspot($user) && $this->linkLogin) {
+            $rad = RadCheck::where('username', $user->username)
+                ->where('attribute', 'Cleartext-Password')
+                ->first();
+            $radPassword = $rad?->value ?? $user->radius_password;
+
+            if ($radPassword) {
+                $this->bridgeUsername = $user->username;
+                $this->bridgePassword = $radPassword;
+                $this->bridgeLinkLogin = $this->linkLogin;
+                $this->bridgeLinkOrig = route('dashboard');
+                $this->step = 'done';
+                return;
+            }
+        }
+
+        $this->redirect(route('dashboard'));
     }
 
     private function handleVoucherDirect()
