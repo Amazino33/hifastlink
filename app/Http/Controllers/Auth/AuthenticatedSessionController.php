@@ -96,10 +96,18 @@ class AuthenticatedSessionController extends Controller
 
                 if (! $radExists) {
                     $storedVoucher = \App\Models\Voucher::where('code', $storedCode)->first();
+                    $storedCreator = $storedVoucher?->creator;
 
-                    // Validate the voucher itself, not the creator's current subscription
-                    $canRestore = $storedVoucher
-                        && (! $storedVoucher->expires_at || $storedVoucher->expires_at->isFuture());
+                    // Admin-created vouchers (no creator) check own expiry.
+                    // Creator-based vouchers live and die with the creator's plan.
+                    $canRestore = false;
+                    if ($storedVoucher) {
+                        if ($storedCreator) {
+                            $canRestore = (new \App\Services\SubscriptionService)->canConnectToHotspot($storedCreator);
+                        } else {
+                            $canRestore = ! $storedVoucher->expires_at || $storedVoucher->expires_at->isFuture();
+                        }
+                    }
 
                     if ($canRestore) {
                         // Restore core RADIUS credentials
@@ -112,11 +120,12 @@ class AuthenticatedSessionController extends Controller
                             ['op' => ':=', 'value' => (string) $storedVoucher->max_uses]
                         );
 
-                        // Restore Expiration
-                        if ($storedVoucher->expires_at) {
+                        // Restore Expiration: creator-based → creator's plan_expiry
+                        $restoreExpiry = $storedCreator?->plan_expiry ?? $storedVoucher->expires_at;
+                        if ($restoreExpiry) {
                             RadCheck::updateOrCreate(
                                 ['username' => $storedCode, 'attribute' => 'Expiration'],
-                                ['op' => ':=', 'value' => $storedVoucher->expires_at->format('d M Y H:i')]
+                                ['op' => ':=', 'value' => $restoreExpiry->format('d M Y H:i')]
                             );
                         }
 
@@ -380,11 +389,12 @@ class AuthenticatedSessionController extends Controller
             ['op' => ':=', 'value' => (string) $voucher->max_uses]
         );
 
-        // Expiration: FreeRADIUS rejects auth after this date, enforcing the voucher validity window
-        if ($voucher->expires_at) {
+        // Expiration: creator-based → creator's plan_expiry; admin-created → voucher's own expires_at
+        $expirationDate = $familyHead?->plan_expiry ?? $voucher->expires_at;
+        if ($expirationDate) {
             RadCheck::updateOrCreate(
                 ['username' => $code, 'attribute' => 'Expiration'],
-                ['op' => ':=', 'value' => $voucher->expires_at->format('d M Y H:i')]
+                ['op' => ':=', 'value' => $expirationDate->format('d M Y H:i')]
             );
         }
 

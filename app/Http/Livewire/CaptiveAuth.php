@@ -254,7 +254,8 @@ class CaptiveAuth extends Component
 
         $familyHead = $voucher->creator;
 
-        // Admin-created vouchers have no creator — they're standalone and always valid
+        // Creator-based vouchers live and die with the creator's plan.
+        // Admin-created vouchers (no creator) are standalone.
         if ($familyHead) {
             $subscriptionService = new \App\Services\SubscriptionService();
             if (! $subscriptionService->canConnectToHotspot($familyHead)) {
@@ -263,7 +264,6 @@ class CaptiveAuth extends Component
             }
         }
 
-        // Consume and set up RADIUS
         $voucher->consume();
 
         RadCheck::updateOrCreate(
@@ -276,10 +276,12 @@ class CaptiveAuth extends Component
             ['op' => ':=', 'value' => (string) $voucher->max_uses]
         );
 
-        if ($voucher->expires_at) {
+        // RADIUS Expiration: creator-based → creator's plan_expiry; admin-created → voucher's own expires_at
+        $expirationDate = $familyHead?->plan_expiry ?? $voucher->expires_at;
+        if ($expirationDate) {
             RadCheck::updateOrCreate(
                 ['username' => $input, 'attribute' => 'Expiration'],
-                ['op' => ':=', 'value' => $voucher->expires_at->format('d M Y H:i')]
+                ['op' => ':=', 'value' => $expirationDate->format('d M Y H:i')]
             );
         }
 
@@ -335,15 +337,22 @@ class CaptiveAuth extends Component
             );
         }
 
-        if ($this->linkLogin) {
-            $this->bridgeUsername = $input;
-            $this->bridgePassword = $input;
-            $this->bridgeLinkLogin = $this->linkLogin;
-            $this->bridgeLinkOrig = route('voucher.success', ['code' => $input]);
-            $this->step = 'done';
-        } else {
-            $this->redirect(route('voucher.success', ['code' => $input]));
+        // Always bridge through MikroTik to capture MAC.
+        // If we have linkLogin (from captive portal), use it.
+        // Otherwise build the MikroTik URL ourselves.
+        $bridgeUrl = $this->linkLogin;
+        if (! $bridgeUrl) {
+            $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'login.wifi';
+            $cleanHost = preg_replace('#^https?://#i', '', $gateway);
+            $cleanHost = preg_replace('#/login$#', '', rtrim($cleanHost, '/'));
+            $bridgeUrl = 'http://' . $cleanHost . '/login';
         }
+
+        $this->bridgeUsername = $input;
+        $this->bridgePassword = $input;
+        $this->bridgeLinkLogin = $bridgeUrl;
+        $this->bridgeLinkOrig = route('voucher.success', ['code' => $input]);
+        $this->step = 'done';
     }
 
     public function render()

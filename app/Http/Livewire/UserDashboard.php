@@ -715,7 +715,13 @@ class UserDashboard extends Component
             $myVouchers = $userVouchers->through(function ($v) use ($activeVoucherSessions, $dataUsed) {
                 $bytes     = (int) ($dataUsed->get($v->code, 0));
                 $exhausted = $v->used_count >= $v->max_uses;
-                $expired   = $v->expires_at && $v->expires_at->isPast();
+                // Creator-based vouchers: expired when creator's plan expires
+                if ($v->created_by) {
+                    $vCreator = $v->creator;
+                    $expired = $vCreator && $vCreator->plan_expiry && $vCreator->plan_expiry->isPast();
+                } else {
+                    $expired = $v->expires_at && $v->expires_at->isPast();
+                }
                 $vSessions = $activeVoucherSessions->get($v->code, collect())->map(function ($s) {
                     $sBytes = (int)($s->acctinputoctets ?? 0) + (int)($s->acctoutputoctets ?? 0);
                     $secs   = is_numeric($s->acctsessiontime) ? (int)$s->acctsessiontime : 0;

@@ -73,7 +73,8 @@ class VoucherForm
                             ->numeric()
                             ->minValue(1)
                             ->default(72)
-                            ->required()
+                            ->required(fn (Get $get): bool => ! $get('plan_id'))
+                            ->dehydrated(fn (Get $get): bool => ! $get('plan_id'))
                             ->helperText('24 h = 1 day · 168 h = 1 week · 720 h = 30 days')
                             ->hidden(fn (Get $get): bool => (bool) $get('plan_id')),
 

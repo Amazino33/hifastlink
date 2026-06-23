@@ -188,7 +188,7 @@
          STEP 3: Bridge to MikroTik (auto-submit)
          ══════════════════════════════════════════════════════════════ --}}
     @elseif($step === 'done' && $bridgeLinkLogin)
-        <div class="text-center py-8">
+        <div id="bridge-connecting" class="text-center py-8">
             <div class="mb-4">
                 <i class="fa-solid fa-wifi text-5xl text-primary animate-pulse"></i>
             </div>
@@ -196,22 +196,44 @@
             <p class="text-gray-500 text-sm">Please wait while we set up your connection.</p>
         </div>
 
+        <div id="bridge-not-on-wifi" class="hidden text-center py-8">
+            <div class="mb-4">
+                <i class="fa-solid fa-wifi-slash text-5xl text-red-400"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Not connected to WiFi</h3>
+            <p class="text-gray-500 text-sm mb-4">Please connect to the HiFastLink WiFi network first, then try again.</p>
+            <button wire:click="goBack" class="px-6 py-3 bg-primary text-white font-bold rounded-2xl hover:bg-blue-700 transition-all">
+                <i class="fa-solid fa-arrow-left mr-2"></i> Go Back
+            </button>
+        </div>
+
         <script>
             (function () {
-                const linkLogin = @js($bridgeLinkLogin);
-                const username  = @js($bridgeUsername);
-                const password  = @js($bridgePassword);
-                const linkOrig  = @js($bridgeLinkOrig);
+                var linkLogin = @js($bridgeLinkLogin);
+                var username  = @js($bridgeUsername);
+                var password  = @js($bridgePassword);
+                var linkOrig  = @js($bridgeLinkOrig);
 
-                const separator = linkLogin.includes('?') ? '&' : '?';
-                const url = linkLogin + separator
+                var separator = linkLogin.includes('?') ? '&' : '?';
+                var url = linkLogin + separator
                     + 'username=' + encodeURIComponent(username)
                     + '&password=' + encodeURIComponent(password)
                     + '&dst=' + encodeURIComponent(linkOrig);
 
-                setTimeout(function () {
+                // Check if the router is reachable before redirecting
+                var img = new Image();
+                var timeout = setTimeout(function () {
+                    // Router not reachable — user is not on WiFi
+                    document.getElementById('bridge-connecting').classList.add('hidden');
+                    document.getElementById('bridge-not-on-wifi').classList.remove('hidden');
+                }, 3000);
+
+                img.onload = img.onerror = function () {
+                    // Router is reachable (onload = served, onerror = CORS block but still reachable)
+                    clearTimeout(timeout);
                     window.location.href = url;
-                }, 500);
+                };
+                img.src = 'http://login.wifi/favicon.ico?t=' + Date.now();
             })();
         </script>
     @endif

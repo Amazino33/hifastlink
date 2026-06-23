@@ -35,8 +35,17 @@ class VouchersTable
                     ->label('Status')
                     ->badge()
                     ->getStateUsing(function ($record): string {
-                        if ($record->expires_at && $record->expires_at->isPast()) {
-                            return 'Expired';
+                        // Creator-based vouchers: validity tied to creator's plan
+                        if ($record->created_by) {
+                            $creator = $record->creator;
+                            if ($creator && $creator->plan_expiry && $creator->plan_expiry->isPast()) {
+                                return 'Expired';
+                            }
+                        } else {
+                            // Admin-created: check own expiry
+                            if ($record->expires_at && $record->expires_at->isPast()) {
+                                return 'Expired';
+                            }
                         }
                         if ($record->used_count >= $record->max_uses) {
                             return 'Redeemed';
