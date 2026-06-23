@@ -36,7 +36,11 @@ class WhatsAppService
 
         $message = "Your HiFastLink code is: *{$code}*\n\nValid for 10 minutes. Do not share this code.";
 
-        $this->send($phone, $message);
+        $sent = $this->send($phone, $message);
+
+        if (! $sent) {
+            return null;
+        }
 
         return $code;
     }
