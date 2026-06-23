@@ -15,7 +15,7 @@ use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
-    public function create(): View|Response
+    public function create(): View|Response|RedirectResponse
     {
         $linkLogin = request()->get('link-login')
                   ?? request()->get('link-login-only')
