@@ -872,21 +872,19 @@ class UserDashboard extends Component
     private function processVoucherRedemption(\App\Models\Voucher $voucher, $user): mixed
     {
 
-        // Enforce limits and per-user uniqueness
-        if ($voucher->used_count >= $voucher->max_uses) {
-            $this->addError('voucherCode', 'This voucher has reached its usage limit.');
-            return null;
-        }
-        if (\App\Models\Transaction::where('reference', 'VCH-' . $voucher->code)
-            ->where('user_id', $user->id)->exists()) {
-            $this->addError('voucherCode', 'You have already redeemed this voucher.');
-            return null;
-        }
-
-        // Atomically claim one slot
-        $claimed = DB::transaction(function () use ($voucher, $user) {
+        // Atomically claim one slot with all checks inside the transaction
+        $claimResult = DB::transaction(function () use ($voucher, $user) {
             $fresh = \App\Models\Voucher::lockForUpdate()->find($voucher->id);
-            if ($fresh->used_count >= $fresh->max_uses) return false;
+
+            if ($fresh->used_count >= $fresh->max_uses) {
+                return 'limit_reached';
+            }
+
+            if (\App\Models\Transaction::where('reference', 'VCH-' . $fresh->code)
+                ->where('user_id', $user->id)->exists()) {
+                return 'already_redeemed';
+            }
+
             $newCount = $fresh->used_count + 1;
             $fresh->update([
                 'used_count' => $newCount,
@@ -894,10 +892,23 @@ class UserDashboard extends Component
                 'used_by'    => $user->id,
                 'used_at'    => now(),
             ]);
+
+            if (is_null($fresh->expires_at) && $fresh->duration_hours) {
+                $fresh->update(['expires_at' => now()->addHours($fresh->duration_hours)]);
+            }
+
             return true;
         });
 
-        if (! $claimed) {
+        if ($claimResult === 'limit_reached') {
+            $this->addError('voucherCode', 'This voucher has reached its usage limit.');
+            return null;
+        }
+        if ($claimResult === 'already_redeemed') {
+            $this->addError('voucherCode', 'You have already redeemed this voucher.');
+            return null;
+        }
+        if ($claimResult !== true) {
             $this->addError('voucherCode', 'This voucher was just used up. Please try another.');
             return null;
         }

@@ -110,18 +110,31 @@ class Voucher extends Model
      * Mark voucher as consumed. Sets expires_at on first use so the clock
      * starts when the voucher is redeemed, not when it was created.
      */
-    public function consume(?int $userId = null): void
+    public function consume(): void
     {
-        $this->increment('used_count');
+        \Illuminate\Support\Facades\DB::transaction(function () {
+            $fresh = static::lockForUpdate()->find($this->id);
+            if (! $fresh || $fresh->used_count >= $fresh->max_uses) {
+                return;
+            }
 
-        $updates = ['used_at' => now()];
+            $updates = [
+                'used_count' => $fresh->used_count + 1,
+                'used_at'    => now(),
+            ];
 
-        if (is_null($this->expires_at) && $this->duration_hours) {
-            $expiresAt = now()->addHours($this->duration_hours);
-            $updates['expires_at'] = $expiresAt;
-            $this->expires_at = $expiresAt;
-        }
+            if (is_null($fresh->expires_at) && $fresh->duration_hours) {
+                $updates['expires_at'] = now()->addHours($fresh->duration_hours);
+            }
 
-        $this->update($updates);
+            $fresh->update($updates);
+
+            // Sync local instance
+            $this->used_count = $updates['used_count'];
+            $this->used_at = $updates['used_at'];
+            if (isset($updates['expires_at'])) {
+                $this->expires_at = $updates['expires_at'];
+            }
+        });
     }
 }

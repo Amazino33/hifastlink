@@ -283,6 +283,41 @@ class CaptiveAuth extends Component
             );
         }
 
+        // Speed limits: voucher → linked plan → creator's plan
+        $fallbackPlan = $voucher->plan ?? $familyHead?->plan;
+        $uploadKbps   = $voucher->speed_limit_upload   ?? $fallbackPlan?->speed_limit_upload;
+        $downloadKbps = $voucher->speed_limit_download ?? $fallbackPlan?->speed_limit_download;
+        if ($uploadKbps || $downloadKbps) {
+            \App\Models\RadReply::updateOrCreate(
+                ['username' => $input, 'attribute' => 'Mikrotik-Rate-Limit'],
+                ['op' => ':=', 'value' => ($uploadKbps ?? 0) . 'k/' . ($downloadKbps ?? 0) . 'k']
+            );
+        }
+
+        // Data cap
+        if (! $voucher->is_unlimited) {
+            $planLimitMb = null;
+            $refPlan = $voucher->plan ?? $familyHead?->plan;
+            if ($refPlan && $refPlan->limit_unit !== 'Unlimited' && $refPlan->data_limit) {
+                $planLimitMb = $refPlan->limit_unit === 'GB'
+                    ? (int) ($refPlan->data_limit * 1024)
+                    : (int) $refPlan->data_limit;
+            }
+            $limitMb = $voucher->data_limit_mb ?? $planLimitMb;
+            if ($limitMb) {
+                \App\Models\RadReply::updateOrCreate(
+                    ['username' => $input, 'attribute' => 'Mikrotik-Total-Limit'],
+                    ['op' => ':=', 'value' => (string) ($limitMb * 1048576)]
+                );
+            } else {
+                \App\Models\RadReply::where('username', $input)->where('attribute', 'Mikrotik-Total-Limit')->delete();
+            }
+            RadCheck::where('username', $input)->where('attribute', 'Mikrotik-Total-Limit')->delete();
+        } else {
+            RadCheck::where('username', $input)->where('attribute', 'Mikrotik-Total-Limit')->delete();
+            \App\Models\RadReply::where('username', $input)->where('attribute', 'Mikrotik-Total-Limit')->delete();
+        }
+
         // Store device MAC for voucher
         if ($this->mac) {
             Device::updateOrCreate(

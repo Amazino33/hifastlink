@@ -95,14 +95,14 @@ class AuthenticatedSessionController extends Controller
                     ->exists();
 
                 if (! $radExists) {
-                    // Credentials were wiped (router restart, manual clear, etc.).
-                    // Re-create them from the voucher WITHOUT consuming another slot.
                     $storedVoucher = \App\Models\Voucher::where('code', $storedCode)->first();
-                    $storedCreator = $storedVoucher?->creator;
-                    $canRestore    = $storedCreator
-                        && (new \App\Services\SubscriptionService)->canConnectToHotspot($storedCreator);
 
-                    if ($storedVoucher && $canRestore) {
+                    // Validate the voucher itself, not the creator's current subscription
+                    $canRestore = $storedVoucher
+                        && (! $storedVoucher->expires_at || $storedVoucher->expires_at->isFuture());
+
+                    if ($canRestore) {
+                        // Restore core RADIUS credentials
                         RadCheck::updateOrCreate(
                             ['username' => $storedCode, 'attribute' => 'Cleartext-Password'],
                             ['op' => ':=', 'value' => $storedCode]
@@ -111,6 +111,44 @@ class AuthenticatedSessionController extends Controller
                             ['username' => $storedCode, 'attribute' => 'Simultaneous-Use'],
                             ['op' => ':=', 'value' => (string) $storedVoucher->max_uses]
                         );
+
+                        // Restore Expiration
+                        if ($storedVoucher->expires_at) {
+                            RadCheck::updateOrCreate(
+                                ['username' => $storedCode, 'attribute' => 'Expiration'],
+                                ['op' => ':=', 'value' => $storedVoucher->expires_at->format('d M Y H:i')]
+                            );
+                        }
+
+                        // Restore speed limits
+                        $fallbackPlan = $storedVoucher->plan ?? $storedVoucher->creator?->plan;
+                        $uploadKbps   = $storedVoucher->speed_limit_upload   ?? $fallbackPlan?->speed_limit_upload;
+                        $downloadKbps = $storedVoucher->speed_limit_download ?? $fallbackPlan?->speed_limit_download;
+                        if ($uploadKbps || $downloadKbps) {
+                            \App\Models\RadReply::updateOrCreate(
+                                ['username' => $storedCode, 'attribute' => 'Mikrotik-Rate-Limit'],
+                                ['op' => ':=', 'value' => ($uploadKbps ?? 0) . 'k/' . ($downloadKbps ?? 0) . 'k']
+                            );
+                        }
+
+                        // Restore data cap
+                        if (! $storedVoucher->is_unlimited) {
+                            $refPlan = $storedVoucher->plan ?? $storedVoucher->creator?->plan;
+                            $planLimitMb = null;
+                            if ($refPlan && $refPlan->limit_unit !== 'Unlimited' && $refPlan->data_limit) {
+                                $planLimitMb = $refPlan->limit_unit === 'GB'
+                                    ? (int) ($refPlan->data_limit * 1024)
+                                    : (int) $refPlan->data_limit;
+                            }
+                            $limitMb = $storedVoucher->data_limit_mb ?? $planLimitMb;
+                            if ($limitMb) {
+                                \App\Models\RadReply::updateOrCreate(
+                                    ['username' => $storedCode, 'attribute' => 'Mikrotik-Total-Limit'],
+                                    ['op' => ':=', 'value' => (string) ($limitMb * 1048576)]
+                                );
+                            }
+                        }
+
                         $radExists = true;
                     }
                 }
