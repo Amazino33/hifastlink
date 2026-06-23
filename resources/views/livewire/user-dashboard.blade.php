@@ -281,10 +281,10 @@
                                 @endif
 
                                 @if(!$showDisconnectButton)
-                                    <a href="{{ route('connect.bridge') }}" data-connect-btn
+                                    <button type="button" data-connect-btn
                                         class="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-900/50">
                                         <i class="fa-solid fa-wifi"></i>Connect
-                                    </a>
+                                    </button>
                                 @endif
                             </div>
                         </div>
@@ -373,10 +373,10 @@
                                     @else
                                         @if($subscriptionStatus === 'active')
                                             @if($isAdminUser || $connectedDevices < $maxDevices)
-                                                <a href="{{ route('connect.bridge') }}" data-connect-btn
+                                                <button type="button" data-connect-btn
                                                     class="w-full sm:w-auto inline-block text-center px-4 py-2 text-xs font-semibold rounded-lg bg-white/20 hover:bg-white/30 text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-blue-600">
                                                     <i class="fa-solid fa-wifi mr-1"></i>Connect to Router
-                                                </a>
+                                                </button>
                                             @else
                                                 <span
                                                     class="w-full sm:w-auto inline-block text-center px-4 py-2 text-xs font-semibold rounded-lg bg-gray-500/50 text-white/70 cursor-not-allowed shadow-lg">
@@ -1219,13 +1219,49 @@
 
 @once
 <script>
-    document.addEventListener('click', function (e) {
+    document.addEventListener('click', async function (e) {
         var btn = e.target.closest('[data-connect-btn]');
-        if (!btn) return;
+        if (!btn || btn.disabled) return;
+        btn.disabled = true;
+
         var modal = document.getElementById('connecting-modal');
         if (modal) {
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+        }
+
+        try {
+            var token = document.querySelector('meta[name="csrf-token"]');
+            var resp = await fetch("{{ route('dashboard.connect') }}", {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token ? token.content : ''
+                },
+                body: JSON.stringify({})
+            });
+
+            var data = await resp.json().catch(function () { return {}; });
+
+            if (resp.ok && data.redirect_url) {
+                window.location.href = data.redirect_url;
+                return;
+            }
+
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+            btn.disabled = false;
+            alert(data.message || 'Could not connect. Please try again.');
+        } catch (err) {
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+            btn.disabled = false;
+            alert('Network error. Make sure you are connected to WiFi.');
         }
     });
 
