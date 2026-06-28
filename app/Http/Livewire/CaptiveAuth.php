@@ -15,7 +15,7 @@ use Livewire\Component;
 
 class CaptiveAuth extends Component
 {
-    public string $step = 'phone'; // phone | email | otp | done
+    public string $step = 'phone'; // phone | email | voucher_phone | otp | done
     public string $phone = '';
     public string $otp = '';
     public string $voucherCode = '';
@@ -26,13 +26,16 @@ class CaptiveAuth extends Component
     public bool $isVoucher = false;
     public int $resendCountdown = 0;
 
-    // Captive portal params (persisted across Livewire requests)
+    // Tracks what the OTP verification should do after success
+    public string $otpPurpose = 'login'; // login | voucher
+
+    // Captive portal params
     public ?string $linkLogin = null;
     public ?string $mac = null;
     public ?string $ip = null;
     public ?string $router = null;
 
-    // Bridge data (set after successful auth when user has a plan)
+    // Bridge data
     public ?string $bridgeUsername = null;
     public ?string $bridgePassword = null;
     public ?string $bridgeLinkLogin = null;
@@ -56,20 +59,38 @@ class CaptiveAuth extends Component
         $this->error = '';
     }
 
+    // ── Step: phone ──────────────────────────────────────────────
+
     public function sendOtp()
     {
         $input = trim($this->phone);
 
-        // Voucher flow — redirect to existing voucher handler
+        // Voucher flow — validate then ask for phone
         if (Voucher::isVoucherCode($input)) {
             $this->isVoucher = true;
-            $this->voucherCode = $input;
-            $this->handleVoucherDirect();
+            $this->voucherCode = strtoupper(trim($input));
+            $this->validateVoucherAndAskPhone();
             return;
         }
 
         $this->isVoucher = false;
+        $this->otpPurpose = 'login';
 
+        $this->sendOtpToPhone($input);
+    }
+
+    // ── Step: voucher_phone (phone input after voucher validation) ─
+
+    public function sendVoucherOtp()
+    {
+        $this->otpPurpose = 'voucher';
+        $this->sendOtpToPhone($this->phone);
+    }
+
+    // ── Shared OTP sender ────────────────────────────────────────
+
+    private function sendOtpToPhone(string $input): void
+    {
         $digits = preg_replace('/[\s\-\(\)]/', '', $input);
 
         if (empty($digits) || ! preg_match('/^\+?[\d]{7,15}$/', $digits)) {
@@ -105,6 +126,8 @@ class CaptiveAuth extends Component
         }
     }
 
+    // ── Step: otp ────────────────────────────────────────────────
+
     public function verifyOtp()
     {
         $code = trim($this->otp);
@@ -121,13 +144,11 @@ class CaptiveAuth extends Component
             return;
         }
 
-        // OTP verified — find or create user
+        // Find or create user
         $user = User::where('phone', $this->phone)->first();
 
         if (! $user) {
             $username = 'user_' . substr(preg_replace('/\D/', '', $this->phone), -10);
-
-            // Ensure unique username
             $base = $username;
             $counter = 1;
             while (User::where('username', $username)->exists()) {
@@ -135,15 +156,13 @@ class CaptiveAuth extends Component
                 $counter++;
             }
 
-            $radiusPassword = Str::random(12);
-
             $user = User::create([
                 'name'              => null,
                 'username'          => $username,
                 'email'             => null,
                 'phone'             => $this->phone,
                 'password'          => null,
-                'radius_password'   => $radiusPassword,
+                'radius_password'   => Str::random(12),
                 'phone_verified_at' => now(),
                 'connection_status' => 'active',
             ]);
@@ -156,7 +175,11 @@ class CaptiveAuth extends Component
         Auth::login($user, remember: true);
         request()->session()->regenerate();
 
-        $this->completeLogin($user);
+        if ($this->otpPurpose === 'voucher' && $this->voucherCode) {
+            $this->activateVoucherForUser($user);
+        } else {
+            $this->completeLogin($user);
+        }
     }
 
     public function resendOtp()
@@ -185,9 +208,15 @@ class CaptiveAuth extends Component
         }
     }
 
+    // ── Navigation ───────────────────────────────────────────────
+
     public function goBack()
     {
-        $this->step = 'phone';
+        if ($this->otpPurpose === 'voucher') {
+            $this->step = 'voucher_phone';
+        } else {
+            $this->step = 'phone';
+        }
         $this->otp = '';
         $this->error = '';
         $this->success = '';
@@ -206,6 +235,8 @@ class CaptiveAuth extends Component
         $this->error = '';
         $this->success = '';
     }
+
+    // ── Email login ──────────────────────────────────────────────
 
     public function emailLogin()
     {
@@ -245,6 +276,8 @@ class CaptiveAuth extends Component
         }
     }
 
+    // ── Post-login bridge ────────────────────────────────────────
+
     private function completeLogin($user): void
     {
         if ($this->mac) {
@@ -283,6 +316,7 @@ class CaptiveAuth extends Component
             $radPassword = $rad?->value ?? $user->radius_password;
 
             if ($radPassword) {
+                session(['bridge_completed' => true]);
                 $this->bridgeUsername = $user->username;
                 $this->bridgePassword = $radPassword;
                 $this->bridgeLinkLogin = $this->linkLogin;
@@ -295,11 +329,11 @@ class CaptiveAuth extends Component
         $this->redirect(route('dashboard'));
     }
 
-    private function handleVoucherDirect()
-    {
-        $input = strtoupper(trim($this->voucherCode));
+    // ── Voucher: validate and ask for phone ──────────────────────
 
-        $voucher = Voucher::findValid($input);
+    private function validateVoucherAndAskPhone(): void
+    {
+        $voucher = Voucher::findValid($this->voucherCode);
 
         if (! $voucher) {
             $this->error = 'This voucher is invalid, expired, or already used.';
@@ -308,8 +342,6 @@ class CaptiveAuth extends Component
 
         $familyHead = $voucher->creator;
 
-        // Creator-based vouchers live and die with the creator's plan.
-        // Admin-created vouchers (no creator) are standalone.
         if ($familyHead) {
             $subscriptionService = new \App\Services\SubscriptionService();
             if (! $subscriptionService->canConnectToHotspot($familyHead)) {
@@ -318,42 +350,79 @@ class CaptiveAuth extends Component
             }
         }
 
-        $voucher->consume();
+        // Voucher is valid — ask for phone number
+        $this->step = 'voucher_phone';
+        $this->error = '';
+        $this->phone = '';
+    }
+
+    // ── Voucher: activate for verified user ──────────────────────
+
+    private function activateVoucherForUser($user): void
+    {
+        $voucher = Voucher::findValid($this->voucherCode);
+
+        if (! $voucher) {
+            $this->error = 'This voucher is no longer available.';
+            $this->step = 'phone';
+            return;
+        }
+
+        $familyHead = $voucher->creator;
+
+        // Check if this user already redeemed this voucher (same phone = same slot)
+        $alreadyLinked = Device::where('user_id', $user->id)
+            ->where('meta->voucher_code', $this->voucherCode)
+            ->exists();
+
+        if (! $alreadyLinked) {
+            // Consume a slot for this new person
+            $voucher->consume();
+        }
+
+        // Link user to voucher creator as child
+        if ($familyHead && ! $user->parent_id) {
+            $user->updateQuietly(['parent_id' => $familyHead->id]);
+        }
+
+        // RADIUS uses the user's username, not the voucher code
+        $radUsername = $user->username;
+        $radPassword = $user->radius_password;
 
         RadCheck::updateOrCreate(
-            ['username' => $input, 'attribute' => 'Cleartext-Password'],
-            ['op' => ':=', 'value' => $input]
+            ['username' => $radUsername, 'attribute' => 'Cleartext-Password'],
+            ['op' => ':=', 'value' => $radPassword]
         );
 
         RadCheck::updateOrCreate(
-            ['username' => $input, 'attribute' => 'Simultaneous-Use'],
-            ['op' => ':=', 'value' => (string) $voucher->max_uses]
+            ['username' => $radUsername, 'attribute' => 'Simultaneous-Use'],
+            ['op' => ':=', 'value' => (string) ($voucher->max_uses)]
         );
 
-        // RADIUS Expiration: creator-based → creator's plan_expiry; admin-created → voucher's own expires_at
+        // Expiration: creator's plan_expiry or voucher's own
         $expirationDate = $familyHead?->plan_expiry ?? $voucher->expires_at;
         if ($expirationDate) {
             RadCheck::updateOrCreate(
-                ['username' => $input, 'attribute' => 'Expiration'],
+                ['username' => $radUsername, 'attribute' => 'Expiration'],
                 ['op' => ':=', 'value' => $expirationDate->format('d M Y H:i')]
             );
         }
 
-        // Speed limits: voucher → linked plan → creator's plan
+        // Speed limits
         $fallbackPlan = $voucher->plan ?? $familyHead?->plan;
         $uploadKbps   = $voucher->speed_limit_upload   ?? $fallbackPlan?->speed_limit_upload;
         $downloadKbps = $voucher->speed_limit_download ?? $fallbackPlan?->speed_limit_download;
         if ($uploadKbps || $downloadKbps) {
             \App\Models\RadReply::updateOrCreate(
-                ['username' => $input, 'attribute' => 'Mikrotik-Rate-Limit'],
+                ['username' => $radUsername, 'attribute' => 'Mikrotik-Rate-Limit'],
                 ['op' => ':=', 'value' => ($uploadKbps ?? 0) . 'k/' . ($downloadKbps ?? 0) . 'k']
             );
         }
 
         // Data cap
         if (! $voucher->is_unlimited) {
-            $planLimitMb = null;
             $refPlan = $voucher->plan ?? $familyHead?->plan;
+            $planLimitMb = null;
             if ($refPlan && $refPlan->limit_unit !== 'Unlimited' && $refPlan->data_limit) {
                 $planLimitMb = $refPlan->limit_unit === 'GB'
                     ? (int) ($refPlan->data_limit * 1024)
@@ -362,38 +431,32 @@ class CaptiveAuth extends Component
             $limitMb = $voucher->data_limit_mb ?? $planLimitMb;
             if ($limitMb) {
                 \App\Models\RadReply::updateOrCreate(
-                    ['username' => $input, 'attribute' => 'Mikrotik-Total-Limit'],
+                    ['username' => $radUsername, 'attribute' => 'Mikrotik-Total-Limit'],
                     ['op' => ':=', 'value' => (string) ($limitMb * 1048576)]
                 );
-            } else {
-                \App\Models\RadReply::where('username', $input)->where('attribute', 'Mikrotik-Total-Limit')->delete();
             }
-            RadCheck::where('username', $input)->where('attribute', 'Mikrotik-Total-Limit')->delete();
         } else {
-            RadCheck::where('username', $input)->where('attribute', 'Mikrotik-Total-Limit')->delete();
-            \App\Models\RadReply::where('username', $input)->where('attribute', 'Mikrotik-Total-Limit')->delete();
+            \App\Models\RadReply::where('username', $radUsername)->where('attribute', 'Mikrotik-Total-Limit')->delete();
         }
 
-        // Store device MAC for voucher
+        // Save device MAC linked to user (not anonymous)
         if ($this->mac) {
             Device::updateOrCreate(
                 ['mac' => strtoupper($this->mac)],
                 [
-                    'user_id'      => null,
+                    'user_id'      => $user->id,
                     'router_id'    => $voucher->router_id,
                     'ip'           => $this->ip ?? request()->ip(),
                     'user_agent'   => request()->userAgent(),
                     'first_seen'   => now(),
                     'last_seen'    => now(),
                     'is_connected' => true,
-                    'meta'         => ['voucher_code' => $input],
+                    'meta'         => ['voucher_code' => $this->voucherCode],
                 ]
             );
         }
 
-        // Always bridge through MikroTik to capture MAC.
-        // If we have linkLogin (from captive portal), use it.
-        // Otherwise build the MikroTik URL ourselves.
+        // Bridge to MikroTik
         $bridgeUrl = $this->linkLogin;
         if (! $bridgeUrl) {
             $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'login.wifi';
@@ -402,10 +465,11 @@ class CaptiveAuth extends Component
             $bridgeUrl = 'http://' . $cleanHost . '/login';
         }
 
-        $this->bridgeUsername = $input;
-        $this->bridgePassword = $input;
+        session(['bridge_completed' => true]);
+        $this->bridgeUsername = $radUsername;
+        $this->bridgePassword = $radPassword;
         $this->bridgeLinkLogin = $bridgeUrl;
-        $this->bridgeLinkOrig = route('voucher.success', ['code' => $input]);
+        $this->bridgeLinkOrig = route('voucher.success', ['code' => $this->voucherCode]);
         $this->step = 'done';
     }
 

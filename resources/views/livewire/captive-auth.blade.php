@@ -6,6 +6,8 @@
                 Get Connected
             @elseif($step === 'email')
                 Welcome Back
+            @elseif($step === 'voucher_phone')
+                Almost There
             @elseif($step === 'otp')
                 Verify Your Number
             @else
@@ -17,6 +19,8 @@
                 Enter your phone number to get started
             @elseif($step === 'email')
                 Sign in with your email or username
+            @elseif($step === 'voucher_phone')
+                Link your phone to stay connected
             @elseif($step === 'otp')
                 Enter the code sent to your WhatsApp
             @endif
@@ -198,7 +202,62 @@
         </div>
 
     {{-- ══════════════════════════════════════════════════════════════
-         STEP 2: OTP verification
+         STEP: Voucher phone (link phone after voucher validation)
+         ══════════════════════════════════════════════════════════════ --}}
+    @elseif($step === 'voucher_phone')
+        <div class="space-y-5">
+            {{-- Voucher confirmed badge --}}
+            <div class="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl mb-2">
+                <i class="fa-solid fa-ticket text-green-600"></i>
+                <div>
+                    <div class="text-sm font-bold text-green-800">Voucher verified</div>
+                    <div class="text-xs text-green-600 font-mono">{{ $voucherCode }}</div>
+                </div>
+            </div>
+
+            <p class="text-sm text-gray-500">Enter your phone number so you stay connected automatically next time — no need to re-enter the code.</p>
+
+            {{-- Phone input --}}
+            <div class="group">
+                <label for="voucher-phone" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                    <i class="fa-solid fa-phone mr-2 text-primary"></i>
+                    Phone Number
+                </label>
+                <div class="relative">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary transition-colors duration-300">
+                        <i class="fa-solid fa-phone"></i>
+                    </div>
+                    <input
+                        id="voucher-phone"
+                        type="text"
+                        wire:model="phone"
+                        wire:keydown.enter="sendVoucherOtp"
+                        autofocus
+                        autocomplete="tel"
+                        inputmode="text"
+                        placeholder="08012345678"
+                        class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-primary focus:ring-4 focus:ring-blue-100 transition-all duration-300"
+                    >
+                </div>
+            </div>
+
+            {{-- Submit --}}
+            <button
+                wire:click="sendVoucherOtp"
+                wire:loading.attr="disabled"
+                class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:transform-none"
+            >
+                <span wire:loading.remove wire:target="sendVoucherOtp" class="flex items-center justify-center gap-2">
+                    <i class="fa-brands fa-whatsapp"></i> Verify & Connect
+                </span>
+                <span wire:loading wire:target="sendVoucherOtp" class="flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Sending...
+                </span>
+            </button>
+        </div>
+
+    {{-- ══════════════════════════════════════════════════════════════
+         STEP: OTP verification
          ══════════════════════════════════════════════════════════════ --}}
     @elseif($step === 'otp')
         <div class="space-y-5">
