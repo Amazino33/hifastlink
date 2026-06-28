@@ -856,6 +856,8 @@ class UserDashboard extends Component
 
     public function redeemVoucher(): mixed
     {
+        $this->voucherCode = strtoupper(trim($this->voucherCode));
+
         $this->validate(['voucherCode' => 'required|string|exists:vouchers,code']);
 
         $voucher = \App\Models\Voucher::where('code', $this->voucherCode)->first();
@@ -920,7 +922,6 @@ class UserDashboard extends Component
         }
 
         $newPlan = $voucher->plan;
-        $this->reset('voucherCode');
 
         // ── Custom voucher with no attached plan ──────────────────────────────
         // Activates temporary access directly from the voucher's own parameters.
