@@ -36,6 +36,31 @@ Route::get('/network-status', [PageController::class, 'status'])->name('status')
 Route::post('/voucher/check-input', [VoucherController::class, 'checkInput'])->name('voucher.check-input');
 Route::get('/voucher/success', [VoucherController::class, 'success'])->name('voucher.success');
 
+// Captive portal bridge — full page redirect so JS + meta refresh work in captive mini-browsers
+Route::get('/captive-bridge', function () {
+    $username  = session()->pull('bridge_username');
+    $password  = session()->pull('bridge_password');
+    $linkLogin = session()->pull('bridge_link_login');
+    $linkOrig  = session()->pull('bridge_link_orig');
+    $mac       = session()->pull('bridge_mac');
+    $ip        = session()->pull('bridge_ip');
+    $router    = session()->pull('bridge_router');
+
+    if (! $username || ! $linkLogin) {
+        return redirect()->route('dashboard');
+    }
+
+    return view('hotspot.redirect_to_router', [
+        'username'   => $username,
+        'password'   => $password,
+        'link_login' => $linkLogin,
+        'link_orig'  => $linkOrig,
+        'mac'        => $mac,
+        'ip'         => $ip,
+        'router'     => $router,
+    ]);
+})->name('captive.bridge');
+
 // ============================================================
 // PAYMENTS — public (Paystack redirects browser here)
 // ============================================================

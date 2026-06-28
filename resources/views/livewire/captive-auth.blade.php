@@ -325,51 +325,5 @@
             </div>
         </div>
 
-    {{-- ══════════════════════════════════════════════════════════════
-         STEP 3: Bridge to MikroTik (auto-submit)
-         ══════════════════════════════════════════════════════════════ --}}
-    @elseif($step === 'done' && $bridgeLinkLogin)
-        <div
-            x-data="{ failed: false }"
-            x-init="
-                var linkLogin = @js($bridgeLinkLogin);
-                var username  = @js($bridgeUsername);
-                var password  = @js($bridgePassword);
-                var linkOrig  = @js($bridgeLinkOrig);
-
-                var sep = linkLogin.includes('?') ? '&' : '?';
-                var url = linkLogin + sep
-                    + 'username=' + encodeURIComponent(username)
-                    + '&password=' + encodeURIComponent(password)
-                    + '&dst=' + encodeURIComponent(linkOrig);
-
-                var img = new Image();
-                var timeout = setTimeout(function () { failed = true; }, 3000);
-                img.onload = img.onerror = function () {
-                    clearTimeout(timeout);
-                    window.location.href = url;
-                };
-                img.src = 'http://login.wifi/favicon.ico?t=' + Date.now();
-            "
-        >
-            <div x-show="!failed" class="text-center py-8">
-                <div class="mb-4">
-                    <i class="fa-solid fa-wifi text-5xl text-primary animate-pulse"></i>
-                </div>
-                <h3 class="text-xl font-bold text-gray-800 mb-2">Connecting you to WiFi...</h3>
-                <p class="text-gray-500 text-sm">Please wait while we set up your connection.</p>
-            </div>
-
-            <div x-show="failed" x-cloak class="text-center py-8">
-                <div class="mb-4">
-                    <i class="fa-solid fa-triangle-exclamation text-5xl text-red-400"></i>
-                </div>
-                <h3 class="text-xl font-bold text-gray-800 mb-2">Not connected to WiFi</h3>
-                <p class="text-gray-500 text-sm mb-4">Please connect to the HiFastLink WiFi network first, then try again.</p>
-                <button wire:click="goBack" class="px-6 py-3 bg-primary text-white font-bold rounded-2xl hover:bg-blue-700 transition-all">
-                    <i class="fa-solid fa-arrow-left mr-2"></i> Go Back
-                </button>
-            </div>
-        </div>
     @endif
 </div>

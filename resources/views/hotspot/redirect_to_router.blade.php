@@ -17,7 +17,8 @@
         if (!empty($router)) $loginParams['router'] = $router;
         $finalLoginUrl = $link_login . (strpos($link_login, '?') === false ? '?' : '&') . http_build_query($loginParams);
     @endphp
-    {{-- No-JS fallback: removed meta refresh to prevent infinite loop when router rejects credentials --}}
+    {{-- No-JS fallback for captive portal mini-browsers that block JavaScript --}}
+    <noscript><meta http-equiv="refresh" content="2;url={{ $finalLoginUrl }}"></noscript>
     <style>
         body {
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;

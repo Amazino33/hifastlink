@@ -15,7 +15,7 @@ use Livewire\Component;
 
 class CaptiveAuth extends Component
 {
-    public string $step = 'phone'; // phone | email | voucher_phone | otp | done
+    public string $step = 'phone'; // phone | email | voucher_phone | otp
     public string $phone = '';
     public string $otp = '';
     public string $voucherCode = '';
@@ -35,11 +35,6 @@ class CaptiveAuth extends Component
     public ?string $ip = null;
     public ?string $router = null;
 
-    // Bridge data
-    public ?string $bridgeUsername = null;
-    public ?string $bridgePassword = null;
-    public ?string $bridgeLinkLogin = null;
-    public ?string $bridgeLinkOrig = null;
 
     public function mount()
     {
@@ -276,6 +271,21 @@ class CaptiveAuth extends Component
         }
     }
 
+    private function bridgeToRouter(string $username, string $password, string $linkLogin, string $linkOrig): void
+    {
+        session([
+            'bridge_username'   => $username,
+            'bridge_password'   => $password,
+            'bridge_link_login' => $linkLogin,
+            'bridge_link_orig'  => $linkOrig,
+            'bridge_mac'        => $this->mac,
+            'bridge_ip'         => $this->ip,
+            'bridge_router'     => $this->router,
+        ]);
+
+        $this->redirect(route('captive.bridge'));
+    }
+
     // ── Post-login bridge ────────────────────────────────────────
 
     private function completeLogin($user): void
@@ -317,11 +327,7 @@ class CaptiveAuth extends Component
 
             if ($radPassword) {
                 session(['bridge_completed' => true]);
-                $this->bridgeUsername = $user->username;
-                $this->bridgePassword = $radPassword;
-                $this->bridgeLinkLogin = $this->linkLogin;
-                $this->bridgeLinkOrig = route('dashboard');
-                $this->step = 'done';
+                $this->bridgeToRouter($user->username, $radPassword, $this->linkLogin, route('dashboard'));
                 return;
             }
         }
@@ -466,11 +472,7 @@ class CaptiveAuth extends Component
         }
 
         session(['bridge_completed' => true]);
-        $this->bridgeUsername = $radUsername;
-        $this->bridgePassword = $radPassword;
-        $this->bridgeLinkLogin = $bridgeUrl;
-        $this->bridgeLinkOrig = route('voucher.success', ['code' => $this->voucherCode]);
-        $this->step = 'done';
+        $this->bridgeToRouter($radUsername, $radPassword, $bridgeUrl, route('voucher.success', ['code' => $this->voucherCode]));
     }
 
     public function render()
