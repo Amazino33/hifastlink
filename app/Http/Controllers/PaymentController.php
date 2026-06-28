@@ -52,6 +52,7 @@ class PaymentController extends Controller
             'callback_url' => route('payment.callback'),
             'metadata' => [
                 'plan_id' => $plan->id,
+                'user_id' => $user->id,
             ],
         ];
 
@@ -116,9 +117,25 @@ class PaymentController extends Controller
         $planId = $metadata['plan_id'] ?? null;
 
         $user = Auth::user();
-        // Fallback: try to resolve by customer email if not authenticated
+
+        // Fallback chain when session is lost during Paystack redirect
+        if (! $user && ! empty($metadata['user_id'])) {
+            $user = User::find($metadata['user_id']);
+            if ($user) {
+                Auth::login($user);
+            }
+        }
         if (! $user && ! empty($data['customer']['email'])) {
-            $user = User::where('email', $data['customer']['email'])->first();
+            $email = $data['customer']['email'];
+            $user = User::where('email', $email)->first();
+            // Phone-only users: generated email is {digits}@hifastlink.ng
+            if (! $user && str_ends_with($email, '@hifastlink.ng')) {
+                $phone = '+' . str_replace('@hifastlink.ng', '', $email);
+                $user = User::where('phone', $phone)->first();
+            }
+            if ($user) {
+                Auth::login($user);
+            }
         }
 
         if (! $user) {
@@ -135,7 +152,7 @@ class PaymentController extends Controller
 
         // Check if user has active plan with data left
         $hasActivePlan = $user->plan_expiry && $user->plan_expiry->isFuture();
-        $hasDataLeft = $user->data_used < $user->data_limit;
+        $hasDataLeft = ! is_null($user->data_limit) && $user->data_used < $user->data_limit;
 
         // If the current plan has no data remaining, expire it so the new plan can activate immediately
         if ($hasActivePlan && ($user->remaining_data ?? 0) <= 0) {
