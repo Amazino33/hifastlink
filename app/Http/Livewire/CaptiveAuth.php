@@ -386,8 +386,8 @@ class CaptiveAuth extends Component
             $voucher->consume();
         }
 
-        // Link user to voucher creator as child
-        if ($familyHead && ! $user->parent_id) {
+        // Link user under the voucher creator if they're a family head (not admin)
+        if ($familyHead && ! $familyHead->isAdmin() && ! $user->parent_id) {
             $user->updateQuietly(['parent_id' => $familyHead->id]);
         }
 

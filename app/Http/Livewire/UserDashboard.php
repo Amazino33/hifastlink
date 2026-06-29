@@ -889,8 +889,8 @@ class UserDashboard extends Component
             }
         }
 
-        // Link user under the voucher creator (family head)
-        if ($creator && ! $user->parent_id && $creator->id !== $user->id) {
+        // Link user under the voucher creator if they're a family head (not admin)
+        if ($creator && ! $creator->isAdmin() && ! $user->parent_id && $creator->id !== $user->id) {
             $user->updateQuietly(['parent_id' => $creator->id]);
         }
 
