@@ -37,6 +37,7 @@ class RouterHeartbeatController extends Controller
         $wasOffline = ! $router->is_online;
 
         $router->last_seen_at = now();
+        $router->offline_notified_at = null;
         $router->save();
 
         // Notify owner when router comes back online after being offline

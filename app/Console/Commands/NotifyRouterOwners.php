@@ -28,8 +28,9 @@ class NotifyRouterOwners extends Command
         foreach ($ownedRouters as $router) {
             if (! $router->owner?->phone) continue;
 
-            if ($type === 'offline' && ! $router->is_online) {
+            if ($type === 'offline' && ! $router->is_online && ! $router->offline_notified_at) {
                 $service->notifyRouterOffline($router);
+                $router->update(['offline_notified_at' => now()]);
                 $this->line("Offline alert sent for {$router->name} → {$router->owner->display_name}");
                 $count++;
             } elseif ($type === 'daily') {

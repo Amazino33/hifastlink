@@ -37,6 +37,7 @@ class Router extends Model
         'is_active' => 'boolean',
         'api_port' => 'integer',
         'last_seen_at' => 'datetime',
+        'offline_notified_at' => 'datetime',
     ];
 
 
