@@ -806,7 +806,54 @@ class UserDashboard extends Component
             'hasUnrestricted'  => $hasUnrestricted,
             'hasVoucherAccess' => $hasVoucherAccess,
             'networkStats'     => $networkStats,
+            'ownedRouter'      => $this->getOwnedRouterData($user),
         ]);
+    }
+
+    private function getOwnedRouterData($user): ?array
+    {
+        $router = \App\Models\Router::where('owner_id', $user->id)->first();
+
+        if (! $router) {
+            return null;
+        }
+
+        $activeSessions = $router->activeSessions()
+            ->select('username', 'framedipaddress', 'callingstationid', 'acctstarttime', 'acctsessiontime',
+                DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0) as total_bytes'))
+            ->get();
+
+        $subscribers = \App\Models\User::where('router_id', $router->id)
+            ->whereNotNull('plan_id')
+            ->with('plan')
+            ->get()
+            ->map(fn ($u) => [
+                'name'       => $u->display_name,
+                'phone'      => $u->phone,
+                'plan'       => $u->plan?->name ?? 'Custom',
+                'expiry'     => $u->plan_expiry?->format('d M Y') ?? '—',
+                'data_used'  => $u->formatted_data_used,
+                'status'     => $u->plan_expiry && $u->plan_expiry->isFuture() ? 'active' : 'expired',
+            ]);
+
+        $todayBytes = $router->sessions()
+            ->whereDate('acctstarttime', today())
+            ->sum(DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
+
+        $monthBytes = $router->sessions()
+            ->where('acctstarttime', '>=', now()->startOfMonth())
+            ->sum(DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
+
+        return [
+            'router'          => $router,
+            'is_online'       => $router->is_online,
+            'active_users'    => $activeSessions->pluck('username')->unique()->count(),
+            'active_sessions' => $activeSessions,
+            'subscribers'     => $subscribers,
+            'total_subscribers' => $subscribers->count(),
+            'today_bytes'     => Number::fileSize($todayBytes),
+            'month_bytes'     => Number::fileSize($monthBytes),
+        ];
     }
 
     public function forceActivate($subscriptionId)

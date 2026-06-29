@@ -315,6 +315,19 @@ class PaymentController extends Controller
 
             // RadUserGroup will be set by PlanSyncService when the user's plan changes.
 
+            // Notify router owner of new plan purchase
+            if ($user->router_id) {
+                try {
+                    $userRouter = \App\Models\Router::find($user->router_id);
+                    if ($userRouter?->owner_id) {
+                        app(\App\Services\RouterOwnerNotificationService::class)
+                            ->notifyNewPlanSubscription($user, $userRouter, $plan);
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Router owner notification failed: ' . $e->getMessage());
+                }
+            }
+
             $rolloverMessage = $rolloverData > 0 ? " with " . Number::fileSize($rolloverData) . " rollover data!" : "!";
 
             // If user came from captive portal, bridge to MikroTik

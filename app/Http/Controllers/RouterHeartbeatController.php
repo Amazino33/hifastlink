@@ -34,8 +34,19 @@ class RouterHeartbeatController extends Controller
             return response()->json(['success' => false, 'message' => 'Router not found'], 404);
         }
 
+        $wasOffline = ! $router->is_online;
+
         $router->last_seen_at = now();
         $router->save();
+
+        // Notify owner when router comes back online after being offline
+        if ($wasOffline && $router->owner_id) {
+            try {
+                app(\App\Services\RouterOwnerNotificationService::class)->notifyRouterOnline($router);
+            } catch (\Throwable $e) {
+                Log::warning('Router online notification failed: ' . $e->getMessage());
+            }
+        }
 
         Log::info('Router heartbeat recorded', ['router' => $router->nas_identifier, 'ip' => $request->ip()]);
 

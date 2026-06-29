@@ -905,6 +905,114 @@
                 </div>
                 @endif
 
+                {{-- ══════════════════════════════════════════ --}}
+                {{-- ROUTER OWNER — My Router Analytics         --}}
+                {{-- ══════════════════════════════════════════ --}}
+                @if($ownedRouter)
+                <div id="my-router" class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl shadow-2xl relative overflow-hidden border border-white/10">
+                    <div class="relative z-10 p-8">
+                        {{-- Header --}}
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                            <div class="flex items-center gap-4">
+                                <div class="w-14 h-14 bg-blue-500/20 border border-blue-400/30 rounded-2xl flex items-center justify-center flex-shrink-0">
+                                    <i class="fa-solid fa-server text-blue-300 text-xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-blue-400 text-xs font-bold uppercase tracking-widest mb-1">My Router</p>
+                                    <h2 class="text-white text-xl font-black">{{ $ownedRouter['router']->name }}</h2>
+                                    <p class="text-white/40 text-xs">{{ $ownedRouter['router']->location }}</p>
+                                </div>
+                            </div>
+                            <span class="inline-flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold {{ $ownedRouter['is_online'] ? 'bg-green-500/20 border border-green-400/30 text-green-300' : 'bg-red-500/20 border border-red-400/30 text-red-300' }}">
+                                <span class="w-2 h-2 rounded-full {{ $ownedRouter['is_online'] ? 'bg-green-400 animate-pulse' : 'bg-red-500' }}"></span>
+                                {{ $ownedRouter['is_online'] ? 'Online' : 'Offline' }}
+                            </span>
+                        </div>
+
+                        {{-- Stats grid --}}
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                            <div class="bg-white/5 border border-white/8 rounded-2xl p-4">
+                                <div class="text-2xl font-black text-white">{{ $ownedRouter['active_users'] }}</div>
+                                <div class="text-blue-400 text-xs font-bold uppercase tracking-wide">Online Now</div>
+                            </div>
+                            <div class="bg-white/5 border border-white/8 rounded-2xl p-4">
+                                <div class="text-2xl font-black text-white">{{ $ownedRouter['total_subscribers'] }}</div>
+                                <div class="text-blue-400 text-xs font-bold uppercase tracking-wide">Subscribers</div>
+                            </div>
+                            <div class="bg-white/5 border border-white/8 rounded-2xl p-4">
+                                <div class="text-2xl font-black text-white">{{ $ownedRouter['today_bytes'] }}</div>
+                                <div class="text-blue-400 text-xs font-bold uppercase tracking-wide">Data Today</div>
+                            </div>
+                            <div class="bg-white/5 border border-white/8 rounded-2xl p-4">
+                                <div class="text-2xl font-black text-white">{{ $ownedRouter['month_bytes'] }}</div>
+                                <div class="text-blue-400 text-xs font-bold uppercase tracking-wide">This Month</div>
+                            </div>
+                        </div>
+
+                        {{-- Active sessions --}}
+                        @if($ownedRouter['active_sessions']->isNotEmpty())
+                        <div class="mb-6">
+                            <p class="text-white/40 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <span class="relative flex h-2 w-2">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                </span>
+                                Live Sessions
+                            </p>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs">
+                                    <thead>
+                                        <tr class="text-left text-white/30 border-b border-white/10">
+                                            <th class="pb-2 pr-4 font-semibold">User</th>
+                                            <th class="pb-2 pr-4 font-semibold">IP</th>
+                                            <th class="pb-2 pr-4 font-semibold">MAC</th>
+                                            <th class="pb-2 font-semibold">Data Used</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-white/5">
+                                        @foreach($ownedRouter['active_sessions'] as $s)
+                                        <tr>
+                                            <td class="py-2 pr-4 text-white/80 font-medium">{{ $s->username }}</td>
+                                            <td class="py-2 pr-4 text-white/50 font-mono">{{ $s->framedipaddress ?? '—' }}</td>
+                                            <td class="py-2 pr-4 text-white/50 font-mono">{{ $s->callingstationid ? strtoupper($s->callingstationid) : '—' }}</td>
+                                            <td class="py-2 text-white/50">{{ \Illuminate\Support\Number::fileSize($s->total_bytes ?? 0) }}</td>
+                                        </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        @endif
+
+                        {{-- Subscribers list --}}
+                        @if($ownedRouter['subscribers']->isNotEmpty())
+                        <div>
+                            <p class="text-white/40 text-xs font-bold uppercase tracking-widest mb-3">Subscribers</p>
+                            <div class="space-y-2">
+                                @foreach($ownedRouter['subscribers'] as $sub)
+                                <div class="flex items-center justify-between p-3 bg-white/5 border border-white/8 rounded-xl">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full {{ $sub['status'] === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' }} flex items-center justify-center">
+                                            <i class="fa-solid fa-user text-xs"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-white text-sm font-semibold">{{ $sub['name'] }}</div>
+                                            <div class="text-white/40 text-xs">{{ $sub['phone'] ?? '—' }} · {{ $sub['plan'] }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-white/60 text-xs">{{ $sub['data_used'] }} used</div>
+                                        <div class="text-white/30 text-xs">Exp: {{ $sub['expiry'] }}</div>
+                                    </div>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+                    </div>
+                </div>
+                @endif
+
                 <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
                     <div class="flex items-center justify-between mb-6">
                         <h3 id="hot-deals" class="text-2xl font-black text-gray-900 dark:text-white">Hot Deals</h3>

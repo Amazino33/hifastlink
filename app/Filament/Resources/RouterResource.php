@@ -18,6 +18,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Section as ComponentsSection;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -142,6 +143,18 @@ class RouterResource extends Resource
                     ])->columns(3)
                     ->collapsible(),
 
+                ComponentsSection::make('Ownership')
+                    ->schema([
+                        Select::make('owner_id')
+                            ->relationship('owner', 'username')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name . ' (' . ($record->phone ?? $record->email) . ')')
+                            ->searchable()
+                            ->preload()
+                            ->label('Router Owner')
+                            ->placeholder('No owner — HiFastLink managed')
+                            ->helperText('The person who rented/bought this router. They see subscriber analytics on their dashboard.'),
+                    ]),
+
                 Toggle::make('is_active')
                     ->label('Active')
                     ->default(true)
@@ -180,6 +193,12 @@ class RouterResource extends Resource
                     ->copyable()
                     ->toggleable(),
                 
+                TextColumn::make('owner.username')
+                    ->label('Owner')
+                    ->formatStateUsing(fn ($record) => $record->owner?->display_name ?? '—')
+                    ->placeholder('—')
+                    ->toggleable(),
+
                 TextColumn::make('active_users_count')
                     ->label('Active Users')
                     ->badge()

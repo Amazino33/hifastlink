@@ -30,6 +30,7 @@ class Router extends Model
         'is_active',
         'wifi_ssid',
         'wifi_password',
+        'owner_id',
     ];
 
     protected $casts = [
@@ -181,6 +182,16 @@ class Router extends Model
     /**
      * Scope for active routers
      */
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    public function subscribers()
+    {
+        return $this->hasMany(User::class, 'router_id');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

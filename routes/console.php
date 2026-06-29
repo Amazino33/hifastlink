@@ -31,6 +31,10 @@ Schedule::command('reports:generate --type=daily')->dailyAt('01:00');
 // Generate monthly reports on the 1st of each month
 Schedule::command('reports:generate --type=monthly')->monthlyOn(1, '02:00');
 
+// Router owner notifications
+Schedule::command('routers:notify-owners --type=offline')->everyFiveMinutes();
+Schedule::command('routers:notify-owners --type=daily')->dailyAt('08:00');
+
 
 
 Artisan::command('inspire', function () {
