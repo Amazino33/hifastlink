@@ -889,6 +889,11 @@ class UserDashboard extends Component
             }
         }
 
+        // Link user under the voucher creator (family head)
+        if ($creator && ! $user->parent_id && $creator->id !== $user->id) {
+            $user->updateQuietly(['parent_id' => $creator->id]);
+        }
+
         // Atomically claim one slot with all checks inside the transaction
         $claimResult = DB::transaction(function () use ($voucher, $user) {
             $fresh = \App\Models\Voucher::lockForUpdate()->find($voucher->id);
