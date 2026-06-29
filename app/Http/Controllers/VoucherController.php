@@ -94,7 +94,12 @@ class VoucherController extends Controller
     private function generateQuick(Request $request, $user)
     {
         $maxAllowed       = $user->plan->family_limit ?? $user->family_limit ?? 10;
-        $activeCount      = Voucher::where('created_by', $user->id)->count();
+        $activeCount      = Voucher::where('created_by', $user->id)
+            ->where(function ($q) {
+                $q->whereColumn('used_count', '<', 'max_uses')
+                  ->where(fn ($q2) => $q2->whereNull('expires_at')->orWhere('expires_at', '>', now()));
+            })
+            ->count();
         $remainingSlots   = $maxAllowed - 1 - $activeCount;
         $quantity         = (int) $request->input('quantity', 1);
 

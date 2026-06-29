@@ -722,7 +722,13 @@ class UserDashboard extends Component
                 $bytes     = (int) ($dataUsed->get($v->code, 0));
                 $exhausted = $v->used_count >= $v->max_uses;
                 // Creator-based vouchers: expired when creator's plan expires
-                if ($v->created_by) {
+                // But only if the voucher itself isn't already fully used (that's 'exhausted')
+                if ($exhausted) {
+                    $expired = false;
+                } elseif ($v->created_by && $v->created_by === $user->id) {
+                    // Viewing own vouchers — check own plan directly (already loaded)
+                    $expired = $user->plan_expiry && $user->plan_expiry->isPast();
+                } elseif ($v->created_by) {
                     $vCreator = $v->creator;
                     $expired = $vCreator && $vCreator->plan_expiry && $vCreator->plan_expiry->isPast();
                 } else {
