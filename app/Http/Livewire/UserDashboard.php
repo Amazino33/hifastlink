@@ -766,7 +766,7 @@ class UserDashboard extends Component
         $sessionHistory = RadAcct::whereIn('username', $allUsernames)
             ->whereNotNull('acctstoptime')
             ->orderByDesc('acctstoptime')
-            ->paginate(10, ['*'], 'sessions_page');
+            ->paginate(5, ['*'], 'sessions_page');
 
         return view('livewire.user-dashboard', [
             'user' => $user,
@@ -821,11 +821,14 @@ class UserDashboard extends Component
         $activeSessions = $router->activeSessions()
             ->select('username', 'framedipaddress', 'callingstationid', 'acctstarttime', 'acctsessiontime',
                 DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0) as total_bytes'))
+            ->limit(20)
             ->get();
 
         $subscribers = \App\Models\User::where('router_id', $router->id)
             ->whereNotNull('plan_id')
             ->with('plan')
+            ->latest('plan_started_at')
+            ->limit(20)
             ->get()
             ->map(fn ($u) => [
                 'name'       => $u->display_name,
