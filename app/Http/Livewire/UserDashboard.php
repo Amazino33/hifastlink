@@ -500,7 +500,13 @@ class UserDashboard extends Component
         $hasUnrestricted = $user->hasUnrestrictedAccess();
 
         // Unrestricted roles are always 'active' regardless of plan
+        $hasVoucherAccess = ! $masterUser->plan_id
+            && $masterUser->plan_expiry
+            && $masterUser->plan_expiry->isFuture();
+
         if ($hasUnrestricted) {
+            $subscriptionStatus = 'active';
+        } elseif ($hasVoucherAccess) {
             $subscriptionStatus = 'active';
         } elseif (!$masterUser->plan_id) {
             $subscriptionStatus = 'inactive';
@@ -514,8 +520,8 @@ class UserDashboard extends Component
             $connectionStatus = 'unknown';
         }
 
-        // Force offline when there is no plan — admins and staff bypass this
-        if (!$masterUser->plan_id && !$hasUnrestricted) {
+        // Force offline when there is no plan — unrestricted roles and voucher access bypass this
+        if (!$masterUser->plan_id && !$hasUnrestricted && !$hasVoucherAccess) {
             $connectionStatus = 'offline';
         }
 
@@ -789,10 +795,11 @@ class UserDashboard extends Component
             'sessionDownload' => $sessionDownload,
             'sessionUpload'   => $sessionUpload,
             'sessionHistory'  => $sessionHistory,
-            'isAdminUser'     => $isAdminUser,
-            'isFreePass'      => $isFreePass,
-            'hasUnrestricted' => $hasUnrestricted,
-            'networkStats'    => $networkStats,
+            'isAdminUser'      => $isAdminUser,
+            'isFreePass'       => $isFreePass,
+            'hasUnrestricted'  => $hasUnrestricted,
+            'hasVoucherAccess' => $hasVoucherAccess,
+            'networkStats'     => $networkStats,
         ]);
     }
 

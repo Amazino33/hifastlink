@@ -442,9 +442,17 @@
                                 </div>
                                 <div class="text-blue-100 text-lg">0 MB remaining</div>
                             @else
-                                <div class="text-6xl font-black text-white mb-2">No Active Plan</div>
-                                <div class="text-blue-100 text-lg">You have no active data plan. Please subscribe to use
-                                    data services.</div>
+                                @if($hasVoucherAccess)
+                                    <div class="text-6xl font-black text-white mb-2">{{ $subscriptionDays }}</div>
+                                    <div class="text-sm text-white/80 font-semibold mb-3">
+                                        {{ $subscriptionDays === 1 ? 'day remaining' : 'days remaining' }}</div>
+                                    <div class="text-blue-100 text-lg">{{ $formattedDataLimit }}</div>
+                                    <div class="text-xs text-blue-200 mt-1 font-medium tracking-wide uppercase">Voucher Access</div>
+                                @else
+                                    <div class="text-6xl font-black text-white mb-2">No Active Plan</div>
+                                    <div class="text-blue-100 text-lg">You have no active data plan. Please subscribe to use
+                                        data services.</div>
+                                @endif
                             @endif
 
                             @if($isDeviceOnline)
@@ -593,9 +601,11 @@
                                     <div class="text-white/80 text-xs">Unlimited data — 2 device limit</div>
                                 @else
                                     <div class="text-white text-lg font-bold mb-1">
-                                        {{ $user->plan->name ?? 'No Active Plan' }}</div>
-                                    <div class="text-white/80 text-xs">Valid Until: {{ $validUntil }}
-                                        ({{ $planValidityHuman }})</div>
+                                        {{ $user->plan->name ?? ($hasVoucherAccess ? 'Voucher Access' : 'No Active Plan') }}</div>
+                                    @if($subscriptionStatus !== 'inactive')
+                                        <div class="text-white/80 text-xs">Valid Until: {{ $validUntil }}
+                                            ({{ $planValidityHuman }})</div>
+                                    @endif
                                 @endif
                             </div>
                         </div>
