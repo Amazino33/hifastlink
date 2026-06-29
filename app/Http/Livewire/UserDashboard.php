@@ -718,7 +718,7 @@ class UserDashboard extends Component
                 ->groupBy('username')
                 ->pluck('total', 'username');
 
-            $myVouchers = $userVouchers->through(function ($v) use ($activeVoucherSessions, $dataUsed) {
+            $myVouchers = $userVouchers->through(function ($v) use ($activeVoucherSessions, $dataUsed, $user) {
                 $bytes     = (int) ($dataUsed->get($v->code, 0));
                 $exhausted = $v->used_count >= $v->max_uses;
                 // Creator-based vouchers: expired when creator's plan expires
