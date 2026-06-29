@@ -879,6 +879,15 @@ class UserDashboard extends Component
 
     private function processVoucherRedemption(\App\Models\Voucher $voucher, $user): mixed
     {
+        // Creator-based vouchers: check creator's plan is still active
+        $creator = $voucher->creator;
+        if ($creator) {
+            $subscriptionService = new \App\Services\SubscriptionService();
+            if (! $subscriptionService->canConnectToHotspot($creator)) {
+                $this->addError('voucherCode', "The voucher owner's plan has expired or run out of data.");
+                return null;
+            }
+        }
 
         // Atomically claim one slot with all checks inside the transaction
         $claimResult = DB::transaction(function () use ($voucher, $user) {
