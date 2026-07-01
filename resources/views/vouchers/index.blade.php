@@ -319,17 +319,75 @@
                 @endif
             </div>
 
-            {{-- Vouchers table --}}
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            {{-- Vouchers table with bulk actions --}}
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
+                 x-data="{
+                     selected: [],
+                     allIds: {{ $vouchers->pluck('id')->toJson() }},
+                     get allSelected() { return this.allIds.length > 0 && this.selected.length === this.allIds.length; },
+                     toggleAll() { this.selected = this.allSelected ? [] : [...this.allIds]; },
+                     toggle(id) {
+                         this.selected.includes(id)
+                             ? this.selected.splice(this.selected.indexOf(id), 1)
+                             : this.selected.push(id);
+                     }
+                 }">
+
+                {{-- Header --}}
+                <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-4 flex-wrap">
                     <h3 class="font-bold text-gray-900 dark:text-white">Your Vouchers</h3>
                     <span class="text-xs text-gray-500 dark:text-gray-400">{{ $vouchers->total() }} total</span>
+                </div>
+
+                {{-- Bulk action bar (appears when items are selected) --}}
+                <div x-show="selected.length > 0" x-transition
+                     class="px-6 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center gap-4 flex-wrap">
+                    <span class="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                        <span x-text="selected.length"></span> selected
+                    </span>
+
+                    {{-- Bulk Revoke --}}
+                    <form action="{{ route('vouchers.bulk-destroy') }}" method="POST"
+                          @submit.prevent="if(confirm('Revoke ' + selected.length + ' voucher(s)? This cannot be undone.')) { $el.querySelectorAll('.bulk-id').forEach(el => el.remove()); selected.forEach(id => { const input = document.createElement('input'); input.type='hidden'; input.name='ids[]'; input.value=id; input.classList.add('bulk-id'); $el.appendChild(input); }); $el.submit(); }">
+                        @csrf @method('DELETE')
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-colors">
+                            <i class="fa-solid fa-trash"></i> Revoke Selected
+                        </button>
+                    </form>
+
+                    {{-- Bulk Share via WhatsApp --}}
+                    <button type="button"
+                            @click="
+                                let codes = [];
+                                selected.forEach(id => {
+                                    let row = document.querySelector('[data-id=\''+id+'\']');
+                                    if (row) codes.push(row.dataset.code);
+                                });
+                                let text = 'Your WiFi voucher codes:\n\n' + codes.map((c, i) => (i+1) + '. ' + c).join('\n');
+                                window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+                            "
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors">
+                        <i class="fa-brands fa-whatsapp"></i> Share Selected
+                    </button>
+
+                    {{-- Clear selection --}}
+                    <button type="button" @click="selected = []"
+                            class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 ml-auto">
+                        Clear selection
+                    </button>
                 </div>
 
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700 text-sm">
                         <thead class="bg-gray-50 dark:bg-gray-700/50">
                             <tr>
+                                <th class="px-4 py-3 w-8">
+                                    <input type="checkbox"
+                                           :checked="allSelected"
+                                           @change="toggleAll()"
+                                           class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                                </th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Code</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Label / Plan</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Data</th>
@@ -345,12 +403,20 @@
                             @php
                                 $expired   = $v->expires_at && $v->expires_at->isPast();
                                 $redeemed  = !$expired && $v->used_count >= $v->max_uses;
-                                $active    = !$expired && !$redeemed;
-                                if ($expired)        { $badge = ['bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',      'Expired'];  }
-                                elseif ($redeemed)   { $badge = ['bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',   'Redeemed']; }
-                                else                 { $badge = ['bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400', 'Active']; }
+                                if ($expired)      { $badge = ['bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',       'Expired'];  }
+                                elseif ($redeemed) { $badge = ['bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',   'Redeemed']; }
+                                else               { $badge = ['bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400', 'Active']; }
                             @endphp
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                                :class="selected.includes({{ $v->id }}) ? 'bg-blue-50 dark:bg-blue-900/10' : ''"
+                                data-id="{{ $v->id }}"
+                                data-code="{{ $v->code }}">
+                                <td class="px-4 py-3">
+                                    <input type="checkbox"
+                                           :checked="selected.includes({{ $v->id }})"
+                                           @change="toggle({{ $v->id }})"
+                                           class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                                </td>
                                 <td class="px-4 py-3 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                                     {{ $v->code }}
                                 </td>
@@ -368,11 +434,9 @@
                                 </td>
                                 <td class="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">
                                     @if($v->is_unlimited)
-                                        <span class="text-purple-600 dark:text-purple-400 font-semibold">Unlimited</span>
+                                        <span class="text-blue-600 dark:text-blue-400 font-semibold">Unlimited</span>
                                     @elseif($v->data_limit_mb)
-                                        {{ $v->data_limit_mb >= 1024
-                                            ? round($v->data_limit_mb / 1024, 1) . ' GB'
-                                            : $v->data_limit_mb . ' MB' }}
+                                        {{ $v->data_limit_mb >= 1024 ? round($v->data_limit_mb / 1024, 1).' GB' : $v->data_limit_mb.' MB' }}
                                     @else
                                         <span class="text-gray-400">—</span>
                                     @endif
@@ -391,8 +455,7 @@
                                     @if($v->expires_at)
                                         {{ $v->expires_at->format('d M Y') }}
                                     @elseif($v->duration_hours)
-                                        @php $days = round($v->duration_hours / 24); @endphp
-                                        <span class="italic text-gray-400">{{ $days }}d from use</span>
+                                        <span class="italic text-gray-400">{{ round($v->duration_hours / 24) }}d from use</span>
                                     @else
                                         No expiry
                                     @endif
@@ -404,14 +467,13 @@
                                     <div class="flex items-center gap-3">
                                         <a href="https://wa.me/?text={{ urlencode('Your WiFi voucher code: ' . $v->code . ($v->label ? ' (' . $v->label . ')' : '')) }}"
                                            target="_blank"
-                                           class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200 text-xs font-medium">
+                                           class="text-green-600 hover:text-green-800 dark:text-green-400 text-xs font-medium">
                                             <i class="fa-brands fa-whatsapp mr-1"></i>Share
                                         </a>
                                         <form action="{{ route('vouchers.destroy', $v->id) }}" method="POST"
                                               onsubmit="return confirm('Revoke this voucher?')">
                                             @csrf @method('DELETE')
-                                            <button type="submit"
-                                                    class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 text-xs font-medium">
+                                            <button type="submit" class="text-red-500 hover:text-red-700 dark:text-red-400 text-xs font-medium">
                                                 <i class="fa-solid fa-trash mr-1"></i>Revoke
                                             </button>
                                         </form>
@@ -420,7 +482,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="8" class="px-6 py-12 text-center text-gray-400 dark:text-gray-500">
+                                <td colspan="9" class="px-6 py-12 text-center text-gray-400 dark:text-gray-500">
                                     <i class="fa-solid fa-ticket text-3xl mb-3 block opacity-40"></i>
                                     No vouchers yet. Create one above.
                                 </td>

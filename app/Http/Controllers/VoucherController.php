@@ -230,6 +230,27 @@ class VoucherController extends Controller
         return view('vouchers.success', compact('code'));
     }
 
+    public function bulkDestroy(\Illuminate\Http\Request $request)
+    {
+        $ids = $request->input('ids', []);
+
+        if (empty($ids)) {
+            return back()->with('error', 'No vouchers selected.');
+        }
+
+        $vouchers = Voucher::whereIn('id', $ids)
+            ->where('created_by', auth()->id())
+            ->get();
+
+        foreach ($vouchers as $voucher) {
+            \App\Models\RadCheck::where('username', $voucher->code)->delete();
+            \App\Models\RadReply::where('username', $voucher->code)->delete();
+            $voucher->delete();
+        }
+
+        return back()->with('success', $vouchers->count() . ' voucher(s) revoked successfully.');
+    }
+
     public function destroy(Voucher $voucher)
     {
         abort_unless(auth()->id() === $voucher->created_by, 403);

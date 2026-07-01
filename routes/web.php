@@ -101,6 +101,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/vouchers', [VoucherController::class, 'index'])->name('vouchers.index');
     Route::post('/vouchers/generate', [VoucherController::class, 'generate'])->name('vouchers.generate');
     Route::delete('/vouchers/{voucher}', [VoucherController::class, 'destroy'])->name('vouchers.destroy');
+    Route::delete('/vouchers', [VoucherController::class, 'bulkDestroy'])->name('vouchers.bulk-destroy');
 
     // ── Family ────────────────────────────────────────────────
     Route::get('/family', \App\Http\Livewire\FamilyManager::class)->name('family');
