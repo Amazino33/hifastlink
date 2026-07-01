@@ -35,6 +35,9 @@ Schedule::command('reports:generate --type=monthly')->monthlyOn(1, '02:00');
 Schedule::command('routers:notify-owners --type=offline')->everyFiveMinutes();
 Schedule::command('routers:notify-owners --type=daily')->dailyAt('08:00');
 
+// Clean up expired and stale vouchers daily at 3 AM
+Schedule::command('vouchers:cleanup')->dailyAt('03:00');
+
 
 
 Artisan::command('inspire', function () {

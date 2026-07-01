@@ -265,6 +265,9 @@ class PaymentController extends Controller
             $user->family_limit = $plan->family_limit ?? 0;
             $user->save(); // triggers observer -> RADIUS sync
 
+            // Clean up vouchers from previous plan — they're no longer valid
+            $this->cleanupOldVouchers($user);
+
             // Record the payment
             Payment::create([
                 'user_id' => $user->id,
@@ -370,5 +373,31 @@ class PaymentController extends Controller
             'router'     => $router,
         ]);
     }
+
+    private function cleanupOldVouchers($user): void
+    {
+        // Delete vouchers that are expired or fully used — they just clog the slot count
+        $stale = \App\Models\Voucher::where('created_by', $user->id)
+            ->where(function ($q) {
+                $q->where(function ($q2) {
+                    // Own expiry passed
+                    $q2->whereNotNull('expires_at')->where('expires_at', '<', now());
+                })->orWhere(function ($q3) {
+                    // Fully redeemed and older than 7 days
+                    $q3->whereColumn('used_count', '>=', 'max_uses')
+                       ->where('used_at', '<', now()->subDays(7));
+                });
+            })
+            ->get();
+
+        foreach ($stale as $v) {
+            \App\Models\RadCheck::where('username', $v->code)->delete();
+            \App\Models\RadReply::where('username', $v->code)->delete();
+            $v->delete();
+        }
+
+        if ($stale->isNotEmpty()) {
+            Log::info("Cleaned up {$stale->count()} stale voucher(s) for {$user->username} after plan activation.");
+        }
+    }
 }
- 
