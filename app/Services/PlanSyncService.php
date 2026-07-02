@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AppSetting;
 use App\Models\User;
 use App\Models\RadCheck;
 use App\Models\RadReply;
@@ -64,6 +65,16 @@ class PlanSyncService
                     RadReply::where('username', $user->username)
                         ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets'])
                         ->delete();
+                    // Apply global speed cap if configured
+                    $globalRate = self::globalRateLimit();
+                    if ($globalRate) {
+                        RadReply::create([
+                            'username'  => $user->username,
+                            'attribute' => 'Mikrotik-Rate-Limit',
+                            'op'        => ':=',
+                            'value'     => $globalRate,
+                        ]);
+                    }
                     $user->saveQuietly();
                     return;
                 }
@@ -78,6 +89,16 @@ class PlanSyncService
                         ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
                         ['op' => ':=', 'value' => '1']
                     );
+                    // Apply global speed cap for voucher-access users
+                    $globalRate = self::globalRateLimit();
+                    if ($globalRate) {
+                        RadReply::create([
+                            'username'  => $user->username,
+                            'attribute' => 'Mikrotik-Rate-Limit',
+                            'op'        => ':=',
+                            'value'     => $globalRate,
+                        ]);
+                    }
                     if ($user->data_limit) {
                         RadCheck::updateOrCreate(
                             ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
@@ -147,14 +168,25 @@ class PlanSyncService
                 'value'     => (string) (int) env('RADIUS_IDLE_TIMEOUT', 900),
             ]);
 
-            // Speed limits and data limit go into radreply (Mikrotik specific)
-            if (! empty($plan->speed_limit)) {
+            // Speed limit: plan-specific wins; global cap applies as fallback
+            $planRateLimit = $plan->speed_limit;
+            if (! empty($planRateLimit)) {
                 RadReply::create([
-                    'username' => $user->username,
+                    'username'  => $user->username,
                     'attribute' => 'Mikrotik-Rate-Limit',
-                    'op' => ':=',
-                    'value' => $plan->speed_limit,
+                    'op'        => ':=',
+                    'value'     => $planRateLimit,
                 ]);
+            } else {
+                $globalRate = self::globalRateLimit();
+                if ($globalRate) {
+                    RadReply::create([
+                        'username'  => $user->username,
+                        'attribute' => 'Mikrotik-Rate-Limit',
+                        'op'        => ':=',
+                        'value'     => $globalRate,
+                    ]);
+                }
             }
 
             // Tell MikroTik the limit for THIS specific session
@@ -189,5 +221,25 @@ class PlanSyncService
 
             $user->saveQuietly();
         });
+    }
+
+    /**
+     * Returns the global fallback rate-limit string (e.g. "1024k/2048k") or null if disabled.
+     * Used when a plan has no per-plan speed set, so no single user can hog all bandwidth.
+     */
+    private static function globalRateLimit(): ?string
+    {
+        if (! AppSetting::bool('global_speed_enabled', false)) {
+            return null;
+        }
+
+        $upload   = (int) AppSetting::get('global_speed_upload', 0);
+        $download = (int) AppSetting::get('global_speed_download', 0);
+
+        if (! $upload && ! $download) {
+            return null;
+        }
+
+        return "{$upload}k/{$download}k";
     }
 }
