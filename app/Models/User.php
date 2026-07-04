@@ -414,15 +414,30 @@ class User extends Authenticatable implements FilamentUser
     {
         $digits = preg_replace('/\D/', '', $phone);
 
+        // 11 digits, local Nigerian format: 08012345678 → +2348012345678
         if (strlen($digits) === 11 && str_starts_with($digits, '0')) {
             return '+234' . substr($digits, 1);
         }
 
-        if (str_starts_with($digits, '234')) {
+        // 10 digits starting with typical Nigerian mobile prefixes (7xx, 8xx, 9xx)
+        // User typed 8012345678 without the leading 0 → +2348012345678
+        if (strlen($digits) === 10 && preg_match('/^[789]/', $digits)) {
+            return '+234' . $digits;
+        }
+
+        // Already international: 2348012345678 → +2348012345678
+        if (str_starts_with($digits, '234') && strlen($digits) >= 13) {
             return '+' . $digits;
         }
 
         return '+' . $digits;
+    }
+
+    public function setPhoneAttribute(?string $value): void
+    {
+        $this->attributes['phone'] = ($value !== null && $value !== '')
+            ? static::normalizePhone($value)
+            : null;
     }
 
     public function isPhoneVerified(): bool

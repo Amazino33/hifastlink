@@ -139,8 +139,22 @@ class CaptiveAuth extends Component
             return;
         }
 
-        // Find or create user
-        $user = User::where('phone', $this->phone)->first();
+        // Find user — try normalized form first, then fall back to all common variants
+        // so existing accounts stored in a different format are still found
+        $digitsOnly = preg_replace('/\D/', '', $this->phone);
+        $last10     = substr($digitsOnly, -10);
+
+        $user = User::where('phone', $this->phone)
+            ->orWhere('phone', '0' . $last10)
+            ->orWhere('phone', '+234' . $last10)
+            ->orWhere('phone', '234' . $last10)
+            ->first();
+
+        // Migrate stale phone format to canonical +234... so this branch is never needed again
+        if ($user && $user->getRawOriginal('phone') !== $this->phone) {
+            $user->phone = $this->phone; // goes through setPhoneAttribute
+            $user->saveQuietly();
+        }
 
         if (! $user) {
             $username = 'user_' . substr(preg_replace('/\D/', '', $this->phone), -10);
