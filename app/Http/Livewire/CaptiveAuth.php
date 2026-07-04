@@ -139,20 +139,15 @@ class CaptiveAuth extends Component
             return;
         }
 
-        // Find user — try normalized form first, then fall back to all common variants
-        // so existing accounts stored in a different format are still found
-        $digitsOnly = preg_replace('/\D/', '', $this->phone);
-        $last10     = substr($digitsOnly, -10);
+        // Find user by last 10 digits — matches every possible format variation:
+        // 08012345678 / +2348012345678 / 2348012345678 / 8012345678 / 08012345678, etc.
+        $last10 = substr(preg_replace('/\D/', '', $this->phone), -10);
 
-        $user = User::where('phone', $this->phone)
-            ->orWhere('phone', '0' . $last10)
-            ->orWhere('phone', '+234' . $last10)
-            ->orWhere('phone', '234' . $last10)
-            ->first();
+        $user = User::where('phone', 'like', '%' . $last10)->first();
 
-        // Migrate stale phone format to canonical +234... so this branch is never needed again
+        // Migrate stale phone format to canonical +234... so the LIKE is never needed again
         if ($user && $user->getRawOriginal('phone') !== $this->phone) {
-            $user->phone = $this->phone; // goes through setPhoneAttribute
+            $user->phone = $this->phone; // goes through setPhoneAttribute normalizer
             $user->saveQuietly();
         }
 
