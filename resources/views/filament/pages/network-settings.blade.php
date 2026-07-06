@@ -152,6 +152,51 @@
     </div>
 </div>
 
+{{-- BasmelCare Pharmacy Integration --}}
+<div class="s-card">
+    <div class="s-card-title">BasmelCare Pharmacy Integration</div>
+    <div class="s-card-desc">
+        Customers who pay at BasmelCare Pharmacy can redeem their receipt number at
+        <strong>hifastlink.com/pharmacy-voucher</strong> for free internet access.
+        Get the API key from BasmelCare → Settings → Incentives.
+    </div>
+
+    <div class="s-row">
+        <div>
+            <label class="s-label">BasmelCare API URL</label>
+            <input type="url" wire:model="basmelcare_api_url" class="s-input"
+                   placeholder="https://basmelcare.com/api/voucher/redeem">
+            @error('basmelcare_api_url')<p class="s-err">{{ $message }}</p>@enderror
+            <p class="s-hint">The full redeem endpoint URL from BasmelCare</p>
+        </div>
+        <div>
+            <label class="s-label">API Key</label>
+            <input type="password" wire:model="basmelcare_api_key" class="s-input"
+                   placeholder="Paste the key from BasmelCare settings">
+            @error('basmelcare_api_key')<p class="s-err">{{ $message }}</p>@enderror
+            <p class="s-hint">Keep this secret — it authorises HifastLink to validate receipts</p>
+        </div>
+    </div>
+
+    @if($basmelcare_api_url && $basmelcare_api_key)
+    <div class="info-box" style="margin-bottom:16px;">
+        <strong>✅ Integration active.</strong>
+        Customers can redeem receipts at <code>/pharmacy-voucher</code>.
+    </div>
+    @else
+    <div class="info-box" style="background:#fffbeb;border-color:#fde68a;color:#92400e;margin-bottom:16px;">
+        ⚠️ Fill in both fields and save to activate the pharmacy voucher feature.
+    </div>
+    @endif
+
+    <div class="s-btn-row">
+        <button class="s-btn s-btn-primary" wire:click="savePharmacy" wire:loading.attr="disabled">
+            <span wire:loading.remove wire:target="savePharmacy">Save Pharmacy Settings</span>
+            <span wire:loading wire:target="savePharmacy">Saving...</span>
+        </button>
+    </div>
+</div>
+
 {{-- Save + Apply --}}
 <div class="s-btn-row" style="margin-bottom:20px;">
     <button class="s-btn s-btn-secondary" wire:click="applyGlobally" wire:loading.attr="disabled"

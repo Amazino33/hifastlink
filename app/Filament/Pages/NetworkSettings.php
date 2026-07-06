@@ -24,15 +24,22 @@ class NetworkSettings extends Page
         return $user && ($user->isAdmin() || $user->hasRole('super_admin'));
     }
 
-    public bool $global_speed_enabled  = false;
-    public int  $global_speed_upload   = 1024;
-    public int  $global_speed_download = 2048;
+    public bool   $global_speed_enabled  = false;
+    public int    $global_speed_upload   = 1024;
+    public int    $global_speed_download = 2048;
+
+    // BasmelCare pharmacy integration
+    public string $basmelcare_api_url = '';
+    public string $basmelcare_api_key = '';
 
     public function mount(): void
     {
         $this->global_speed_enabled  = AppSetting::bool('global_speed_enabled', false);
         $this->global_speed_upload   = (int) AppSetting::get('global_speed_upload', 1024);
         $this->global_speed_download = (int) AppSetting::get('global_speed_download', 2048);
+
+        $this->basmelcare_api_url = AppSetting::get('basmelcare_api_url', '');
+        $this->basmelcare_api_key = AppSetting::get('basmelcare_api_key', '');
     }
 
     public function save(): void
@@ -47,6 +54,19 @@ class NetworkSettings extends Page
         AppSetting::set('global_speed_download', (string) $this->global_speed_download);
 
         Notification::make()->title('Network settings saved.')->success()->send();
+    }
+
+    public function savePharmacy(): void
+    {
+        $this->validate([
+            'basmelcare_api_url' => ['nullable', 'url', 'max:255'],
+            'basmelcare_api_key' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        AppSetting::set('basmelcare_api_url', $this->basmelcare_api_url);
+        AppSetting::set('basmelcare_api_key', $this->basmelcare_api_key);
+
+        Notification::make()->title('Pharmacy integration saved.')->success()->send();
     }
 
     public function applyGlobally(): void

@@ -44,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
         if (class_exists(\Livewire\Livewire::class)) {
             \Livewire\Livewire::component('user-dashboard', \App\Http\Livewire\UserDashboard::class);
             \Livewire\Livewire::component('captive-auth', \App\Http\Livewire\CaptiveAuth::class);
+            \Livewire\Livewire::component('pharmacy-voucher', \App\Http\Livewire\PharmacyVoucher::class);
         }
     }
 }

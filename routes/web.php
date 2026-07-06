@@ -35,6 +35,7 @@ Route::get('/network-status', [PageController::class, 'status'])->name('status')
 
 Route::post('/voucher/check-input', [VoucherController::class, 'checkInput'])->name('voucher.check-input');
 Route::get('/voucher/success', [VoucherController::class, 'success'])->name('voucher.success');
+Route::get('/pharmacy-voucher', fn () => view('pharmacy-voucher'))->name('pharmacy.voucher');
 
 // Captive portal bridge — full page redirect so JS + meta refresh work in captive mini-browsers
 Route::get('/captive-bridge', function () {
