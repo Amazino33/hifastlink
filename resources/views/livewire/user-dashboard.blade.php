@@ -158,6 +158,58 @@
             </div>
         </div>
 
+        {{-- Profile completion bar — shown only to regular users with an incomplete profile --}}
+        @php
+            $profilePct = $user->profileCompletionPercentage();
+            $missingFields = collect([
+                'name'     => (empty($user->name) || $user->name === 'User'),
+                'username' => (empty($user->username) || str_starts_with($user->username, 'user_')),
+                'email'    => empty($user->email),
+                'password' => empty($user->password),
+            ])->filter()->keys()->map(fn ($f) => match($f) {
+                'name'     => 'Full name',
+                'username' => 'Username',
+                'email'    => 'Email address',
+                'password' => 'Password',
+                default    => $f,
+            });
+        @endphp
+
+        @if($profilePct < 100 && ! $isAdminUser)
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 mb-6 border border-blue-100 dark:border-blue-900">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-circle-user text-blue-500 text-lg"></i>
+                    <span class="font-semibold text-gray-800 dark:text-white text-sm">Complete your profile</span>
+                    <span class="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40 px-2 py-0.5 rounded-full">
+                        {{ $profilePct }}%
+                    </span>
+                </div>
+                <a href="{{ route('profile.edit') }}"
+                   class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                    Update <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                </a>
+            </div>
+
+            <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 mb-3 overflow-hidden">
+                <div class="h-2 rounded-full transition-all duration-500"
+                     style="width: {{ $profilePct }}%; background: linear-gradient(90deg, #3b82f6, #6366f1);">
+                </div>
+            </div>
+
+            @if($missingFields->isNotEmpty())
+            <div class="flex flex-wrap gap-2">
+                @foreach($missingFields as $field)
+                <span class="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-full px-3 py-1">
+                    <i class="fa-solid fa-circle-xmark text-red-400 text-[10px]"></i>
+                    {{ $field }}
+                </span>
+                @endforeach
+            </div>
+            @endif
+        </div>
+        @endif
+
         {{-- Livewire toast fallback element --}}
         @if (session('toast_message'))
             <div id="livewire-toast" data-toast="{{ session('toast_message') }}" style="display:none"></div>
