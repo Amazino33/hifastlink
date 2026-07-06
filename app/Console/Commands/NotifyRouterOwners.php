@@ -30,7 +30,8 @@ class NotifyRouterOwners extends Command
 
             if ($type === 'offline' && ! $router->is_online && ! $router->offline_notified_at) {
                 $service->notifyRouterOffline($router);
-                $router->update(['offline_notified_at' => now()]);
+                $router->offline_notified_at = now();
+                $router->save();
                 $this->line("Offline alert sent for {$router->name} → {$router->owner->display_name}");
                 $count++;
             } elseif ($type === 'daily') {
