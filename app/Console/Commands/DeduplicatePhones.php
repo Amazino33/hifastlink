@@ -20,7 +20,10 @@ class DeduplicatePhones extends Command
         // Load all users that have a phone number
         $users = User::whereNotNull('phone')
             ->withTrashed()
-            ->get(['id', 'phone', 'username', 'email', 'password', 'plan_id', 'plan_expiry', 'created_at', 'deleted_at']);
+            ->get(['id', 'phone', 'username', 'email', 'password',
+                   'plan_id', 'plan_expiry', 'plan_started_at',
+                   'wallet_balance', 'connection_status',
+                   'created_at', 'deleted_at']);
 
         // Group by last 10 digits — the common key across all format variants
         $groups = $users->groupBy(fn ($u) => substr(preg_replace('/\D/', '', $u->phone ?? ''), -10))
@@ -75,23 +78,62 @@ class DeduplicatePhones extends Command
                 $this->line("  {$tag} id={$u->id}  phone={$u->phone}  score={$row['score']}  has=[{$has}]  payments={$row['payments']}");
             }
 
+            // ── Decide what to transfer ───────────────────────────────
+
+            // Best active plan anywhere in the group
+            $allUsers  = $scored->pluck('user');
+            $bestPlan  = $allUsers
+                ->filter(fn ($u) => $u->plan_id && $u->plan_expiry?->isFuture())
+                ->sortByDesc(fn ($u) => $u->plan_expiry->timestamp)
+                ->first();
+
+            $planTransfer = ($bestPlan && $bestPlan->id !== $keep->id) ? $bestPlan : null;
+
+            // Sum every wallet balance in the group
+            $totalWallet  = $allUsers->sum(fn ($u) => (float) ($u->wallet_balance ?? 0));
+            $walletChange = $totalWallet > (float) ($keep->wallet_balance ?? 0);
+
+            if ($planTransfer) {
+                $this->line("  <fg=cyan>↳ Plan transfer:</> plan_id={$planTransfer->plan_id}  expires={$planTransfer->plan_expiry}  from id={$planTransfer->id}");
+            }
+            if ($walletChange) {
+                $this->line("  <fg=cyan>↳ Wallet merge:</> ₦{$totalWallet} combined from {$allUsers->count()} account(s)");
+            }
+
             if (! $dryRun) {
-                foreach ($discard as $u) {
-                    RadCheck::where('username', $u->username)->delete();
-                    RadReply::where('username', $u->username)->delete();
-                    $u->forceDelete();
-                    $totalDeleted++;
-                }
+                DB::transaction(function () use ($keep, $discard, $planTransfer, $totalWallet, $walletChange) {
+                    // 1. Transfer plan to kept account if a discard had a better one
+                    if ($planTransfer) {
+                        $keep->updateQuietly([
+                            'plan_id'           => $planTransfer->plan_id,
+                            'plan_expiry'       => $planTransfer->plan_expiry,
+                            'plan_started_at'   => $planTransfer->plan_started_at,
+                            'connection_status' => $planTransfer->connection_status ?? 'active',
+                        ]);
+                    }
 
-                // Normalize the kept account's phone to canonical +234... format
-                $canonical = User::normalizePhone($keep->phone);
-                if ($keep->getRawOriginal('phone') !== $canonical) {
-                    $keep->phone = $canonical;
-                    $keep->saveQuietly();
-                    $this->line("  → Normalized phone to {$canonical}");
-                }
+                    // 2. Merge wallet balances
+                    if ($walletChange) {
+                        $keep->updateQuietly(['wallet_balance' => $totalWallet]);
+                    }
 
-                $this->line("  → Deleted {$discard->count()} duplicate(s). Keeping id={$keep->id}.");
+                    // 3. Wipe RADIUS entries and delete duplicate accounts
+                    foreach ($discard as $u) {
+                        RadCheck::where('username', $u->username)->delete();
+                        RadReply::where('username', $u->username)->delete();
+                        $u->forceDelete();
+                    }
+
+                    // 4. Normalize kept account's phone to canonical +234... format
+                    $canonical = User::normalizePhone($keep->getRawOriginal('phone'));
+                    if ($keep->getRawOriginal('phone') !== $canonical) {
+                        $keep->phone = $canonical;
+                        $keep->saveQuietly();
+                    }
+                });
+
+                $totalDeleted += $discard->count();
+                $this->line("  → Done. Deleted {$discard->count()} duplicate(s). Keeping id={$keep->id}.");
             } else {
                 $this->line("  → [DRY RUN] Would delete {$discard->count()} duplicate(s), keep id={$keep->id}.");
                 $totalDeleted += $discard->count();
