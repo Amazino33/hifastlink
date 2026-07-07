@@ -42,26 +42,29 @@ class DeduplicatePhones extends Command
         foreach ($groups as $last10 => $group) {
             $this->line("<fg=yellow>Phone (last 10): {$last10}</>");
 
-            // Score each user — higher = more valuable account to keep
+            // Score each user — higher = more valuable account to keep.
+            // Profile completeness always outweighs plan data, because plans are
+            // transferable — we move the best plan to the kept account after scoring.
             $scored = $group->map(function (User $u) {
                 $paymentCount = DB::table('payments')->where('user_id', $u->id)->count();
                 $score = 0;
 
-                // Profile completeness — these are the strongest signals
-                $score += $u->email    ? 50 : 0;
-                $score += $u->password ? 50 : 0;
-                $score += (! preg_match('/^user_\d{10}$/', $u->username ?? '')) ? 40 : 0;
+                // Profile completeness — worth more than any plan (plans get transferred)
+                $score += $u->email    ? 100 : 0;
+                $score += $u->password ? 100 : 0;
+                $score += (! preg_match('/^user_\d{10}$/', $u->username ?? '')) ? 80 : 0;
 
-                // Subscription
-                $score += $u->plan_id                   ? 100 : 0;
-                $score += $u->plan_expiry?->isFuture()  ?  50 : 0;
-                $score += $paymentCount                 *  20;
+                // Subscription — secondary weight since plan will be moved if needed
+                $score += $u->plan_id                  ?  50 : 0;
+                $score += $u->plan_expiry?->isFuture() ?  30 : 0;
+                $score += $paymentCount                *  10;
 
-                // Prefer active (not soft-deleted) accounts
+                // Prefer active (not soft-deleted)
                 $score += $u->deleted_at ? 0 : 10;
 
                 return ['user' => $u, 'score' => $score, 'payments' => $paymentCount];
-            })->sortByDesc('score');
+            // Tiebreaker: prefer older account (lower id) for stable ordering
+            })->sortBy([['score', 'desc'], ['user.id', 'asc']])->values();
 
             $keep    = $scored->first()['user'];
             $discard = $scored->slice(1)->pluck('user');
