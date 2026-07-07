@@ -133,9 +133,9 @@ class DeduplicatePhones extends Command
                                 ->update(['user_id' => $keep->id]);
                         }
 
-                        // Vouchers may use creator_id instead of user_id
-                        DB::table('vouchers')->where('user_id',    $u->id)->update(['user_id'    => $keep->id]);
-                        DB::table('vouchers')->where('creator_id', $u->id)->update(['creator_id' => $keep->id]);
+                        // Vouchers use used_by and created_by (no user_id column)
+                        DB::table('vouchers')->where('used_by',    $u->id)->update(['used_by'    => $keep->id]);
+                        DB::table('vouchers')->where('created_by', $u->id)->update(['created_by' => $keep->id]);
 
                         RadCheck::where('username', $u->username)->delete();
                         RadReply::where('username', $u->username)->delete();
