@@ -6,7 +6,6 @@ use App\Models\RadCheck;
 use App\Models\RadReply;
 use App\Models\User;
 use Illuminate\Console\Command;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class DeduplicatePhones extends Command
@@ -25,7 +24,7 @@ class DeduplicatePhones extends Command
 
         // Group by last 10 digits — the common key across all format variants
         $groups = $users->groupBy(fn ($u) => substr(preg_replace('/\D/', '', $u->phone ?? ''), -10))
-            ->filter(fn ($g) => $g->count() > 1 && strlen($g->keys()->first()) === 10);
+            ->filter(fn ($g, $key) => $g->count() > 1 && strlen((string) $key) === 10);
 
         if ($groups->isEmpty()) {
             $this->info('No duplicate phone numbers found.');
