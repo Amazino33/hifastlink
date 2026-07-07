@@ -124,7 +124,7 @@ class DeduplicatePhones extends Command
                     //    Tables with user_id FK to users must be re-pointed before forceDelete().
                     foreach ($discard as $u) {
                         foreach ([
-                            'payments', 'transactions', 'devices',
+                            'payments', 'transactions',
                             'custom_plan_requests', 'pending_subscriptions',
                             'user_sessions',
                         ] as $table) {
@@ -132,6 +132,11 @@ class DeduplicatePhones extends Command
                                 ->where('user_id', $u->id)
                                 ->update(['user_id' => $keep->id]);
                         }
+
+                        // Devices: unique(user_id, mac) — drop conflicts first, then reassign
+                        $keepMacs = DB::table('devices')->where('user_id', $keep->id)->pluck('mac');
+                        DB::table('devices')->where('user_id', $u->id)->whereIn('mac', $keepMacs)->delete();
+                        DB::table('devices')->where('user_id', $u->id)->update(['user_id' => $keep->id]);
 
                         // Vouchers use used_by and created_by (no user_id column)
                         DB::table('vouchers')->where('used_by',    $u->id)->update(['used_by'    => $keep->id]);
