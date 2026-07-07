@@ -125,6 +125,21 @@ class CaptiveAuth extends Component
 
     public function verifyOtp()
     {
+        try {
+            $this->doVerifyOtp();
+        } catch (\Throwable $e) {
+            Log::error('CaptiveAuth verifyOtp unhandled: ' . $e->getMessage(), [
+                'phone' => $this->phone,
+                'file'  => $e->getFile(),
+                'line'  => $e->getLine(),
+            ]);
+            \App\Models\SystemLog::capture($e, 'error', ['phone_last4' => substr($this->phone, -4)]);
+            $this->error = 'Something went wrong. Please try again or contact support.';
+        }
+    }
+
+    private function doVerifyOtp(): void
+    {
         $code = trim($this->otp);
 
         if (strlen($code) !== 6 || ! ctype_digit($code)) {
@@ -139,16 +154,24 @@ class CaptiveAuth extends Component
             return;
         }
 
-        // Find user by last 10 digits — matches every possible format variation:
-        // 08012345678 / +2348012345678 / 2348012345678 / 8012345678 / 08012345678, etc.
         $last10 = substr(preg_replace('/\D/', '', $this->phone), -10);
 
-        $user = User::where('phone', 'like', '%' . $last10)->first();
+        // Exact match first — the common case for returning users
+        $user = User::where('phone', $this->phone)->first();
 
-        // Migrate stale phone format to canonical +234... so the LIKE is never needed again
-        if ($user && $user->getRawOriginal('phone') !== $this->phone) {
-            $user->phone = $this->phone; // goes through setPhoneAttribute normalizer
-            $user->saveQuietly();
+        // LIKE fallback — catches accounts stored in old formats (08xxx, 234xxx, etc.)
+        if (! $user) {
+            $candidate = User::where('phone', 'like', '%' . $last10)->first();
+            if ($candidate) {
+                try {
+                    $candidate->phone = $this->phone;
+                    $candidate->saveQuietly();
+                    $user = $candidate;
+                } catch (\Illuminate\Database\QueryException) {
+                    // Canonical number already belongs to another account — use that one
+                    $user = User::where('phone', $this->phone)->first();
+                }
+            }
         }
 
         if (! $user) {

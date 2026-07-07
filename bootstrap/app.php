@@ -33,4 +33,19 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->with('error', 'This verification link is invalid or has expired. Please request a new one below.');
             }
         });
+
+        // Capture all unhandled exceptions to system_logs so they appear in the admin panel
+        // even when APP_DEBUG=false hides them from users.
+        $exceptions->report(function (\Throwable $e) {
+            // Skip noise — these are normal control-flow exceptions, not bugs
+            if ($e instanceof \Illuminate\Validation\ValidationException) return false;
+            if ($e instanceof \Illuminate\Auth\AuthenticationException) return false;
+            if ($e instanceof \Illuminate\Auth\Access\AuthorizationException) return false;
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException) return false;
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException) return false;
+
+            \App\Models\SystemLog::capture($e);
+
+            return false; // don't suppress default Laravel logging (storage/logs/laravel.log)
+        });
     })->create();

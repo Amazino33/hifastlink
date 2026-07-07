@@ -164,11 +164,20 @@ class PharmacyVoucher extends Component
         }
 
         $last10 = substr(preg_replace('/\D/', '', $this->phone), -10);
-        $user   = User::where('phone', 'like', '%' . $last10)->first();
 
-        if ($user && $user->getRawOriginal('phone') !== $this->phone) {
-            $user->phone = $this->phone;
-            $user->saveQuietly();
+        $user = User::where('phone', $this->phone)->first();
+
+        if (! $user) {
+            $candidate = User::where('phone', 'like', '%' . $last10)->first();
+            if ($candidate) {
+                try {
+                    $candidate->phone = $this->phone;
+                    $candidate->saveQuietly();
+                    $user = $candidate;
+                } catch (\Illuminate\Database\QueryException) {
+                    $user = User::where('phone', $this->phone)->first();
+                }
+            }
         }
 
         if (! $user) {
