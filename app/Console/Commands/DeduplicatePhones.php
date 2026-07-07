@@ -120,8 +120,23 @@ class DeduplicatePhones extends Command
                         $keep->updateQuietly(['wallet_balance' => $totalWallet]);
                     }
 
-                    // 3. Wipe RADIUS entries and delete duplicate accounts
+                    // 3. Reassign child records to the kept account, then delete duplicates.
+                    //    Tables with user_id FK to users must be re-pointed before forceDelete().
                     foreach ($discard as $u) {
+                        foreach ([
+                            'payments', 'transactions', 'devices',
+                            'custom_plan_requests', 'pending_subscriptions',
+                            'mac_plan_assignments', 'user_sessions',
+                        ] as $table) {
+                            DB::table($table)
+                                ->where('user_id', $u->id)
+                                ->update(['user_id' => $keep->id]);
+                        }
+
+                        // Vouchers may use creator_id instead of user_id
+                        DB::table('vouchers')->where('user_id',    $u->id)->update(['user_id'    => $keep->id]);
+                        DB::table('vouchers')->where('creator_id', $u->id)->update(['creator_id' => $keep->id]);
+
                         RadCheck::where('username', $u->username)->delete();
                         RadReply::where('username', $u->username)->delete();
                         $u->forceDelete();
