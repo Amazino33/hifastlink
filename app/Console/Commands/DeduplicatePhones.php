@@ -126,7 +126,7 @@ class DeduplicatePhones extends Command
                         foreach ([
                             'payments', 'transactions', 'devices',
                             'custom_plan_requests', 'pending_subscriptions',
-                            'mac_plan_assignments', 'user_sessions',
+                            'user_sessions',
                         ] as $table) {
                             DB::table($table)
                                 ->where('user_id', $u->id)
