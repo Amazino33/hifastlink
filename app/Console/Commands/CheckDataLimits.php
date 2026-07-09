@@ -19,6 +19,9 @@ class CheckDataLimits extends Command
         $notified = 0;
 
         foreach ($users as $user) {
+            // Skip unlimited users (no data cap) — division by zero otherwise
+            if (! $user->data_limit || ! $user->data_used) continue;
+
             $usagePercent = ($user->data_used / $user->data_limit) * 100;
 
             if ($usagePercent >= 100) {
