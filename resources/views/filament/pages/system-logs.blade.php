@@ -54,12 +54,14 @@
 .dark .lvl-warning { background:#451a03; color:#fcd34d; }
 .dark .lvl-info    { background:#1e3a5f; color:#93c5fd; }
 .dark .lvl-debug   { background:#1f2937; color:#9ca3af; }
-.log-main { flex:1; min-width:0; }
-.log-type    { font-size:11px; color:var(--text3); font-family:monospace; margin-bottom:2px; }
-.log-message { font-size:13px; color:var(--text); font-weight:500; word-break:break-word; }
+.log-main { flex:1; min-width:0; overflow:hidden; }
+.log-type    { font-size:11px; color:var(--text3); font-family:monospace; margin-bottom:2px; overflow-wrap:anywhere; }
+.log-message { font-size:13px; color:var(--text); font-weight:500; overflow-wrap:anywhere; }
 .log-meta { font-size:11px; color:var(--text3); margin-top:4px; display:flex; flex-wrap:wrap; gap:8px; }
-.log-meta span { display:inline-flex; align-items:center; gap:3px; }
-.log-expand-icon { color:var(--text3); transition:transform .2s; flex-shrink:0; margin-top:2px; }
+.log-meta span { display:inline-flex; align-items:center; gap:3px; overflow-wrap:anywhere; }
+/* Size locked in CSS so Alpine :class swap never clears the width */
+.log-expand-icon { color:var(--text3); transition:transform .2s; flex-shrink:0; margin-top:2px; width:16px; height:16px; }
+.log-expand-icon.is-open { transform:rotate(180deg); }
 .log-context {
     border-top:1px solid var(--border); background:var(--bg2);
     padding:14px 16px; display:none;
@@ -137,30 +139,31 @@
             <div class="log-meta">
                 @if($log->url)
                 <span>
-                    <svg style="width:11px;height:11px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                    <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
                     {{ $log->method }} {{ Str::limit($log->url, 80) }}
                 </span>
                 @endif
                 @if($log->user_id)
                 <span>
-                    <svg style="width:11px;height:11px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+                    <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
                     User #{{ $log->user_id }}
                 </span>
                 @endif
                 @if($log->ip)
                 <span>
-                    <svg style="width:11px;height:11px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253"/></svg>
+                    <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253"/></svg>
                     {{ $log->ip }}
                 </span>
                 @endif
                 <span title="{{ $log->occurred_at->format('Y-m-d H:i:s') }}">
-                    <svg style="width:11px;height:11px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     {{ $log->occurred_at->diffForHumans() }}
                 </span>
             </div>
         </div>
-        <svg class="log-expand-icon" :style="open ? 'transform:rotate(180deg)' : ''"
-             style="width:16px;height:16px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <svg :class="open ? 'log-expand-icon is-open' : 'log-expand-icon'"
+             width="16" height="16"
+             fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
         </svg>
     </div>
