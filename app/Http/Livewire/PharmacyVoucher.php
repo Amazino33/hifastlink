@@ -188,16 +188,26 @@ class PharmacyVoucher extends Component
                 $username = $base . $counter++;
             }
 
-            $user = User::create([
-                'name'              => null,
-                'username'          => $username,
-                'email'             => null,
-                'phone'             => $this->phone,
-                'password'          => null,
-                'radius_password'   => Str::random(12),
-                'phone_verified_at' => now(),
-                'connection_status' => 'active',
-            ]);
+            try {
+                $user = User::create([
+                    'name'              => null,
+                    'username'          => $username,
+                    'email'             => null,
+                    'phone'             => $this->phone,
+                    'password'          => null,
+                    'radius_password'   => Str::random(12),
+                    'phone_verified_at' => now(),
+                    'connection_status' => 'active',
+                ]);
+            } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+                $user = User::where('username', $username)->first()
+                    ?? User::where('phone', 'like', '%' . $last10)->first();
+
+                if (! $user) {
+                    $this->error = 'Something went wrong. Please try again.';
+                    return;
+                }
+            }
         } elseif (! $user->phone_verified_at) {
             $user->update(['phone_verified_at' => now()]);
         }

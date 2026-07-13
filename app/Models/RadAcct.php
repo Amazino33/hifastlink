@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Builder;
 class RadAcct extends Model
 {
     // protected $connection = 'radius';
-    protected $table = 'radacct';
+    protected $table      = 'radacct';
+    protected $primaryKey = 'radacctid'; // radacct uses radacctid, not id
     protected $fillable = [
         'username', 'acctsessionid', 'acctuniqueid', 'realm', 'nasipaddress',
         'nasportid', 'nasporttype', 'acctstarttime', 'acctstoptime',

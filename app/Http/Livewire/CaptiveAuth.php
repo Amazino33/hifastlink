@@ -175,24 +175,35 @@ class CaptiveAuth extends Component
         }
 
         if (! $user) {
-            $username = 'user_' . substr(preg_replace('/\D/', '', $this->phone), -10);
-            $base = $username;
-            $counter = 1;
+            $username = 'user_' . $last10;
+            $base     = $username;
+            $counter  = 1;
             while (User::where('username', $username)->exists()) {
-                $username = $base . $counter;
-                $counter++;
+                $username = $base . $counter++;
             }
 
-            $user = User::create([
-                'name'              => null,
-                'username'          => $username,
-                'email'             => null,
-                'phone'             => $this->phone,
-                'password'          => null,
-                'radius_password'   => Str::random(12),
-                'phone_verified_at' => now(),
-                'connection_status' => 'active',
-            ]);
+            try {
+                $user = User::create([
+                    'name'              => null,
+                    'username'          => $username,
+                    'email'             => null,
+                    'phone'             => $this->phone,
+                    'password'          => null,
+                    'radius_password'   => Str::random(12),
+                    'phone_verified_at' => now(),
+                    'connection_status' => 'active',
+                ]);
+            } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+                // Race condition or lingering account with mismatched phone format.
+                // The username or phone already exists — find the account and use it.
+                $user = User::where('username', $username)->first()
+                    ?? User::where('phone', 'like', '%' . $last10)->first();
+
+                if (! $user) {
+                    $this->error = 'Something went wrong. Please try again.';
+                    return;
+                }
+            }
         } else {
             if (! $user->phone_verified_at) {
                 $user->update(['phone_verified_at' => now()]);
