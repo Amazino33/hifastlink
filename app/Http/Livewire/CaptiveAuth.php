@@ -370,7 +370,7 @@ class CaptiveAuth extends Component
 
             if ($radPassword) {
                 session(['bridge_completed' => true]);
-                $this->bridgeToRouter($user->username, $radPassword, $this->linkLogin, route('dashboard'));
+                $this->bridgeToRouter($user->username, $radPassword, $this->linkLogin, route('captive.connected'));
                 return;
             }
         }

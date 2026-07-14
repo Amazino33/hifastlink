@@ -101,7 +101,7 @@ class HotspotController extends Controller
             $link_login .= '/login';
         }
 
-        $link_orig = route('dashboard', ['router' => $routerIdentifier]);
+        $link_orig = route('captive.connected');
 
         // Mark this browser session as having initiated a connection
         $claimAt = now()->timestamp;

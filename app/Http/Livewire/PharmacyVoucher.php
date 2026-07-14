@@ -270,7 +270,7 @@ class PharmacyVoucher extends Component
                 'bridge_username'   => $radUsername,
                 'bridge_password'   => $radPassword,
                 'bridge_link_login' => $this->linkLogin,
-                'bridge_link_orig'  => route('home'),
+                'bridge_link_orig'  => route('captive.connected'),
                 'bridge_mac'        => $this->mac,
                 'bridge_ip'         => $this->ip,
                 'bridge_router'     => $this->router,

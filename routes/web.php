@@ -37,6 +37,9 @@ Route::post('/voucher/check-input', [VoucherController::class, 'checkInput'])->n
 Route::get('/voucher/success', [VoucherController::class, 'success'])->name('voucher.success');
 Route::get('/pharmacy-voucher', fn () => view('pharmacy-voucher'))->name('pharmacy.voucher');
 
+// Simple connected page — public, no auth, used as MikroTik dst after login
+Route::get('/connected', fn () => view('hotspot.connected'))->name('captive.connected');
+
 // Captive portal bridge — full page redirect so JS + meta refresh work in captive mini-browsers
 Route::get('/captive-bridge', function () {
     $username  = session()->pull('bridge_username');
