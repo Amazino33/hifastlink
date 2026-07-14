@@ -378,6 +378,14 @@ class RouterController extends Controller
 /ip/hotspot/walled-garden add dst-host="*.googleusercontent.com" comment="Google User Content"
 /ip/hotspot/walled-garden add dst-host="*.sentry.io"         comment="Error Logs"
 
+# Captive portal detection — lets OS probes pass so devices don't show "Login to Network"
+/ip/hotspot/walled-garden add dst-host="captive.apple.com"           comment="iOS Captive Detection"
+/ip/hotspot/walled-garden add dst-host="*.captive.apple.com"         comment="iOS Captive Detection Alt"
+/ip/hotspot/walled-garden add dst-host="www.msftconnecttest.com"     comment="Windows Captive Detection"
+/ip/hotspot/walled-garden add dst-host="msftconnecttest.com"         comment="Windows Captive Detection Root"
+/ip/hotspot/walled-garden add dst-host="detectportal.firefox.com"    comment="Firefox Captive Detection"
+/ip/hotspot/walled-garden add dst-host="clients3.google.com"         comment="Android Captive Detection"
+
 /ip/hotspot/walled-garden/ip add action=accept protocol=udp dst-port=53                                comment="DNS"
 /ip/hotspot/walled-garden/ip add action=accept dst-address=$WebsiteIP                                  comment="HiFastLink Server"
 /ip/hotspot/walled-garden/ip add action=accept dst-address=$WebsiteIP protocol=tcp dst-port=80         comment="HiFastLink HTTP"
