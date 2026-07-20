@@ -138,7 +138,7 @@ class EditRouter extends EditRecord
 
             $clientConf = "client {$name} {\n    ipaddr = {$vpnIp}\n    secret = {$secret}\n    nas_type = other\n}\n";
             $ssh->exec("echo '{$clientConf}' | sudo tee /etc/freeradius/3.0/clients.d/{$name}.conf > /dev/null");
-            $ssh->exec("sudo systemctl reload freeradius");
+            $ssh->exec("sudo systemctl restart freeradius");
 
             Log::info("FreeRADIUS client config updated for: {$router->name}");
 
