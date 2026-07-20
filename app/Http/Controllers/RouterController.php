@@ -154,6 +154,16 @@ class RouterController extends Controller
 :global WifiPass           "{WIFI_PASS}"
 :global RadiusSecret       "{SECRET}"
 
+# --- Wireless-WAN support (for sites with no cabled WAN uplink) ---
+# When true, the interfaces listed in WirelessWANIfaces are treated as
+# WAN uplinks (station mode, DHCP client, NAT, WAN list membership) and
+# are SKIPPED by the AP/hotspot-broadcast wifi step below, instead of
+# being forced back into ap-bridge mode every run.
+:global UseWirelessWAN     false
+:global WirelessWANIfaces  {"wlan1";"wlan2"}
+:global WirelessCountry    "no_country_set"
+:global HotspotCookieLifetime "90d"
+
 :put (">> HiFastLink setup starting for: " . $LocationName)
 
 # =======================================================
@@ -192,10 +202,16 @@ class RouterController extends Controller
         /interface/bridge/port add interface=$port bridge=$BridgeName
     }
 }
-# Add WiFi to bridge
+# Add WiFi to bridge - but never bridge an interface reserved for wireless WAN
 :local wifiIface ""
 :if ([:len [/interface find name="wifi1"]]  > 0) do={ :set wifiIface "wifi1" }
 :if ([:len [/interface find name="wlan1"]]  > 0) do={ :set wifiIface "wlan1" }
+:if ($UseWirelessWAN) do={
+    :if ([:find [:tostr $WirelessWANIfaces] $wifiIface] != -1) do={
+        :set wifiIface ""
+        :put ">> Skipping bridge add - reserved for wireless WAN"
+    }
+}
 :if ($wifiIface != "") do={
     /interface/bridge/port add interface=$wifiIface bridge=$BridgeName
     :put (">> Added " . $wifiIface . " to bridge")
@@ -238,7 +254,22 @@ class RouterController extends Controller
 # Wipe and recreate DHCP client to force a fresh lease
 /ip/dhcp-client remove [find interface="ether1"]
 /ip/dhcp-client add interface=ether1 disabled=no comment="HiFastLink WAN"
-:put ">> WAN ready"
+:put ">> WAN (ether1) ready"
+
+# --- Wireless WAN uplinks (e.g. wlan1/wlan2 as station clients) ---
+:if ($UseWirelessWAN) do={
+    :foreach wIface in=$WirelessWANIfaces do={
+        :if ([:len [/interface find name=$wIface]] > 0) do={
+            :if ([:len [/interface/list/member find list="WAN" interface=$wIface]] = 0) do={
+                /interface/list/member add list="WAN" interface=$wIface
+            }
+            # Fresh DHCP client so it always gets an IP + default route + NAT (via WAN list)
+            /ip/dhcp-client remove [find interface=$wIface]
+            /ip/dhcp-client add interface=$wIface disabled=no add-default-route=yes use-peer-dns=yes comment="HiFastLink Wireless WAN"
+            :put (">> Wireless WAN ready: " . $wIface)
+        }
+    }
+}
 
 # =======================================================
 # STEP 5 - WIFI
@@ -260,14 +291,26 @@ class RouterController extends Controller
 } else={
     :local wlanList [/interface/wireless find]
     :if ([:len $wlanList] > 0) do={
-        :if ($WifiPass != "") do={
-            /interface/wireless set [find] disabled=no mode=ap-bridge ssid=$WifiSSID security-profile=default
-            /interface/wireless/security-profiles set [find name=default] mode=dynamic-keys authentication-types=wpa2-psk wpa2-pre-shared-key=$WifiPass
+        :if ($UseWirelessWAN) do={
+            # These radios are reserved as WAN uplinks (station mode) -
+            # do NOT touch mode/ssid/security-profile here, only set
+            # the regulatory country so 5GHz scanning/DFS works.
+            :foreach wIface in=$WirelessWANIfaces do={
+                :if ([:len [/interface/wireless find name=$wIface]] > 0) do={
+                    /interface/wireless set [find name=$wIface] country=$WirelessCountry
+                }
+            }
+            :put ">> Wireless WAN interfaces left untouched (station mode preserved)"
         } else={
-            /interface/wireless set [find] disabled=no mode=ap-bridge ssid=$WifiSSID security-profile=default
-            /interface/wireless/security-profiles set [find name=default] mode=none
+            :if ($WifiPass != "") do={
+                /interface/wireless set [find] disabled=no mode=ap-bridge ssid=$WifiSSID security-profile=default
+                /interface/wireless/security-profiles set [find name=default] mode=dynamic-keys authentication-types=wpa2-psk wpa2-pre-shared-key=$WifiPass
+            } else={
+                /interface/wireless set [find] disabled=no mode=ap-bridge ssid=$WifiSSID security-profile=default
+                /interface/wireless/security-profiles set [find name=default] mode=none
+            }
+            :put ">> WiFi (wireless) configured"
         }
-        :put ">> WiFi (wireless) configured"
     }
 }
 
@@ -319,7 +362,9 @@ class RouterController extends Controller
 :local RadiusIP
 :if ($VPNEnabled) do={ :set RadiusIP $WGServerIP } else={ :set RadiusIP "142.93.47.189" }
 /radius add address=$RadiusIP secret=$RadiusSecret service=hotspot timeout=3000ms comment="HiFastLink RADIUS"
-:put ">> RADIUS ready"
+# Allow FreeRADIUS to send CoA/Disconnect-Request (e.g. force-kick a user)
+/radius incoming set accept=yes port=3799
+:put ">> RADIUS ready (user auth + accounting + incoming CoA)"
 
 # =======================================================
 # STEP 9 - HOTSPOT
@@ -337,9 +382,9 @@ class RouterController extends Controller
 
 # 3. Create or update profile (Fixed)
 :if ([:len [/ip/hotspot/profile find name="hifastlink"]] = 0) do={
-    /ip/hotspot/profile add name="hifastlink" dns-name=$DNSName use-radius=yes login-by="cookie,http-chap,http-pap" nas-port-type="wireless-802.11" radius-accounting=yes radius-interim-update=00:01:00
+    /ip/hotspot/profile add name="hifastlink" dns-name=$DNSName use-radius=yes login-by="cookie,http-chap,http-pap" nas-port-type="wireless-802.11" radius-accounting=yes radius-interim-update=00:01:00 http-cookie-lifetime=$HotspotCookieLifetime
 } else={
-    /ip/hotspot/profile set [find name="hifastlink"] dns-name=$DNSName use-radius=yes login-by="cookie,http-chap,http-pap" nas-port-type="wireless-802.11" radius-accounting=yes radius-interim-update=00:01:00
+    /ip/hotspot/profile set [find name="hifastlink"] dns-name=$DNSName use-radius=yes login-by="cookie,http-chap,http-pap" nas-port-type="wireless-802.11" radius-accounting=yes radius-interim-update=00:01:00 http-cookie-lifetime=$HotspotCookieLifetime
 }
 
 # 4. Create or update hotspot server on bridge (Fixed)
