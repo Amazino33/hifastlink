@@ -455,6 +455,10 @@ class RouterController extends Controller
 :put ">> Configuring system..."
 /system/identity set name=$LocationName
 
+# Enable RADIUS logging to memory for debugging
+:do { /system/logging remove [find topics~"radius"] } on-error={}
+/system/logging add topics=radius action=memory comment="HiFastLink RADIUS Debug"
+
 # Safely wipe ALL schedulers and scripts without crashing if they are currently executing
 :do { /system/scheduler remove [find] } on-error={}
 :do { /system/script    remove [find dynamic=no] } on-error={}
