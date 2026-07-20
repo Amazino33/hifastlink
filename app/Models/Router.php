@@ -151,7 +151,8 @@ class Router extends Model
      */
     public function nasEntry()
     {
-        return $this->hasOne(Nas::class, 'nasname', 'ip_address');
+        // RADIUS packets arrive from the WireGuard VPN IP, not the LAN IP
+        return $this->hasOne(Nas::class, 'nasname', 'vpn_ip');
     }
 
     /**

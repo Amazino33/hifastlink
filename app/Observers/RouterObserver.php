@@ -29,36 +29,46 @@ class RouterObserver
      */
     public function deleted(Router $router): void
     {
-        // Remove from RADIUS NAS table
-        Nas::where('nasname', $router->ip_address)->delete();
-        
+        $nasIp = $router->vpn_ip ?: $router->ip_address;
+        Nas::where('nasname', $nasIp)->delete();
+
         Log::info("Removed router from RADIUS NAS table", [
             'router' => $router->name,
-            'ip' => $router->ip_address,
+            'ip' => $nasIp,
         ]);
     }
 
     /**
-     * Sync router to RADIUS nas table
+     * Sync router to RADIUS nas table.
+     * RADIUS traffic arrives over the WireGuard VPN, so FreeRADIUS sees the
+     * source IP as vpn_ip — that must be what we register as nasname.
      */
     protected function syncToRadiusNas(Router $router): void
     {
+        // vpn_ip is the WireGuard tunnel IP — always the source of RADIUS packets
+        $nasIp = $router->vpn_ip ?: $router->ip_address;
+
+        // If the router previously had a stale entry under a different IP, remove it
+        Nas::where('shortname', $router->nas_identifier)
+            ->where('nasname', '!=', $nasIp)
+            ->delete();
+
         Nas::updateOrCreate(
-            ['nasname' => $router->ip_address],
+            ['nasname' => $nasIp],
             [
-                'shortname' => $router->nas_identifier,
-                'type' => 'other', // or 'mikrotik'
-                'ports' => 1812,
-                'secret' => $router->secret,
-                'server' => null,
-                'community' => null,
+                'shortname'   => $router->nas_identifier,
+                'type'        => 'other',
+                'ports'       => 1812,
+                'secret'      => $router->secret,
+                'server'      => null,
+                'community'   => null,
                 'description' => $router->name . ' - ' . $router->location,
             ]
         );
 
         Log::info("Synced router to RADIUS NAS table", [
-            'router' => $router->name,
-            'ip' => $router->ip_address,
+            'router'         => $router->name,
+            'nas_ip'         => $nasIp,
             'nas_identifier' => $router->nas_identifier,
         ]);
     }
