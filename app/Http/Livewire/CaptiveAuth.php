@@ -3,315 +3,239 @@
 namespace App\Http\Livewire;
 
 use App\Models\Device;
-use App\Models\Otp;
 use App\Models\RadCheck;
+use App\Models\RadReply;
 use App\Models\User;
 use App\Models\Voucher;
-use App\Services\WhatsAppService;
-use Illuminate\Support\Facades\Auth;
+use App\Services\SubscriptionService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Livewire\Component;
 
 class CaptiveAuth extends Component
 {
-    public string $step = 'phone'; // phone | email | voucher_phone | otp
-    public string $phone = '';
-    public string $otp = '';
-    public string $voucherCode = '';
-    public string $email = '';
-    public string $password = '';
-    public string $error = '';
-    public string $success = '';
-    public bool $isVoucher = false;
-    public int $resendCountdown = 0;
+    public string $identifier = '';
+    public string $error      = '';
+    public bool   $noplan     = false;
 
-    // Tracks what the OTP verification should do after success
-    public string $otpPurpose = 'login'; // login | voucher
-
-    // Captive portal params
     public ?string $linkLogin = null;
-    public ?string $mac = null;
-    public ?string $ip = null;
-    public ?string $router = null;
+    public ?string $mac       = null;
+    public ?string $ip        = null;
+    public ?string $router    = null;
 
-
-    public function mount()
+    public function mount(): void
     {
         $this->linkLogin = request()->get('link-login')
             ?? request()->get('link-login-only')
             ?? request()->get('link_login')
             ?? request()->get('link-orig');
 
-        $this->mac = request()->get('mac');
-        $this->ip = request()->get('ip');
+        $this->mac    = request()->get('mac');
+        $this->ip     = request()->get('ip');
         $this->router = request()->get('router');
+
+        // Known device — try silent auto-login before showing the form
+        if ($this->mac && $this->linkLogin) {
+            $this->tryMacAutoLogin();
+        }
     }
 
-    public function updatedPhone()
+    // ── MAC auto-login (runs on every hotspot connection for known devices) ──
+
+    private function tryMacAutoLogin(): void
     {
-        $this->isVoucher = (bool) preg_match('/^VCH-[A-Z0-9]+$/i', trim($this->phone));
-        $this->error = '';
-    }
+        $device = Device::where('mac', strtoupper($this->mac))
+            ->whereNotNull('user_id')
+            ->with('user')
+            ->first();
 
-    // ── Step: phone ──────────────────────────────────────────────
-
-    public function sendOtp()
-    {
-        $input = trim($this->phone);
-
-        // Voucher flow — validate then ask for phone
-        if (Voucher::isVoucherCode($input)) {
-            $this->isVoucher = true;
-            $this->voucherCode = strtoupper(trim($input));
-            $this->validateVoucherAndAskPhone();
+        if (! $device || ! $device->user) {
             return;
         }
 
-        $this->isVoucher = false;
-        $this->otpPurpose = 'login';
+        $user = $device->user;
 
-        $this->sendOtpToPhone($input);
-    }
-
-    // ── Step: voucher_phone (phone input after voucher validation) ─
-
-    public function sendVoucherOtp()
-    {
-        $this->otpPurpose = 'voucher';
-        $this->sendOtpToPhone($this->phone);
-    }
-
-    // ── Shared OTP sender ────────────────────────────────────────
-
-    private function sendOtpToPhone(string $input): void
-    {
-        $digits = preg_replace('/[\s\-\(\)]/', '', $input);
-
-        if (empty($digits) || ! preg_match('/^\+?[\d]{7,15}$/', $digits)) {
-            $this->error = 'Please enter a valid phone number.';
-            return;
-        }
-
-        try {
-            $normalized = User::normalizePhone($digits);
-
-            $wa = new WhatsAppService();
-
-            if (! $wa->checkOtpRateLimit($normalized)) {
-                $this->error = 'Too many attempts. Please wait a few minutes.';
-                return;
-            }
-
-            $code = $wa->sendOtp($normalized);
-
-            if (! $code) {
-                $this->error = 'Could not send OTP. Please try again.';
-                return;
-            }
-
-            $this->phone = $normalized;
-            $this->step = 'otp';
-            $this->error = '';
-            $this->success = 'A verification code has been sent to your WhatsApp.';
-            $this->resendCountdown = 60;
-        } catch (\Throwable $e) {
-            Log::error('CaptiveAuth sendOtp failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            $this->error = 'Something went wrong. Please try again.';
-        }
-    }
-
-    // ── Step: otp ────────────────────────────────────────────────
-
-    public function verifyOtp()
-    {
-        try {
-            $this->doVerifyOtp();
-        } catch (\Throwable $e) {
-            Log::error('CaptiveAuth verifyOtp unhandled: ' . $e->getMessage(), [
-                'phone' => $this->phone,
-                'file'  => $e->getFile(),
-                'line'  => $e->getLine(),
-            ]);
-            \App\Models\SystemLog::capture($e, 'error', ['phone_last4' => substr($this->phone, -4)]);
-            $this->error = 'Something went wrong. Please try again or contact support.';
-        }
-    }
-
-    private function doVerifyOtp(): void
-    {
-        $code = trim($this->otp);
-
-        if (strlen($code) !== 6 || ! ctype_digit($code)) {
-            $this->error = 'Please enter a valid 6-digit code.';
-            return;
-        }
-
-        $wa = new WhatsAppService();
-
-        if (! $wa->verifyOtp($this->phone, $code)) {
-            $this->error = 'Invalid or expired code. Please try again.';
-            return;
-        }
-
-        $last10 = substr(preg_replace('/\D/', '', $this->phone), -10);
-
-        // Exact match first — the common case for returning users
-        $user = User::where('phone', $this->phone)->first();
-
-        // LIKE fallback — catches accounts stored in old formats (08xxx, 234xxx, etc.)
-        if (! $user) {
-            $candidate = User::where('phone', 'like', '%' . $last10)->first();
-            if ($candidate) {
-                try {
-                    $candidate->phone = $this->phone;
-                    $candidate->saveQuietly();
-                    $user = $candidate;
-                } catch (\Illuminate\Database\QueryException) {
-                    // Canonical number already belongs to another account — use that one
-                    $user = User::where('phone', $this->phone)->first();
-                }
-            }
-        }
-
-        if (! $user) {
-            $username = 'user_' . $last10;
-            $base     = $username;
-            $counter  = 1;
-            while (User::where('username', $username)->exists()) {
-                $username = $base . $counter++;
-            }
-
-            try {
-                $user = User::create([
-                    'name'              => null,
-                    'username'          => $username,
-                    'email'             => null,
-                    'phone'             => $this->phone,
-                    'password'          => null,
-                    'radius_password'   => Str::random(12),
-                    'phone_verified_at' => now(),
-                    'connection_status' => 'active',
-                ]);
-            } catch (\Illuminate\Database\UniqueConstraintViolationException) {
-                // Race condition or lingering account with mismatched phone format.
-                // The username or phone already exists — find the account and use it.
-                $user = User::where('username', $username)->first()
-                    ?? User::where('phone', 'like', '%' . $last10)->first();
-
-                if (! $user) {
-                    $this->error = 'Something went wrong. Please try again.';
-                    return;
-                }
-            }
-        } else {
-            if (! $user->phone_verified_at) {
-                $user->update(['phone_verified_at' => now()]);
-            }
-        }
-
-        Auth::login($user, remember: true);
-        request()->session()->regenerate();
-
-        if ($this->otpPurpose === 'voucher' && $this->voucherCode) {
-            $this->activateVoucherForUser($user);
-        } else {
+        if ((new SubscriptionService())->canConnectToHotspot($user)) {
+            Log::info('CaptiveAuth: MAC auto-login', ['mac' => $this->mac, 'user_id' => $user->id]);
             $this->completeLogin($user);
         }
+        // Plan expired → fall through and show form with no-plan context
     }
 
-    public function resendOtp()
+    // ── Single-field connect ─────────────────────────────────────────────────
+
+    public function connect(): void
     {
-        try {
-            $wa = new WhatsAppService();
+        $input        = trim($this->identifier);
+        $this->error  = '';
+        $this->noplan = false;
 
-            if (! $wa->checkOtpRateLimit($this->phone)) {
-                $this->error = 'Too many attempts. Please wait a few minutes.';
-                return;
-            }
-
-            $code = $wa->sendOtp($this->phone);
-
-            if (! $code) {
-                $this->error = 'Could not resend. Please try again.';
-                return;
-            }
-
-            $this->success = 'A new code has been sent.';
-            $this->error = '';
-            $this->resendCountdown = 60;
-        } catch (\Throwable $e) {
-            Log::error('CaptiveAuth resendOtp failed: ' . $e->getMessage());
-            $this->error = 'Something went wrong. Please try again.';
-        }
-    }
-
-    // ── Navigation ───────────────────────────────────────────────
-
-    public function goBack()
-    {
-        if ($this->otpPurpose === 'voucher') {
-            $this->step = 'voucher_phone';
-        } else {
-            $this->step = 'phone';
-        }
-        $this->otp = '';
-        $this->error = '';
-        $this->success = '';
-    }
-
-    public function switchToEmail()
-    {
-        $this->step = 'email';
-        $this->error = '';
-        $this->success = '';
-    }
-
-    public function switchToPhone()
-    {
-        $this->step = 'phone';
-        $this->error = '';
-        $this->success = '';
-    }
-
-    // ── Email login ──────────────────────────────────────────────
-
-    public function emailLogin()
-    {
-        $login = trim($this->email);
-        $password = $this->password;
-
-        if (empty($login) || empty($password)) {
-            $this->error = 'Please enter your email/username and password.';
+        if (empty($input)) {
+            $this->error = 'Please enter your phone number, email, username, or voucher code.';
             return;
         }
 
-        try {
-            $authenticated = false;
-
-            if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
-                $authenticated = Auth::attempt(['email' => $login, 'password' => $password], true);
-            }
-
-            if (! $authenticated && is_numeric($login)) {
-                $authenticated = Auth::attempt(['phone' => $login, 'password' => $password], true);
-            }
-
-            if (! $authenticated) {
-                $authenticated = Auth::attempt(['username' => $login, 'password' => $password], true);
-            }
-
-            if (! $authenticated) {
-                $this->error = 'Invalid credentials. Please try again.';
-                return;
-            }
-
-            request()->session()->regenerate();
-            $this->completeLogin(Auth::user());
-        } catch (\Throwable $e) {
-            Log::error('CaptiveAuth emailLogin failed: ' . $e->getMessage());
-            $this->error = 'Something went wrong. Please try again.';
+        // Voucher code (e.g. VCH-XXXXX)
+        if (Voucher::isVoucherCode($input)) {
+            $this->activateVoucher(strtoupper($input));
+            return;
         }
+
+        $user = $this->findUser($input);
+
+        if (! $user) {
+            $this->error = 'No account found. Please subscribe at hifastlink.com first.';
+            return;
+        }
+
+        if (! (new SubscriptionService())->canConnectToHotspot($user)) {
+            $this->noplan = true;
+            return;
+        }
+
+        $this->completeLogin($user);
+    }
+
+    // ── User lookup: email → phone → username ────────────────────────────────
+
+    private function findUser(string $input): ?User
+    {
+        if (str_contains($input, '@')) {
+            return User::where('email', $input)->first();
+        }
+
+        $digits = preg_replace('/\D/', '', $input);
+        if (strlen($digits) >= 7) {
+            $user = User::where('phone', 'like', '%' . substr($digits, -10))->first();
+            if ($user) return $user;
+        }
+
+        return User::where('username', $input)->first();
+    }
+
+    // ── Voucher activation (no user account required) ────────────────────────
+
+    private function activateVoucher(string $code): void
+    {
+        $voucher = Voucher::findValid($code);
+
+        if (! $voucher) {
+            $this->error = 'This voucher is invalid, expired, or has no remaining uses.';
+            return;
+        }
+
+        $creator = $voucher->creator;
+
+        if ($creator && ! (new SubscriptionService())->canConnectToHotspot($creator)) {
+            $this->error = "This voucher's plan has expired or run out of data.";
+            return;
+        }
+
+        // Use a stable RADIUS identity derived from the voucher code
+        $radUsername = 'vch_' . strtolower($code);
+
+        $existing    = RadCheck::where('username', $radUsername)->where('attribute', 'Cleartext-Password')->first();
+        $radPassword = $existing?->value ?? Str::random(12);
+
+        RadCheck::updateOrCreate(
+            ['username' => $radUsername, 'attribute' => 'Cleartext-Password'],
+            ['op' => ':=', 'value' => $radPassword]
+        );
+
+        RadCheck::updateOrCreate(
+            ['username' => $radUsername, 'attribute' => 'Simultaneous-Use'],
+            ['op' => ':=', 'value' => (string) $voucher->max_uses]
+        );
+
+        $expiresAt = $creator?->plan_expiry ?? $voucher->expires_at;
+        if ($expiresAt) {
+            RadCheck::updateOrCreate(
+                ['username' => $radUsername, 'attribute' => 'Expiration'],
+                ['op' => ':=', 'value' => \Carbon\Carbon::parse($expiresAt)->format('d M Y H:i')]
+            );
+        }
+
+        $plan = $voucher->plan ?? $creator?->plan;
+        if ($plan) {
+            $uploadKbps   = $voucher->speed_limit_upload   ?? $plan->speed_limit_upload;
+            $downloadKbps = $voucher->speed_limit_download ?? $plan->speed_limit_download;
+            if ($uploadKbps || $downloadKbps) {
+                RadReply::updateOrCreate(
+                    ['username' => $radUsername, 'attribute' => 'Mikrotik-Rate-Limit'],
+                    ['op' => ':=', 'value' => ($uploadKbps ?? 0) . 'k/' . ($downloadKbps ?? 0) . 'k']
+                );
+            }
+
+            if (! $voucher->is_unlimited && $plan->data_limit) {
+                $limitMb = $plan->limit_unit === 'GB'
+                    ? (int) ($plan->data_limit * 1024)
+                    : (int) $plan->data_limit;
+                RadReply::updateOrCreate(
+                    ['username' => $radUsername, 'attribute' => 'Mikrotik-Total-Limit'],
+                    ['op' => ':=', 'value' => (string) ($limitMb * 1048576)]
+                );
+            }
+        }
+
+        $voucher->consume();
+
+        if ($this->mac) {
+            Device::updateOrCreate(
+                ['mac' => strtoupper($this->mac)],
+                [
+                    'user_id'      => null,
+                    'ip'           => $this->ip ?? request()->ip(),
+                    'user_agent'   => request()->userAgent(),
+                    'first_seen'   => now(),
+                    'last_seen'    => now(),
+                    'is_connected' => true,
+                    'meta'         => ['voucher_code' => $code],
+                ]
+            );
+        }
+
+        if (! $this->linkLogin) {
+            $this->error = 'Voucher activated but no hotspot session found. Please reconnect to the WiFi.';
+            return;
+        }
+
+        session(['bridge_completed' => true]);
+        $this->bridgeToRouter($radUsername, $radPassword, $this->linkLogin, route('captive.connected'));
+    }
+
+    // ── Post-lookup bridge ───────────────────────────────────────────────────
+
+    private function completeLogin(User $user): void
+    {
+        if ($this->mac) {
+            try {
+                Device::upsertFromLogin(
+                    $user,
+                    $this->mac,
+                    $this->router,
+                    $this->ip ?? request()->ip(),
+                    request()->userAgent()
+                );
+            } catch (\Throwable $e) {
+                Log::warning('CaptiveAuth: device upsert failed — ' . $e->getMessage());
+            }
+        }
+
+        if (! $this->linkLogin) {
+            $this->redirect(route('dashboard'));
+            return;
+        }
+
+        $rad         = RadCheck::where('username', $user->username)->where('attribute', 'Cleartext-Password')->first();
+        $radPassword = $rad?->value ?? $user->radius_password;
+
+        if (! $radPassword) {
+            $this->error = 'Account not set up for hotspot access. Please contact support.';
+            return;
+        }
+
+        session(['bridge_completed' => true]);
+        $this->bridgeToRouter($user->username, $radPassword, $this->linkLogin, route('captive.connected'));
     }
 
     private function bridgeToRouter(string $username, string $password, string $linkLogin, string $linkOrig): void
@@ -327,195 +251,6 @@ class CaptiveAuth extends Component
         ]);
 
         $this->redirect(route('captive.bridge'));
-    }
-
-    // ── Post-login bridge ────────────────────────────────────────
-
-    private function completeLogin($user): void
-    {
-        if ($this->mac) {
-            session(['current_device_mac' => $this->mac]);
-
-            try {
-                Device::upsertFromLogin(
-                    $user,
-                    $this->mac,
-                    $this->router,
-                    $this->ip ?? request()->ip(),
-                    request()->userAgent()
-                );
-            } catch (\Throwable $e) {
-                Log::warning('Device upsert failed during captive auth: ' . $e->getMessage());
-            }
-        }
-
-        if ($this->router) {
-            session(['current_router' => $this->router]);
-        }
-
-        if ($this->linkLogin) {
-            session(['captive_link_login' => $this->linkLogin]);
-            session(['captive_mac' => $this->mac]);
-            session(['captive_ip' => $this->ip]);
-            session(['captive_router' => $this->router]);
-        }
-
-        $subscriptionService = new \App\Services\SubscriptionService();
-
-        if ($subscriptionService->canConnectToHotspot($user) && $this->linkLogin) {
-            $rad = RadCheck::where('username', $user->username)
-                ->where('attribute', 'Cleartext-Password')
-                ->first();
-            $radPassword = $rad?->value ?? $user->radius_password;
-
-            if ($radPassword) {
-                session(['bridge_completed' => true]);
-                $this->bridgeToRouter($user->username, $radPassword, $this->linkLogin, route('captive.connected'));
-                return;
-            }
-        }
-
-        $this->redirect(route('dashboard'));
-    }
-
-    // ── Voucher: validate and ask for phone ──────────────────────
-
-    private function validateVoucherAndAskPhone(): void
-    {
-        $voucher = Voucher::findValid($this->voucherCode);
-
-        if (! $voucher) {
-            $this->error = 'This voucher is invalid, expired, or already used.';
-            return;
-        }
-
-        $familyHead = $voucher->creator;
-
-        if ($familyHead) {
-            $subscriptionService = new \App\Services\SubscriptionService();
-            if (! $subscriptionService->canConnectToHotspot($familyHead)) {
-                $this->error = "The voucher owner's plan has expired or run out of data.";
-                return;
-            }
-        }
-
-        // Voucher is valid — ask for phone number
-        $this->step = 'voucher_phone';
-        $this->error = '';
-        $this->phone = '';
-    }
-
-    // ── Voucher: activate for verified user ──────────────────────
-
-    private function activateVoucherForUser($user): void
-    {
-        $voucher = Voucher::findValid($this->voucherCode);
-
-        if (! $voucher) {
-            $this->error = 'This voucher is no longer available.';
-            $this->step = 'phone';
-            return;
-        }
-
-        $familyHead = $voucher->creator;
-
-        // Check if this user already redeemed this voucher (same phone = same slot)
-        $alreadyLinked = Device::where('user_id', $user->id)
-            ->where('meta->voucher_code', $this->voucherCode)
-            ->exists();
-
-        if (! $alreadyLinked) {
-            // Consume a slot for this new person
-            $voucher->consume();
-        }
-
-        // Link user under the voucher creator if they're a family head (not admin)
-        if ($familyHead && ! $familyHead->isAdmin() && ! $user->parent_id) {
-            $user->updateQuietly(['parent_id' => $familyHead->id]);
-        }
-
-        // RADIUS uses the user's username, not the voucher code
-        $radUsername = $user->username;
-        $radPassword = $user->radius_password;
-
-        RadCheck::updateOrCreate(
-            ['username' => $radUsername, 'attribute' => 'Cleartext-Password'],
-            ['op' => ':=', 'value' => $radPassword]
-        );
-
-        RadCheck::updateOrCreate(
-            ['username' => $radUsername, 'attribute' => 'Simultaneous-Use'],
-            ['op' => ':=', 'value' => (string) ($voucher->max_uses)]
-        );
-
-        // Expiration: creator's plan_expiry or voucher's own
-        $expirationDate = $familyHead?->plan_expiry ?? $voucher->expires_at;
-        if ($expirationDate) {
-            RadCheck::updateOrCreate(
-                ['username' => $radUsername, 'attribute' => 'Expiration'],
-                ['op' => ':=', 'value' => $expirationDate->format('d M Y H:i')]
-            );
-        }
-
-        // Speed limits
-        $fallbackPlan = $voucher->plan ?? $familyHead?->plan;
-        $uploadKbps   = $voucher->speed_limit_upload   ?? $fallbackPlan?->speed_limit_upload;
-        $downloadKbps = $voucher->speed_limit_download ?? $fallbackPlan?->speed_limit_download;
-        if ($uploadKbps || $downloadKbps) {
-            \App\Models\RadReply::updateOrCreate(
-                ['username' => $radUsername, 'attribute' => 'Mikrotik-Rate-Limit'],
-                ['op' => ':=', 'value' => ($uploadKbps ?? 0) . 'k/' . ($downloadKbps ?? 0) . 'k']
-            );
-        }
-
-        // Data cap
-        if (! $voucher->is_unlimited) {
-            $refPlan = $voucher->plan ?? $familyHead?->plan;
-            $planLimitMb = null;
-            if ($refPlan && $refPlan->limit_unit !== 'Unlimited' && $refPlan->data_limit) {
-                $planLimitMb = $refPlan->limit_unit === 'GB'
-                    ? (int) ($refPlan->data_limit * 1024)
-                    : (int) $refPlan->data_limit;
-            }
-            $limitMb = $voucher->data_limit_mb ?? $planLimitMb;
-            if ($limitMb) {
-                \App\Models\RadReply::updateOrCreate(
-                    ['username' => $radUsername, 'attribute' => 'Mikrotik-Total-Limit'],
-                    ['op' => ':=', 'value' => (string) ($limitMb * 1048576)]
-                );
-            }
-        } else {
-            \App\Models\RadReply::where('username', $radUsername)->where('attribute', 'Mikrotik-Total-Limit')->delete();
-        }
-
-        // Save device MAC linked to user (not anonymous)
-        if ($this->mac) {
-            Device::updateOrCreate(
-                ['mac' => strtoupper($this->mac)],
-                [
-                    'user_id'      => $user->id,
-                    'router_id'    => $voucher->router_id,
-                    'ip'           => $this->ip ?? request()->ip(),
-                    'user_agent'   => request()->userAgent(),
-                    'first_seen'   => now(),
-                    'last_seen'    => now(),
-                    'is_connected' => true,
-                    'meta'         => ['voucher_code' => $this->voucherCode],
-                ]
-            );
-        }
-
-        // Bridge to MikroTik
-        $bridgeUrl = $this->linkLogin;
-        if (! $bridgeUrl) {
-            $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'login.wifi';
-            $cleanHost = preg_replace('#^https?://#i', '', $gateway);
-            $cleanHost = preg_replace('#/login$#', '', rtrim($cleanHost, '/'));
-            $bridgeUrl = 'http://' . $cleanHost . '/login';
-        }
-
-        session(['bridge_completed' => true]);
-        $this->bridgeToRouter($radUsername, $radPassword, $bridgeUrl, route('voucher.success', ['code' => $this->voucherCode]));
     }
 
     public function render()
