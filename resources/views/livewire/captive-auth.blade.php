@@ -18,6 +18,7 @@
                 <p class="text-sm text-gray-500 mt-1">Your plan has expired or run out of data.</p>
             </div>
             <a href="https://hifastlink.com/dashboard"
+               target="_blank"
                class="block w-full py-3 px-4 bg-primary text-white rounded-xl font-semibold text-sm text-center">
                 Subscribe Now
             </a>
@@ -69,7 +70,7 @@
 
         <p class="text-center text-xs text-gray-400 mt-6">
             Don't have an account?
-            <a href="https://hifastlink.com/dashboard" class="text-primary font-medium">Subscribe here</a>
+            <a href="https://hifastlink.com/dashboard" target="_blank" class="text-primary font-medium">Subscribe here</a>
         </p>
     @endif
 </div>

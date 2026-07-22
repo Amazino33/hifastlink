@@ -44,22 +44,40 @@ class CaptiveAuth extends Component
 
     private function tryMacAutoLogin(): void
     {
-        $device = Device::where('mac', strtoupper($this->mac))
-            ->whereNotNull('user_id')
-            ->with('user')
-            ->first();
+        $device = Device::where('mac', strtoupper($this->mac))->with('user')->first();
 
-        if (! $device || ! $device->user) {
+        if (! $device) return;
+
+        // Regular subscriber — check plan and bridge
+        if ($device->user_id && $device->user) {
+            if ((new SubscriptionService())->canConnectToHotspot($device->user)) {
+                Log::info('CaptiveAuth: MAC auto-login (user)', ['mac' => $this->mac, 'user_id' => $device->user->id]);
+                $this->completeLogin($device->user);
+            }
+            // Plan expired → fall through, show form
             return;
         }
 
-        $user = $device->user;
+        // Voucher device — re-use the stored RADIUS credentials if not expired
+        $meta        = is_array($device->meta) ? $device->meta : [];
+        $voucherCode = $meta['voucher_code'] ?? null;
 
-        if ((new SubscriptionService())->canConnectToHotspot($user)) {
-            Log::info('CaptiveAuth: MAC auto-login', ['mac' => $this->mac, 'user_id' => $user->id]);
-            $this->completeLogin($user);
+        if (! $voucherCode) return;
+
+        $radUsername = 'vch_' . strtolower($voucherCode);
+        $rad         = RadCheck::where('username', $radUsername)->where('attribute', 'Cleartext-Password')->first();
+
+        if (! $rad) return;
+
+        $expiryRow = RadCheck::where('username', $radUsername)->where('attribute', 'Expiration')->first();
+        if ($expiryRow && \Carbon\Carbon::parse($expiryRow->value)->isPast()) {
+            return; // Voucher expired → show form
         }
-        // Plan expired → fall through and show form with no-plan context
+
+        Log::info('CaptiveAuth: MAC auto-login (voucher)', ['mac' => $this->mac, 'voucher' => $voucherCode]);
+        $device->update(['last_seen' => now(), 'is_connected' => true]);
+        session(['bridge_completed' => true]);
+        $this->bridgeToRouter($radUsername, $rad->value, $this->linkLogin, route('captive.connected'));
     }
 
     // ── Single-field connect ─────────────────────────────────────────────────
