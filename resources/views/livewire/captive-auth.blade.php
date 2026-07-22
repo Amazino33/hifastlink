@@ -1,10 +1,26 @@
 <div>
     {{-- Header --}}
-    <div class="text-center mb-8">
+    <div class="text-center mb-6">
         <h2 class="text-3xl font-black text-transparent bg-clip-text bg-primary mb-2">
             Get Connected
         </h2>
-        <p class="text-gray-500 text-sm">Enter your phone number, email, username, or voucher code</p>
+        <p class="text-gray-500 text-sm">Type below to connect instantly.</p>
+    </div>
+
+    {{-- Who are you? --}}
+    <div class="mb-6 grid grid-cols-2 gap-2 text-xs">
+        <div class="bg-gray-50 rounded-xl p-3">
+            <p class="font-semibold text-gray-700 mb-1">
+                <i class="fa-solid fa-user text-primary mr-1"></i> Subscriber
+            </p>
+            <p class="text-gray-500 leading-snug">Enter your phone number, email, or username</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-3">
+            <p class="font-semibold text-gray-700 mb-1">
+                <i class="fa-solid fa-ticket text-primary mr-1"></i> Voucher
+            </p>
+            <p class="text-gray-500 leading-snug">Enter the code on your voucher card (VCH-…)</p>
+        </div>
     </div>
 
     {{-- No plan state --}}

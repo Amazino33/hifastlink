@@ -498,9 +498,18 @@ class User extends Authenticatable implements FilamentUser
         // 1. When a User is CREATED -> upsert RadCheck entries
         static::created(function ($user) {
             if (!empty($user->username)) {
+                // Always guarantee a unique, unpredictable RADIUS password.
+                // If registration didn't supply one, generate it now and persist it
+                // back to the users row (quietly, so this observer doesn't re-fire).
+                if (empty($user->radius_password)) {
+                    $generated = \Illuminate\Support\Str::random(16);
+                    $user->updateQuietly(['radius_password' => $generated]);
+                    $user->radius_password = $generated;
+                }
+
                 \App\Models\RadCheck::updateOrCreate(
                     ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
-                    ['op' => ':=', 'value' => $user->radius_password ?? '123456']
+                    ['op' => ':=', 'value' => $user->radius_password]
                 );
 
                 if ($user->isAdmin()) {

@@ -1,3 +1,3 @@
-<x-guest-layout>
+<x-pharmacy-layout>
     @livewire('pharmacy-voucher', request()->only(['link-login', 'mac', 'ip', 'router']))
-</x-guest-layout>
+</x-pharmacy-layout>

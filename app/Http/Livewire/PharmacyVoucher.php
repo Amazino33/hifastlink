@@ -5,9 +5,6 @@ namespace App\Http\Livewire;
 use App\Models\AppSetting;
 use App\Models\Device;
 use App\Models\RadCheck;
-use App\Models\User;
-use App\Services\WhatsAppService;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -15,14 +12,10 @@ use Livewire\Component;
 
 class PharmacyVoucher extends Component
 {
-    public string $step = 'invoice'; // invoice | phone | otp | success
+    public string $step = 'invoice'; // invoice | success
 
     public string $invoiceNumber = '';
-    public string $phone         = '';
-    public string $otp           = '';
     public string $error         = '';
-    public string $success       = '';
-    public int    $resendCountdown = 0;
 
     public ?string $expiresAt     = null;
     public ?string $validityHours = null;
@@ -50,6 +43,11 @@ class PharmacyVoucher extends Component
     {
         $this->validate(['invoiceNumber' => 'required|string|max:100']);
 
+        // Receipts are uppercase; normalise so casing/spacing off the printed
+        // receipt does not cause a false rejection, and so the same string is
+        // used consistently as the RADIUS identity.
+        $invoice = strtoupper(preg_replace('/\s+/', '', trim($this->invoiceNumber)));
+
         $apiUrl = AppSetting::get('basmelcare_api_url', '');
         $apiKey = AppSetting::get('basmelcare_api_key', '');
 
@@ -61,185 +59,55 @@ class PharmacyVoucher extends Component
         try {
             $response = Http::timeout(10)
                 ->withHeaders(['X-API-Key' => $apiKey])
-                ->post($apiUrl, ['invoice_number' => trim($this->invoiceNumber)]);
+                ->post($apiUrl, ['invoice_number' => $invoice]);
 
             if (! $response->successful() || ! $response->json('valid')) {
                 $this->error = $response->json('message', 'Invalid or already used receipt number.');
                 return;
             }
 
+            $this->invoiceNumber = $invoice;
             $this->expiresAt     = $response->json('expires_at');
             $this->validityHours = $response->json('validity_hours', 24);
-            $this->step  = 'phone';
-            $this->error = '';
+            $this->error         = '';
+
+            // No OTP — the receipt itself is the access token. Connect straight away.
+            $this->activate();
         } catch (\Throwable $e) {
             Log::error('[PharmacyVoucher] API call failed: ' . $e->getMessage());
             $this->error = 'Could not reach BasmelCare. Please try again.';
         }
     }
 
-    // ── Step: phone ──────────────────────────────────────────────
-
-    public function sendOtp(): void
-    {
-        $this->validate(['phone' => 'required|string|max:20']);
-
-        $digits = preg_replace('/[\s\-\(\)]/', '', $this->phone);
-
-        if (empty($digits) || ! preg_match('/^\+?[\d]{7,15}$/', $digits)) {
-            $this->error = 'Please enter a valid phone number.';
-            return;
-        }
-
-        try {
-            $normalized = User::normalizePhone($digits);
-
-            $wa = new WhatsAppService();
-
-            if (! $wa->checkOtpRateLimit($normalized)) {
-                $this->error = 'Too many attempts. Please wait a few minutes.';
-                return;
-            }
-
-            $code = $wa->sendOtp($normalized);
-
-            if (! $code) {
-                $this->error = 'Could not send OTP. Please try again.';
-                return;
-            }
-
-            $this->phone          = $normalized;
-            $this->step           = 'otp';
-            $this->error          = '';
-            $this->success        = 'A verification code has been sent to your WhatsApp.';
-            $this->resendCountdown = 60;
-        } catch (\Throwable $e) {
-            Log::error('[PharmacyVoucher] sendOtp failed: ' . $e->getMessage());
-            $this->error = 'Something went wrong. Please try again.';
-        }
-    }
-
-    public function resendOtp(): void
-    {
-        try {
-            $wa = new WhatsAppService();
-
-            if (! $wa->checkOtpRateLimit($this->phone)) {
-                $this->error = 'Too many attempts. Please wait a few minutes.';
-                return;
-            }
-
-            $code = $wa->sendOtp($this->phone);
-
-            if (! $code) {
-                $this->error = 'Could not resend. Please try again.';
-                return;
-            }
-
-            $this->success        = 'A new code has been sent.';
-            $this->error          = '';
-            $this->resendCountdown = 60;
-        } catch (\Throwable $e) {
-            Log::error('[PharmacyVoucher] resendOtp failed: ' . $e->getMessage());
-            $this->error = 'Something went wrong.';
-        }
-    }
-
-    // ── Step: otp ────────────────────────────────────────────────
-
-    public function verifyOtp(): void
-    {
-        $code = trim($this->otp);
-
-        if (strlen($code) !== 6 || ! ctype_digit($code)) {
-            $this->error = 'Please enter a valid 6-digit code.';
-            return;
-        }
-
-        $wa = new WhatsAppService();
-
-        if (! $wa->verifyOtp($this->phone, $code)) {
-            $this->error = 'Invalid or expired code. Please try again.';
-            return;
-        }
-
-        $last10 = substr(preg_replace('/\D/', '', $this->phone), -10);
-
-        $user = User::where('phone', $this->phone)->first();
-
-        if (! $user) {
-            $candidate = User::where('phone', 'like', '%' . $last10)->first();
-            if ($candidate) {
-                try {
-                    $candidate->phone = $this->phone;
-                    $candidate->saveQuietly();
-                    $user = $candidate;
-                } catch (\Illuminate\Database\QueryException) {
-                    $user = User::where('phone', $this->phone)->first();
-                }
-            }
-        }
-
-        if (! $user) {
-            $username = 'user_' . $last10;
-            $base     = $username;
-            $counter  = 1;
-            while (User::where('username', $username)->exists()) {
-                $username = $base . $counter++;
-            }
-
-            try {
-                $user = User::create([
-                    'name'              => null,
-                    'username'          => $username,
-                    'email'             => null,
-                    'phone'             => $this->phone,
-                    'password'          => null,
-                    'radius_password'   => Str::random(12),
-                    'phone_verified_at' => now(),
-                    'connection_status' => 'active',
-                ]);
-            } catch (\Illuminate\Database\UniqueConstraintViolationException) {
-                $user = User::where('username', $username)->first()
-                    ?? User::where('phone', 'like', '%' . $last10)->first();
-
-                if (! $user) {
-                    $this->error = 'Something went wrong. Please try again.';
-                    return;
-                }
-            }
-        } elseif (! $user->phone_verified_at) {
-            $user->update(['phone_verified_at' => now()]);
-        }
-
-        Auth::login($user, remember: true);
-        if (request()->hasSession()) {
-            request()->session()->regenerate();
-        }
-
-        $this->activateForUser($user);
-    }
-
     // ── Activate internet access ─────────────────────────────────
 
-    private function activateForUser(User $user): void
+    private function activate(): void
     {
-        $radUsername = $user->username;
-        $radPassword = $user->radius_password;
+        // The invoice number is the RADIUS username (anonymous — no user account
+        // is created for walk-in pharmacy customers). Revocation later targets
+        // exactly this username.
+        $radUsername = $this->invoiceNumber;
 
-        // Ensure RADIUS credentials exist
+        // Reuse the existing password on reconnect so the same receipt keeps a
+        // stable credential across the 24h window.
+        $existing = RadCheck::where('username', $radUsername)
+            ->where('attribute', 'Cleartext-Password')
+            ->first();
+        $radPassword = $existing?->value ?? Str::random(12);
+
         RadCheck::updateOrCreate(
             ['username' => $radUsername, 'attribute' => 'Cleartext-Password'],
             ['op' => ':=', 'value' => $radPassword]
         );
 
-        // One active session at a time
+        // One active session at a time for a single receipt.
         RadCheck::updateOrCreate(
             ['username' => $radUsername, 'attribute' => 'Simultaneous-Use'],
             ['op' => ':=', 'value' => '1']
         );
 
-        // Expiration — use the timestamp from BasmelCare
+        // Expiration comes from BasmelCare (measured from first redemption, so it
+        // is not extended by reconnecting).
         if ($this->expiresAt) {
             $expiry = \Carbon\Carbon::parse($this->expiresAt);
             RadCheck::updateOrCreate(
@@ -248,23 +116,23 @@ class PharmacyVoucher extends Component
             );
         }
 
-        // Track device if on captive portal
+        // Track the device (no user_id — this is an anonymous pharmacy session).
         if ($this->mac) {
             Device::updateOrCreate(
                 ['mac' => strtoupper($this->mac)],
                 [
-                    'user_id'      => $user->id,
+                    'user_id'      => null,
                     'ip'           => $this->ip ?? request()->ip(),
                     'user_agent'   => request()->userAgent(),
                     'first_seen'   => now(),
                     'last_seen'    => now(),
                     'is_connected' => true,
-                    'meta'         => ['pharmacy_invoice' => $this->invoiceNumber],
+                    'meta'         => ['pharmacy_invoice' => $radUsername],
                 ]
             );
         }
 
-        // Bridge to MikroTik if on captive portal
+        // Bridge to MikroTik if we arrived via the captive portal.
         if ($this->linkLogin) {
             session([
                 'bridge_username'   => $radUsername,
@@ -281,18 +149,16 @@ class PharmacyVoucher extends Component
             return;
         }
 
-        // Direct access (not on captive portal) — show success
-        $this->step    = 'success';
-        $this->error   = '';
-        $this->success = '';
+        // Direct access (not on captive portal) — show success.
+        $this->step  = 'success';
+        $this->error = '';
     }
 
     public function goBack(): void
     {
-        $this->step    = $this->step === 'otp' ? 'phone' : 'invoice';
-        $this->otp     = '';
-        $this->error   = '';
-        $this->success = '';
+        $this->step          = 'invoice';
+        $this->invoiceNumber = '';
+        $this->error         = '';
     }
 
     public function render()

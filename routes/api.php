@@ -20,3 +20,7 @@ use App\Http\Controllers\RouterHeartbeatController;
 Route::get('/routers/heartbeat', [RouterHeartbeatController::class, 'heartbeat']);
 
 Route::get('/routers/speed', [RouterSpeedController::class, 'report']);
+
+// BasmelCare pharmacy integration — revoke a receipt's Wi-Fi access
+use App\Http\Controllers\Api\PharmacyController;
+Route::post('/pharmacy/revoke', [PharmacyController::class, 'revoke']);

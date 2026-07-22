@@ -25,14 +25,14 @@ class CaptiveAuth extends Component
 
     public function mount(): void
     {
-        $this->linkLogin = request()->get('link-login')
-            ?? request()->get('link-login-only')
-            ?? request()->get('link_login')
-            ?? request()->get('link-orig');
+        $this->linkLogin = request()->query('link-login')
+            ?? request()->query('link-login-only')
+            ?? request()->query('link_login')
+            ?? request()->query('link-orig');
 
-        $this->mac    = request()->get('mac');
-        $this->ip     = request()->get('ip');
-        $this->router = request()->get('router');
+        $this->mac    = request()->query('mac');
+        $this->ip     = request()->query('ip');
+        $this->router = request()->query('router');
 
         // Known device — try silent auto-login before showing the form
         if ($this->mac && $this->linkLogin) {
@@ -248,6 +248,7 @@ class CaptiveAuth extends Component
         $radPassword = $rad?->value ?? $user->radius_password;
 
         if (! $radPassword) {
+            Log::warning('CaptiveAuth: no RADIUS password for ' . $user->username . ' — RadCheck may be corrupted or missing');
             $this->error = 'Account not set up for hotspot access. Please contact support.';
             return;
         }
