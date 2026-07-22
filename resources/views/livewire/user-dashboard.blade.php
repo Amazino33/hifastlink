@@ -210,6 +210,19 @@
         </div>
         @endif
 
+        {{-- PWA install nudge — links to /connect-app where the actual install + one-tap connect lives --}}
+        <a href="{{ route('captive.app') }}"
+           class="flex items-center gap-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl shadow-sm p-4 mb-6 group">
+            <div class="flex-shrink-0 w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <i class="fa-solid fa-mobile-screen-button text-white text-lg"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-white font-bold text-sm">One-tap WiFi connection</p>
+                <p class="text-blue-100 text-xs">Install the HiFastLink app for easy connection — no typing required.</p>
+            </div>
+            <i class="fa-solid fa-chevron-right text-white/70 group-hover:text-white transition-colors flex-shrink-0"></i>
+        </a>
+
         {{-- Livewire toast fallback element --}}
         @if (session('toast_message'))
             <div id="livewire-toast" data-toast="{{ session('toast_message') }}" style="display:none"></div>

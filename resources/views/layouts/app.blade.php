@@ -12,6 +12,12 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
+    <meta name="theme-color" content="#007AFE">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="HiFastLink">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/images/pwa-icon.svg">
+
     <!-- Scripts -->
     @filamentStyles
     @vite(['resources/css/app.css', 'resources/js/app.js'])

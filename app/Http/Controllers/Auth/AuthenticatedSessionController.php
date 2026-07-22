@@ -231,8 +231,13 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('dashboard');
         }
 
-        // ── Layer 3: Unknown — show captive auth (phone + OTP flow) ──────
-        return view('auth.captive-portal');
+        // ── Layer 3: Unknown — show appropriate form based on context ───
+        // MikroTik always passes link-login; regular browser visits get the standard login page.
+        if ($linkLogin) {
+            return view('auth.captive-portal');
+        }
+
+        return view('auth.login');
     }
 
     public function store(LoginRequest $request): RedirectResponse|Response
