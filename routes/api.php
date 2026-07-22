@@ -24,3 +24,6 @@ Route::get('/routers/speed', [RouterSpeedController::class, 'report']);
 // BasmelCare pharmacy integration — revoke a receipt's Wi-Fi access
 use App\Http\Controllers\Api\PharmacyController;
 Route::post('/pharmacy/revoke', [PharmacyController::class, 'revoke']);
+
+// PWA connectivity probe — accessible via walled garden before hotspot auth
+Route::get('/ping', fn () => response()->json(['ok' => true]));

@@ -40,6 +40,9 @@ Route::get('/pharmacy-voucher', fn () => view('pharmacy-voucher'))->name('pharma
 // Simple connected page — public, no auth, used as MikroTik dst after login
 Route::get('/connected', fn () => view('hotspot.connected'))->name('captive.connected');
 
+// PWA connect app — installable, handles auto-connect on hotspot
+Route::get('/connect-app', fn () => view('connect-app'))->name('captive.app');
+
 // Captive portal bridge — full page redirect so JS + meta refresh work in captive mini-browsers
 Route::get('/captive-bridge', function () {
     $username  = session()->pull('bridge_username');

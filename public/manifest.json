@@ -1,0 +1,19 @@
+{
+    "name": "HiFastLink",
+    "short_name": "HiFastLink",
+    "description": "Connect to HiFastLink WiFi with one tap",
+    "start_url": "/connect-app",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#007AFE",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/images/pwa-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}
