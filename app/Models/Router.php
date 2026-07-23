@@ -31,6 +31,11 @@ class Router extends Model
         'wifi_ssid',
         'wifi_password',
         'owner_id',
+        'brand_name',
+        'brand_logo',
+        'brand_favicon',
+        'brand_color',
+        'brand_tagline',
     ];
 
     protected $casts = [

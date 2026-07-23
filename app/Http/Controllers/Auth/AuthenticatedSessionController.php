@@ -27,7 +27,14 @@ class AuthenticatedSessionController extends Controller
         // Check if we should skip auto-login due to recent voucher failure
         if (session()->get('skip_auto_login')) {
             session()->forget('skip_auto_login');
-            return view('auth.captive-portal');
+            $brand = null;
+            $routerNas = request()->get('router');
+            if ($routerNas) {
+                $brand = \App\Models\Router::where('nas_identifier', $routerNas)
+                    ->whereNotNull('brand_name')
+                    ->first();
+            }
+            return view('auth.captive-portal', compact('brand'));
         }
 
         // ── Layer 1: Regular user MAC auto-reconnect ──────────────────────
@@ -234,7 +241,15 @@ class AuthenticatedSessionController extends Controller
         // ── Layer 3: Unknown — show appropriate form based on context ───
         // MikroTik always passes link-login; regular browser visits get the standard login page.
         if ($linkLogin) {
-            return view('auth.captive-portal');
+            $brand = null;
+            $routerNas = request()->get('router');
+            if ($routerNas) {
+                $brand = \App\Models\Router::where('nas_identifier', $routerNas)
+                    ->whereNotNull('brand_name')
+                    ->first();
+            }
+
+            return view('auth.captive-portal', compact('brand'));
         }
 
         return view('auth.login');

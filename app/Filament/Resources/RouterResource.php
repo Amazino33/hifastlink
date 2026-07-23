@@ -19,6 +19,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\ColorPicker;
 use Filament\Schemas\Components\Section as ComponentsSection;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -154,6 +156,45 @@ class RouterResource extends Resource
                             ->placeholder('No owner — HiFastLink managed')
                             ->helperText('The person who rented/bought this router. They see subscriber analytics on their dashboard.'),
                     ]),
+
+                ComponentsSection::make('Custom Branding')
+                    ->description('When set, devices connecting through this router will see a branded captive portal instead of the default HiFastLink page.')
+                    ->schema([
+                        TextInput::make('brand_name')
+                            ->label('Brand Name')
+                            ->placeholder('e.g., BasmelCare')
+                            ->maxLength(100)
+                            ->helperText('Shown as the page title and heading on the captive portal.'),
+
+                        TextInput::make('brand_tagline')
+                            ->label('Tagline')
+                            ->placeholder('e.g., Your Health, Our Priority')
+                            ->maxLength(150)
+                            ->helperText('Short line shown below the brand name.'),
+
+                        ColorPicker::make('brand_color')
+                            ->label('Primary Color')
+                            ->helperText('Used for buttons and accents. Leave blank to use HiFastLink blue.'),
+
+                        FileUpload::make('brand_logo')
+                            ->label('Logo')
+                            ->image()
+                            ->disk('public')
+                            ->directory('brands/logos')
+                            ->imagePreviewHeight('80')
+                            ->helperText('Replaces the HiFastLink logo on the captive portal. Recommended: 200×60 px PNG or SVG.'),
+
+                        FileUpload::make('brand_favicon')
+                            ->label('Favicon')
+                            ->image()
+                            ->disk('public')
+                            ->directory('brands/favicons')
+                            ->imagePreviewHeight('48')
+                            ->helperText('Shows in the browser tab. Recommended: 64×64 px PNG or ICO.'),
+                    ])
+                    ->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
 
                 Toggle::make('is_active')
                     ->label('Active')
