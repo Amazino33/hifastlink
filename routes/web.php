@@ -195,7 +195,7 @@ Route::middleware('auth')->group(function () {
 
 // TEMP: diagnose + fix admin radusergroup — REMOVE AFTER USE
 Route::get('/tmp-fix-admin-group', function () {
-    $admins = \App\Models\User::where('role', 'admin')->orWhere('role', 'super_admin')->get(['id', 'username', 'role', 'plan_id']);
+    $admins = \App\Models\User::role(['super_admin', 'admin'])->get(['id', 'username', 'plan_id']);
 
     $results = [];
     foreach ($admins as $admin) {
@@ -209,7 +209,6 @@ Route::get('/tmp-fix-admin-group', function () {
         $deleted = DB::table('radusergroup')->where('username', $admin->username)->delete();
 
         $results[$admin->username] = [
-            'role'         => $admin->role,
             'plan_id'      => $admin->plan_id,
             'group_was'    => $groupRow?->groupname,
             'group_replies'=> $groupReplies,
