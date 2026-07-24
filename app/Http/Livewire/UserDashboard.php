@@ -14,7 +14,6 @@ use App\Models\RadAcct;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\Voucher;
-use Filament\Notifications\Notification;
 use App\Services\PlanFilterService;
 use App\Models\Device;
 use Illuminate\Support\Facades\Cookie;
@@ -98,12 +97,7 @@ class UserDashboard extends Component
         $plan = Plan::find($planId);
 
         if (! $plan) {
-            Notification::make()
-                ->title('Plan not found')
-                ->body('The plan you selected could not be found.')
-                ->danger()
-                ->send();
-
+            $this->dispatch('plan-activated', message: 'Plan not found. Please try again.');
             return;
         }
 
@@ -118,12 +112,7 @@ class UserDashboard extends Component
                 $user->plan_expiry = null;
                 $user->save(); // triggers observer -> PlanSyncService
             } else {
-                Notification::make()
-                    ->title('Subscription Active')
-                    ->body('You already have an active plan. Please wait for it to expire.')
-                    ->warning()
-                    ->send();
-
+                $this->dispatch('plan-activated', message: 'You already have an active plan. Please wait for it to expire.');
                 return;
             }
         }
@@ -156,11 +145,7 @@ class UserDashboard extends Component
         $user->family_limit = $plan->family_limit ?? 0;
         $user->save(); // triggers observer -> RADIUS sync
 
-        Notification::make()
-            ->title('Plan Activated!')
-            ->body("You have successfully subscribed to {$plan->name}.")
-            ->success()
-            ->send();
+        $this->dispatch('plan-activated', message: "You have successfully subscribed to {$plan->name}.");
 
         // Flash a session message as a fallback for environments where dispatchBrowserEvent() is unavailable
         session()->flash('toast_message', "You have successfully subscribed to {$plan->name}.");
@@ -990,7 +975,7 @@ class UserDashboard extends Component
             return null;
         }
         if ($claimResult === 'already_redeemed') {
-            Notification::make()->title('Already Redeemed')->body('You have already redeemed this voucher.')->warning()->send();
+            $this->addError('voucherCode', 'You have already redeemed this voucher.');
             return null;
         }
         if ($claimResult !== true) {
@@ -1049,11 +1034,11 @@ class UserDashboard extends Component
 
             $router = $user->router_id ? \App\Models\Router::find($user->router_id) : null;
             if ($router) {
-                Notification::make()->title('Voucher Activated!')->body($msg)->success()->send();
+                $this->dispatch('plan-activated', message: $msg);
                 return redirect()->route('connect.bridge', ['router' => $router->nas_identifier]);
             }
 
-            Notification::make()->title('Voucher Activated!')->body($msg)->success()->send();
+            $this->dispatch('plan-activated', message: $msg);
             return null;
         }
 
@@ -1068,7 +1053,7 @@ class UserDashboard extends Component
                 'plan_id' => $newPlan->id,
             ]);
             $this->recordVoucherTransaction($user, $newPlan, $voucher);
-            Notification::make()->title('Plan Queued')->body("{$newPlan->name} will activate automatically when your current plan runs out.")->success()->send();
+            $this->dispatch('plan-activated', message: "{$newPlan->name} queued — activates when your current plan runs out.");
             return null;
         }
 
@@ -1110,11 +1095,11 @@ class UserDashboard extends Component
         // If the user has a known router, redirect to connect.bridge so they get online immediately
         $router = $user->router_id ? \App\Models\Router::find($user->router_id) : null;
         if ($router) {
-            Notification::make()->title('Plan Activated!')->body($msg)->success()->send();
+            $this->dispatch('plan-activated', message: $msg);
             return redirect()->route('connect.bridge', ['router' => $router->nas_identifier]);
         }
 
-        Notification::make()->title('Plan Activated!')->body($msg)->success()->send();
+        $this->dispatch('plan-activated', message: $msg);
         return null;
     }
 
@@ -1142,7 +1127,7 @@ class UserDashboard extends Component
         $user = Auth::user();
         $device = Device::where('id', $deviceId)->where('user_id', $user->id)->first();
         if (! $device) {
-            Notification::make()->title('Device not found')->danger()->send();
+            $this->dispatch('plan-activated', message: 'Device not found.');
             return;
         }
 
@@ -1160,10 +1145,10 @@ class UserDashboard extends Component
 
             session(['current_device_mac' => $device->mac]);
 
-            Notification::make()->title('Device remembered')->success()->send();
+            $this->dispatch('plan-activated', message: 'Device remembered — you\'ll be auto-connected next time.');
         } catch (\Exception $e) {
             Log::error('Failed to claim device: ' . $e->getMessage());
-            Notification::make()->title('Error')->danger()->send();
+            $this->dispatch('plan-activated', message: 'Something went wrong. Please try again.');
         }
     }
 
@@ -1181,7 +1166,7 @@ class UserDashboard extends Component
         Cookie::queue(Cookie::forget('fastlink_device_token'));
         if (session('current_device_mac') === $device->mac) session()->forget('current_device_mac');
 
-        Notification::make()->title('Device forgotten')->success()->send();
+        $this->dispatch('plan-activated', message: 'Device forgotten.');
     }
 
     public function disconnectDevice(int $deviceId): void
@@ -1190,7 +1175,7 @@ class UserDashboard extends Component
         $device = Device::where('id', $deviceId)->where('user_id', $user->id)->first();
 
         if (! $device) {
-            Notification::make()->title('Device not found')->danger()->send();
+            $this->dispatch('plan-activated', message: 'Device not found.');
             return;
         }
 
@@ -1221,7 +1206,7 @@ class UserDashboard extends Component
             Cookie::queue(Cookie::forget('fastlink_device_token'));
         }
 
-        Notification::make()->title('Device disconnected')->success()->send();
+        $this->dispatch('plan-activated', message: 'Device disconnected.');
     }
 
     /**
