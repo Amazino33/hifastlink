@@ -21,6 +21,23 @@ class PlanSyncService
             return; // nothing to do without username
         }
 
+        // Admins always get unrestricted RADIUS access regardless of plan assignment.
+        // A plan on the admin account is cosmetic only — never apply its speed or data caps.
+        if ($user->isAdmin()) {
+            DB::transaction(function () use ($user) {
+                RadCheck::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
+                    ['op' => ':=', 'value' => $user->radius_password ?? $user->username]
+                );
+                RadCheck::where('username', $user->username)
+                    ->whereIn('attribute', ['Simultaneous-Use', 'Mikrotik-Total-Limit', 'Max-Octets', 'Expiration'])
+                    ->delete();
+                RadReply::where('username', $user->username)->delete();
+                $user->saveQuietly();
+            });
+            return;
+        }
+
         DB::transaction(function () use ($user) {
             // RadReply is fully rebuilt — safe to clear
             RadReply::where('username', $user->username)->delete();
@@ -28,26 +45,6 @@ class PlanSyncService
             $plan = $user->plan;
 
             if (! $plan) {
-                if ($user->isAdmin()) {
-                    // Admin with no plan: give unlimited RADIUS access, no data cap
-                    RadCheck::updateOrCreate(
-                        ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
-                        ['op' => ':=', 'value' => $user->radius_password ?? $user->username]
-                    );
-                    // Remove Simultaneous-Use so RADIUS imposes no session/device limit for admins
-                    RadCheck::where('username', $user->username)
-                        ->where('attribute', 'Simultaneous-Use')
-                        ->delete();
-                    // Remove any stale data-cap or expiry attributes from both radcheck AND radreply
-                    RadCheck::where('username', $user->username)
-                        ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets', 'Expiration'])
-                        ->delete();
-                    RadReply::where('username', $user->username)
-                        ->whereIn('attribute', ['Mikrotik-Total-Limit', 'Max-Octets'])
-                        ->delete();
-                    $user->saveQuietly();
-                    return;
-                }
 
                 if ($user->isFreePass()) {
                     // Staff / free-pass with no plan: give RADIUS access, 2 devices, no data cap
