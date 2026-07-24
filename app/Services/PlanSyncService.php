@@ -203,6 +203,24 @@ class PlanSyncService
                 ]);
             }
 
+            // Unlimited-data plans have no Mikrotik-Total-Limit to end the session,
+            // so write Session-Timeout instead. Without it, a long keepalive-timeout
+            // keeps the session alive past plan expiry — Expiration only blocks new
+            // logins, not already-running sessions.
+            if (!$plan->data_limit && !empty($plan->validity_days) && $plan->validity_days > 0) {
+                $planExpiry = $user->plan_expiry
+                    ?? Carbon::now()->addDays($plan->validity_days);
+                $secondsRemaining = (int) now()->diffInSeconds(Carbon::parse($planExpiry), false);
+                if ($secondsRemaining > 0) {
+                    RadReply::create([
+                        'username'  => $user->username,
+                        'attribute' => 'Session-Timeout',
+                        'op'        => ':=',
+                        'value'     => (string) $secondsRemaining,
+                    ]);
+                }
+            }
+
             // Update plan expiry
             if (! empty($plan->validity_days) && $plan->validity_days > 0) {
                 $user->plan_expiry = Carbon::now()->addDays($plan->validity_days);
