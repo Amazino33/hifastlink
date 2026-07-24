@@ -457,7 +457,7 @@ class RouterController extends Controller
 
 # Enable RADIUS logging to memory for debugging
 :do { /system/logging remove [find topics~"radius"] } on-error={}
-/system/logging add topics=radius action=memory comment="HiFastLink RADIUS Debug"
+/system/logging add topics=radius action=memory
 
 # Safely wipe ALL schedulers and scripts without crashing if they are currently executing
 :do { /system/scheduler remove [find] } on-error={}
