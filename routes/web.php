@@ -193,6 +193,25 @@ Route::middleware('auth')->group(function () {
     });
 });
 
+// TEMP: re-sync all admin RADIUS entries (clears stale radreply) — REMOVE AFTER USE
+Route::get('/tmp-sync-admins', function () {
+    $admins = \App\Models\User::where('email', 'amazino33@gmail.com')
+        ->orWhereHas('roles', fn ($q) => $q->where('name', 'super_admin'))
+        ->get();
+
+    $results = [];
+    foreach ($admins as $admin) {
+        if (! $admin->username) continue;
+        \App\Services\PlanSyncService::syncUserPlan($admin);
+        $results[$admin->username] = [
+            'radreply_after' => DB::table('radreply')->where('username', $admin->username)->get(),
+            'radusergroup_after' => DB::table('radusergroup')->where('username', $admin->username)->get(),
+        ];
+    }
+
+    return response()->json($results);
+});
+
 // TEMP: diagnose + fix admin radusergroup — REMOVE AFTER USE
 Route::get('/tmp-fix-admin-group', function () {
     $admins = \App\Models\User::where('email', 'amazino33@gmail.com')
