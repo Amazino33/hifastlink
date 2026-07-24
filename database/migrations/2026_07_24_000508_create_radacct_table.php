@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('radacct')) {
+            return;
+        }
+        
         Schema::create('radacct', function (Blueprint $table) {
             $table->bigIncrements('radacctid');
             $table->string('acctsessionid', 64)->default('');
