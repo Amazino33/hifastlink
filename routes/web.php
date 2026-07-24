@@ -10,6 +10,7 @@ use App\Http\Controllers\StatsController;
 use App\Http\Controllers\VoucherController;
 use App\Models\RadCheck;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 // ============================================================
@@ -190,6 +191,34 @@ Route::middleware('auth')->group(function () {
             'active_session' => $session ? true : false,
         ]);
     });
+});
+
+// TEMP: diagnose + fix admin radusergroup — REMOVE AFTER USE
+Route::get('/tmp-fix-admin-group', function () {
+    $admins = \App\Models\User::where('role', 'admin')->orWhere('role', 'super_admin')->get(['id', 'username', 'role', 'plan_id']);
+
+    $results = [];
+    foreach ($admins as $admin) {
+        if (! $admin->username) continue;
+
+        $groupRow = DB::table('radusergroup')->where('username', $admin->username)->first();
+        $groupReplies = $groupRow
+            ? DB::table('radgroupreply')->where('groupname', $groupRow->groupname)->get()
+            : collect();
+
+        $deleted = DB::table('radusergroup')->where('username', $admin->username)->delete();
+
+        $results[$admin->username] = [
+            'role'         => $admin->role,
+            'plan_id'      => $admin->plan_id,
+            'group_was'    => $groupRow?->groupname,
+            'group_replies'=> $groupReplies,
+            'rows_deleted' => $deleted,
+            'radreply_now' => DB::table('radreply')->where('username', $admin->username)->get(),
+        ];
+    }
+
+    return response()->json($results);
 });
 
 // ============================================================

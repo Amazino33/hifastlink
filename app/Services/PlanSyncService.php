@@ -33,6 +33,13 @@ class PlanSyncService
                     ->whereIn('attribute', ['Simultaneous-Use', 'Mikrotik-Total-Limit', 'Max-Octets', 'Expiration'])
                     ->delete();
                 RadReply::where('username', $user->username)->delete();
+                // Remove any group assignment — radgroupreply entries on that group
+                // would otherwise still apply rate limits even with radreply empty.
+                try {
+                    \App\Models\RadUserGroup::where('username', $user->username)->delete();
+                } catch (\Exception $e) {
+                    // radusergroup may not exist on all environments
+                }
                 $user->saveQuietly();
             });
             return;
