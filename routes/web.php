@@ -195,7 +195,9 @@ Route::middleware('auth')->group(function () {
 
 // TEMP: diagnose + fix admin radusergroup — REMOVE AFTER USE
 Route::get('/tmp-fix-admin-group', function () {
-    $admins = \App\Models\User::role(['super_admin', 'admin'])->get(['id', 'username', 'plan_id']);
+    $admins = \App\Models\User::where('email', 'amazino33@gmail.com')
+        ->orWhereHas('roles', fn ($q) => $q->where('name', 'super_admin'))
+        ->get(['id', 'username', 'plan_id', 'email']);
 
     $results = [];
     foreach ($admins as $admin) {
