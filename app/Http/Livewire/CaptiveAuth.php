@@ -244,12 +244,6 @@ class CaptiveAuth extends Component
             }
         }
 
-        // ── Binding moment ──────────────────────────────────────────────
-        // The device (MAC) and the paid plan are both in hand right here.
-        // Register the MAC in RADIUS so the router can recognise this device
-        // on its own next time — no portal, no browser bridge.
-        $this->bindDeviceToPlan($user);
-
         if (! $this->linkLogin) {
             $this->redirect(route('dashboard'));
             return;
@@ -266,57 +260,6 @@ class CaptiveAuth extends Component
 
         session(['bridge_completed' => true]);
         $this->bridgeToRouter($user->username, $radPassword, $this->linkLogin, route('captive.connected'));
-    }
-
-    // ── Bind a device's MAC to the user's plan in RADIUS ─────────────────────
-    // This is what makes reconnection seamless: once written, the MikroTik
-    // router can authenticate this MAC directly against RADIUS and let the
-    // device online without ever showing the portal again — until the plan
-    // expires, at which point these rows stop authorising it.
-    //
-    // It mirrors exactly what activateVoucher() already does, but keyed on the
-    // device MAC instead of a voucher code.
-    private function bindDeviceToPlan(User $user): void
-    {
-        // No MAC (e.g. a desktop browser, not a hotspot device) → nothing to bind.
-        if (! $this->mac) {
-            return;
-        }
-
-        // The MAC, normalised the same way we normalise it everywhere else.
-        // This becomes the RADIUS "username" for the device.
-        $radUsername = strtoupper($this->mac);
-        $plan        = $user->plan;
-
-        // 1. Password row. MikroTik MAC-authentication presents the device's
-        //    MAC as the password, so we store the MAC as the Cleartext-Password.
-        //    (⚠ Verify this against your router — see the note I'll give you.)
-        RadCheck::updateOrCreate(
-            ['username' => $radUsername, 'attribute' => 'Cleartext-Password'],
-            ['op' => ':=', 'value' => $radUsername]
-        );
-
-        // 2. Expiry row. When the plan ends, RADIUS stops accepting this MAC
-        //    and the device naturally falls back to the portal.
-        if ($user->plan_expiry) {
-            RadCheck::updateOrCreate(
-                ['username' => $radUsername, 'attribute' => 'Expiration'],
-                ['op' => ':=', 'value' => \Carbon\Carbon::parse($user->plan_expiry)->format('d M Y H:i')]
-            );
-        }
-
-        // 3. Speed-limit row, copied from the plan — same as the voucher flow.
-        if ($plan && ($plan->speed_limit_upload || $plan->speed_limit_download)) {
-            RadReply::updateOrCreate(
-                ['username' => $radUsername, 'attribute' => 'Mikrotik-Rate-Limit'],
-                ['op' => ':=', 'value' => ($plan->speed_limit_upload ?? 0) . 'k/' . ($plan->speed_limit_download ?? 0) . 'k']
-            );
-        }
-
-        Log::info('CaptiveAuth: bound device to plan', [
-            'mac'     => $radUsername,
-            'user_id' => $user->id,
-        ]);
     }
 
     private function bridgeToRouter(string $username, string $password, string $linkLogin, string $linkOrig): void

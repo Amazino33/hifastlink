@@ -11,7 +11,6 @@ use App\Models\Voucher;
 use Illuminate\Support\Facades\Log;
 use App\Services\RadiusService;
 use Illuminate\Support\Facades\Artisan;
-use App\Models\Device;
 
 class SubscriptionService
 {
@@ -60,7 +59,6 @@ class SubscriptionService
 
             // Revoke all vouchers created by this user so beneficiaries lose access
             $this->revokeUserVouchers($user);
-            $this->revokeDeviceBindings($user);
 
             // Immediately disconnect active RADIUS sessions for this user
             try {
@@ -115,7 +113,6 @@ class SubscriptionService
 
             // Revoke all vouchers created by this user so beneficiaries lose access
             $this->revokeUserVouchers($user);
-            $this->revokeDeviceBindings($user);
 
             Log::info("Expired exhausted subscription for {$user->username} - rollover cleared");
         } catch (\Exception $e) {
@@ -139,31 +136,6 @@ class SubscriptionService
 
         if ($vouchers->isNotEmpty()) {
             Log::info("Revoked {$vouchers->count()} voucher(s) for {$user->username} on subscription expiry");
-        }
-    }
-
-    /**
-     * Remove the MAC-based RADIUS bindings for all of this user's devices.
-     * These are the rows CaptiveAuth::bindDeviceToPlan() wront so the router
-     * could recognise a returning device on its own. Once the plan is gone,
-     * the devie must fall back to the portal - so we delete them here.
-     */
-    private function revokeDeviceBindings(User $user): void 
-    {
-        $devices = Device::where('user_id', $user->id)->get();
-        
-        foreach ($devices as $device) {
-            // Same key we bound with in Step 1: the upercased MAC.
-            $radUsername = strtoupper($device->mac);
-
-            RadCheck::where('username', $radUsername)->delete();
-            RadReply::where('username', $radUsername)->delete();
-        }
-
-        if ($devices->isNotEmpty()) {
-            Log::info("Revoked MAC bindings for {$user->username}", [
-                'device_count' => $devices->count(),
-            ]);
         }
     }
 
