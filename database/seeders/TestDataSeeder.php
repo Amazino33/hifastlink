@@ -99,6 +99,23 @@ class TestDataSeeder extends Seeder
                 'is_active'      => false,
                 'description'    => 'Decommissioned router',
             ],
+            // Branded router — simulates BasmelCare pharmacy integration
+            [
+                'name'           => 'BasmelCare Pharmacy Router',
+                'location'       => 'BasmelCare Pharmacy, Uyo',
+                'ip_address'     => '10.0.0.5',
+                'nas_identifier' => 'basmelcare_pharmacy',
+                'secret'         => 'testing_bmc',
+                'api_user'       => 'admin',
+                'api_password'   => 'admin',
+                'api_port'       => 8728,
+                'is_active'      => true,
+                'description'    => 'BasmelCare pharmacy hotspot — custom branded captive portal',
+                'last_seen_at'   => now(),
+                'brand_name'     => 'BasmelCare',
+                'brand_tagline'  => 'Your Health, Our Priority',
+                'brand_color'    => '#16a34a',
+            ],
         ];
 
         foreach ($routers as $r) {
