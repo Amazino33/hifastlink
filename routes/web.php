@@ -16,13 +16,6 @@ use Illuminate\Support\Facades\Route;
 // PUBLIC PAGES
 // ============================================================
 
-Route::get('/admin-fix-radius', function() {
-    abort_unless(auth()->check() && auth()->user()->isAdmin(), 403);
-    $user = auth()->user();
-    App\Services\PlanSyncService::syncUserPlan($user);
-    return 'Done. RadReply: ' . App\Models\RadReply::where('username', $user->username)->get(['attribute','value'])->toJson();
-})->middleware('auth');
-
 Route::get('/', fn () => view('welcome'))->name('home');
 Route::get('/about-us', fn () => view('about'))->name('about');
 
