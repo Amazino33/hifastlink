@@ -1,5 +1,5 @@
 <div class="px-4 py-6 md:px-6 lg:px-8">
-    <div wire:poll.10s class="mb-8">
+    <div wire:poll.30s class="mb-8">
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-xl rounded-3xl p-8 mb-8">
             <div class="flex items-center justify-between flex-wrap gap-4">
                 <div>
@@ -784,17 +784,18 @@
                         <form wire:submit.prevent="redeemVoucher">
                             <div class="relative">
                                 <input
-                                    wire:model="voucherCode"
+                                    wire:model.blur="voucherCode"
                                     type="text"
                                     placeholder="e.g. VCH-ABCD1234"
                                     autocomplete="off"
-                                    class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:ring-2 focus:ring-blue-300 focus:border-transparent font-mono uppercase tracking-widest text-center"
+                                    class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:ring-2 focus:ring-blue-300 focus:border-transparent font-mono uppercase tracking-widest text-center @error('voucherCode') border-red-400 @enderror"
                                 >
                             </div>
                             @error('voucherCode')
-                                <span class="text-red-200 text-xs mt-2 block text-center">
-                                    <i class="fa-solid fa-circle-exclamation mr-1"></i>{{ $message }}
-                                </span>
+                                <div class="mt-2 bg-red-500/80 text-white text-xs rounded-lg px-3 py-2 flex items-center gap-2">
+                                    <i class="fa-solid fa-circle-exclamation flex-shrink-0"></i>
+                                    <span>{{ $message }}</span>
+                                </div>
                             @enderror
                             <button
                                 type="submit"

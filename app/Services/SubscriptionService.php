@@ -109,6 +109,14 @@ class SubscriptionService
                     ['username' => $user->username],
                     ['groupname' => 'default_group', 'priority' => 10]
                 );
+
+                // Block any mac-cookie reconnect immediately: stamp Expiration
+                // in the past so FreeRADIUS rejects the replayed login and the 
+                // device is bounced back to the portal to buy more data.
+                RadCheck::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Expiration'],
+                    ['op' => ':=', 'value' => now()->subMinute()->format('d M Y H:i')]
+                );
             }
 
             // Revoke all vouchers created by this user so beneficiaries lose access

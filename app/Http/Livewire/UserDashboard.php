@@ -990,7 +990,7 @@ class UserDashboard extends Component
             return null;
         }
         if ($claimResult === 'already_redeemed') {
-            $this->addError('voucherCode', 'You have already redeemed this voucher.');
+            Notification::make()->title('Already Redeemed')->body('You have already redeemed this voucher.')->warning()->send();
             return null;
         }
         if ($claimResult !== true) {
@@ -1049,11 +1049,11 @@ class UserDashboard extends Component
 
             $router = $user->router_id ? \App\Models\Router::find($user->router_id) : null;
             if ($router) {
-                session()->flash('success', $msg . ' Connecting you now...');
+                Notification::make()->title('Voucher Activated!')->body($msg)->success()->send();
                 return redirect()->route('connect.bridge', ['router' => $router->nas_identifier]);
             }
 
-            session()->flash('success', $msg . ' Tap "Connect to Router" to get online.');
+            Notification::make()->title('Voucher Activated!')->body($msg)->success()->send();
             return null;
         }
 
@@ -1068,7 +1068,7 @@ class UserDashboard extends Component
                 'plan_id' => $newPlan->id,
             ]);
             $this->recordVoucherTransaction($user, $newPlan, $voucher);
-            session()->flash('success', "{$newPlan->name} queued — it will activate automatically when your current plan runs out.");
+            Notification::make()->title('Plan Queued')->body("{$newPlan->name} will activate automatically when your current plan runs out.")->success()->send();
             return null;
         }
 
@@ -1110,11 +1110,11 @@ class UserDashboard extends Component
         // If the user has a known router, redirect to connect.bridge so they get online immediately
         $router = $user->router_id ? \App\Models\Router::find($user->router_id) : null;
         if ($router) {
-            session()->flash('success', $msg . ' Connecting you to the router now...');
+            Notification::make()->title('Plan Activated!')->body($msg)->success()->send();
             return redirect()->route('connect.bridge', ['router' => $router->nas_identifier]);
         }
 
-        session()->flash('success', $msg . ' Tap "Connect to Router" below to get online.');
+        Notification::make()->title('Plan Activated!')->body($msg)->success()->send();
         return null;
     }
 

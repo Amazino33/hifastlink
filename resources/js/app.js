@@ -1,9 +1,6 @@
 import './bootstrap';
 
-import Alpine from 'alpinejs';
-
-window.Alpine = Alpine;
-
-// Alpine.start() is intentionally not called here because Alpine is loaded via CDN in the main layout
-// and Filament's Alpine components must initialize when the CDN script runs.
-// If you prefer, you can re-enable `Alpine.start()` and remove the CDN include in the layout.
+// Alpine is owned by Livewire — importing it separately here would create a second instance
+// that lacks Livewire's registered plugins (e.g. Alpine.transaction), breaking Livewire actions.
+// To add Alpine plugins, use: document.addEventListener('alpine:init', () => { ... })
+// placed AFTER @livewireScripts in the layout.

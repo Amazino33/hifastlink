@@ -206,6 +206,22 @@ class PlanSyncService
                 $user->plan_expiry = null;
             }
 
+            // RADIUS-enforced expiry: reject any login - including a silent
+            // mac-cookie reconnect - once the plan lapses. FreeRADIUS's
+            // expiration module reads this live, so it self-enforces the
+            // moment plan_expiry passes, without waiting for the expiry cron.
+            if ($user->plan_expiry) {
+                RadCheck::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Expiration'],
+                    ['op' => ':=', 'value' => Carbon::parse($user->plan_expiry)->format('d M Y H:i')]
+                );
+            } else {
+                // Unlimited-duration plan -> no time-based expiry
+                RadCheck::where('username', $user->username)
+                    ->where('attribute', 'Expiration')
+                    ->delete();
+            }
+
             // Ensure radusergroup is set to the appropriate groupname
             try {
                 $groupName = $plan ? ($plan->radius_group_name ?: $plan->name) : 'default_group';

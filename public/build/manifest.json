@@ -1,34 +1,24 @@
 {
-  "_module.esm-_LT3A2-o.js": {
-    "file": "assets/module.esm-_LT3A2-o.js",
-    "name": "module.esm"
-  },
   "resources/css/app.css": {
-    "file": "assets/app-DElchS0J.css",
+    "file": "assets/app-DhiXosUg.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/css/filament-overrides.css": {
-    "file": "assets/filament-overrides-1AQCx458.css",
+    "file": "assets/filament-overrides-DJzS3frw.css",
     "src": "resources/css/filament-overrides.css",
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-wggI1SP_.js",
+    "file": "assets/app-DsbP9Jus.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true,
-    "imports": [
-      "_module.esm-_LT3A2-o.js"
-    ]
+    "isEntry": true
   },
   "resources/js/guest.js": {
-    "file": "assets/guest-Dd-33u4O.js",
+    "file": "assets/guest-DARWUtIR.js",
     "name": "guest",
     "src": "resources/js/guest.js",
-    "isEntry": true,
-    "imports": [
-      "_module.esm-_LT3A2-o.js"
-    ]
+    "isEntry": true
   }
 }
