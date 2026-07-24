@@ -396,9 +396,9 @@ class RouterController extends Controller
 
 # 5. Hotspot user profile
 :if ([:len [/ip/hotspot/user/profile find name="default"]] = 0) do={
-    :do { /ip/hotspot/user/profile add name="default" shared-users=10 } on-error={}
+    :do { /ip/hotspot/user/profile add name="default" shared-users=10 add-mac-cookie=yes mac-cookie-timeout=30d keepalive-timeout=30d } on-error={}
 } else={
-    /ip/hotspot/user/profile set [find name="default"] shared-users=10
+    /ip/hotspot/user/profile set [find name="default"] shared-users=10 add-mac-cookie=yes mac-cookie-timeout=30d keepalive-timeout=30d
 }
 :put ">> Hotspot ready"
 
