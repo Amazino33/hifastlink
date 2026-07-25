@@ -36,13 +36,21 @@ class Router extends Model
         'brand_favicon',
         'brand_color',
         'brand_tagline',
+        'brand_layout',
+        'brand_bg_color',
+        'brand_heading',
+        'brand_subheading',
+        'brand_button_text',
+        'brand_help_text',
+        'brand_instructions',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
-        'api_port' => 'integer',
-        'last_seen_at' => 'datetime',
-        'offline_notified_at' => 'datetime',
+        'is_active'          => 'boolean',
+        'api_port'           => 'integer',
+        'last_seen_at'       => 'datetime',
+        'offline_notified_at'=> 'datetime',
+        'brand_instructions' => 'array',
     ];
 
 

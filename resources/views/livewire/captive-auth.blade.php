@@ -5,30 +5,37 @@
         $btnStyle     = "background-color: {$accentColor};";
         $borderStyle  = "border-color: {$accentColor};";
         $iconStyle    = "color: {$accentColor};";
+
+        $heading    = $brandHeading    ?: 'Get Connected';
+        $subheading = $brandSubheading ?: 'Type below to connect instantly.';
+        $btnText    = $brandButtonText ?: 'Connect';
+        $helpText   = $brandHelpText;
     @endphp
 
     {{-- Header --}}
     <div class="text-center mb-6">
-        <h2 class="text-3xl font-black text-gray-800 mb-2">
-            Get Connected
-        </h2>
-        <p class="text-gray-500 text-sm">Type below to connect instantly.</p>
+        <h2 class="text-3xl font-black text-gray-800 mb-2">{{ $heading }}</h2>
+        <p class="text-gray-500 text-sm">{{ $subheading }}</p>
     </div>
 
-    {{-- Who are you? --}}
-    <div class="mb-6 grid grid-cols-2 gap-2 text-xs">
-        <div class="bg-gray-50 rounded-xl p-3">
-            <p class="font-semibold text-gray-700 mb-1">
-                <i class="fa-solid fa-user mr-1" style="{{ $iconStyle }}"></i> Subscriber
-            </p>
-            <p class="text-gray-500 leading-snug">Enter your phone number, email, or username</p>
-        </div>
-        <div class="bg-gray-50 rounded-xl p-3">
-            <p class="font-semibold text-gray-700 mb-1">
-                <i class="fa-solid fa-ticket mr-1" style="{{ $iconStyle }}"></i> Voucher
-            </p>
-            <p class="text-gray-500 leading-snug">Enter the code on your voucher card (VCH-…)</p>
-        </div>
+    {{-- Access instructions --}}
+    @php
+        $instructions = (! empty($brandInstructions)) ? $brandInstructions : [
+            ['icon' => 'fa-user',   'title' => 'Subscriber', 'description' => 'Enter your phone number, email, or username'],
+            ['icon' => 'fa-ticket', 'title' => 'Voucher',    'description' => 'Enter the code on your voucher card (VCH-…)'],
+        ];
+        $cols = count($instructions) === 1 ? 1 : 2;
+    @endphp
+    <div class="mb-6 grid gap-2 text-xs" style="grid-template-columns: repeat({{ $cols }}, minmax(0, 1fr));">
+        @foreach ($instructions as $instr)
+            <div class="bg-gray-50 rounded-xl p-3">
+                <p class="font-semibold text-gray-700 mb-1">
+                    <i class="fa-solid {{ $instr['icon'] ?? 'fa-circle-info' }} mr-1" style="{{ $iconStyle }}"></i>
+                    {{ $instr['title'] ?? '' }}
+                </p>
+                <p class="text-gray-500 leading-snug">{{ $instr['description'] ?? '' }}</p>
+            </div>
+        @endforeach
     </div>
 
     {{-- No plan state --}}
@@ -98,7 +105,7 @@
                 wire:target="connect"
                 class="w-full py-3 px-4 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition"
                 style="{{ $btnStyle }}">
-                <span wire:loading.remove wire:target="connect">Connect</span>
+                <span wire:loading.remove wire:target="connect">{{ $btnText }}</span>
                 <span wire:loading wire:target="connect" class="flex items-center gap-2">
                     <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -110,7 +117,9 @@
         </div>
 
         <p class="text-center text-xs text-gray-400 mt-6">
-            @if($isBranded)
+            @if($helpText)
+                {{ $helpText }}
+            @elseif($isBranded)
                 Need WiFi access? <span class="font-medium text-gray-600">Visit the reception desk</span>
             @else
                 Don't have an account?

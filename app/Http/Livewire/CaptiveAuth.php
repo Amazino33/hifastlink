@@ -24,9 +24,14 @@ class CaptiveAuth extends Component
     public ?string $router    = null;
 
     // Brand — passed from the captive-portal view when router has custom branding
-    public ?string $brandName    = null;
-    public ?string $brandColor   = null;
-    public ?string $brandLogoUrl = null;
+    public ?string $brandName       = null;
+    public ?string $brandColor      = null;
+    public ?string $brandLogoUrl    = null;
+    public ?string $brandHeading      = null;
+    public ?string $brandSubheading   = null;
+    public ?string $brandButtonText   = null;
+    public ?string $brandHelpText     = null;
+    public ?array  $brandInstructions = null;
 
     public function mount(): void
     {

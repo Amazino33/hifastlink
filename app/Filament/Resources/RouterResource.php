@@ -21,6 +21,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\ColorPicker;
+use Filament\Forms\Components\Repeater;
 use Filament\Schemas\Components\Section as ComponentsSection;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -191,6 +192,100 @@ class RouterResource extends Resource
                             ->directory('brands/favicons')
                             ->imagePreviewHeight('48')
                             ->helperText('Shows in the browser tab. Recommended: 64×64 px PNG or ICO.'),
+
+                        Select::make('brand_layout')
+                            ->label('Page Layout')
+                            ->options([
+                                'card'    => 'Card — Floating card with brand header',
+                                'split'   => 'Split — Brand panel + form side by side',
+                                'minimal' => 'Minimal — Dark background, left-accented card',
+                                'glass'   => 'Glass — Frosted glass card on tinted background',
+                                'topbar'  => 'Topbar — Navigation bar + centered form card',
+                            ])
+                            ->default('card')
+                            ->native(false)
+                            ->helperText('Visual style of the captive portal login page.')
+                            ->columnSpanFull(),
+
+                        ColorPicker::make('brand_bg_color')
+                            ->label('Background Colour')
+                            ->helperText('Overrides the default page background. Leave blank to use the layout default.')
+                            ->columnSpanFull(),
+
+                        ComponentsSection::make('Login Form Text')
+                            ->description('Customise the copy on the login form. Leave any field blank to keep the default.')
+                            ->schema([
+                                TextInput::make('brand_heading')
+                                    ->label('Form Heading')
+                                    ->placeholder('Get Connected')
+                                    ->maxLength(80)
+                                    ->helperText('Large heading above the input field.'),
+
+                                TextInput::make('brand_subheading')
+                                    ->label('Form Subheading')
+                                    ->placeholder('Type below to connect instantly.')
+                                    ->maxLength(120)
+                                    ->helperText('Smaller line below the heading.'),
+
+                                TextInput::make('brand_button_text')
+                                    ->label('Button Text')
+                                    ->placeholder('Connect')
+                                    ->maxLength(40)
+                                    ->helperText('Text on the connect button.'),
+
+                                Textarea::make('brand_help_text')
+                                    ->label('Help Text')
+                                    ->placeholder('Need WiFi access? Visit the reception desk')
+                                    ->maxLength(200)
+                                    ->rows(2)
+                                    ->helperText('Small line shown below the button.')
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(2)
+                            ->columnSpanFull(),
+
+                        Repeater::make('brand_instructions')
+                            ->label('Access Instructions')
+                            ->helperText('The hint boxes shown above the login field. Leave empty to use the defaults (Subscriber + Voucher).')
+                            ->schema([
+                                Select::make('icon')
+                                    ->label('Icon')
+                                    ->options([
+                                        'fa-user'         => '👤 Person',
+                                        'fa-ticket'       => '🎫 Ticket / Voucher',
+                                        'fa-receipt'      => '🧾 Receipt / Invoice',
+                                        'fa-id-card'      => '🪪 ID Card',
+                                        'fa-phone'        => '📞 Phone',
+                                        'fa-envelope'     => '✉️ Email',
+                                        'fa-barcode'      => '📊 Barcode',
+                                        'fa-qrcode'       => '⬛ QR Code',
+                                        'fa-key'          => '🔑 Key / Code',
+                                        'fa-hospital-user'=> '🏥 Patient',
+                                        'fa-briefcase'    => '💼 Staff',
+                                        'fa-graduation-cap'=> '🎓 Student',
+                                    ])
+                                    ->native(false)
+                                    ->default('fa-user'),
+
+                                TextInput::make('title')
+                                    ->label('Title')
+                                    ->placeholder('e.g., Invoice')
+                                    ->maxLength(40)
+                                    ->required(),
+
+                                Textarea::make('description')
+                                    ->label('Description')
+                                    ->placeholder('e.g., Enter the number on your receipt')
+                                    ->rows(2)
+                                    ->maxLength(150)
+                                    ->required()
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(2)
+                            ->addActionLabel('Add instruction box')
+                            ->reorderable()
+                            ->collapsible()
+                            ->columnSpanFull(),
                     ])
                     ->columns(2)
                     ->collapsible()

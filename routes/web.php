@@ -41,6 +41,26 @@ Route::get('/pharmacy-voucher', fn () => view('pharmacy-voucher'))->name('pharma
 // Simple connected page — public, no auth, used as MikroTik dst after login
 Route::get('/connected', fn () => view('hotspot.connected'))->name('captive.connected');
 
+// Layout preview — local dev only
+if (! app()->isProduction()) {
+    Route::get('/preview-layout/{layout?}', function (string $layout = 'card') {
+        $brand = new \App\Models\Router([
+            'brand_name'       => 'BasmelCare',
+            'brand_tagline'    => 'Your Health, Our Priority',
+            'brand_color'      => request('color', '#16a34a'),
+            'brand_logo'       => null,
+            'brand_favicon'    => null,
+            'brand_layout'     => $layout,
+            'brand_bg_color'   => request('bg') ?: null,
+            'brand_heading'    => request('heading') ?: null,
+            'brand_subheading' => request('sub') ?: null,
+            'brand_button_text'=> request('btn') ?: null,
+            'brand_help_text'  => request('help') ?: null,
+        ]);
+        return view('auth.captive-portal', compact('brand'));
+    });
+}
+
 // PWA connect app — installable, handles auto-connect on hotspot
 Route::get('/connect-app', fn () => view('connect-app'))->name('captive.app');
 
