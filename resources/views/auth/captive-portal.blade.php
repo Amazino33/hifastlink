@@ -5,7 +5,8 @@
         'brandLogoUrl'    => $brand?->brand_logo ? Storage::url($brand->brand_logo) : null,
         'brandHeading'    => $brand?->brand_heading,
         'brandSubheading' => $brand?->brand_subheading,
-        'brandButtonText' => $brand?->brand_button_text,
+        'brandButtonText'       => $brand?->brand_button_text,
+        'brandInputPlaceholder' => $brand?->brand_input_placeholder,
         'brandHelpText'        => $brand?->brand_help_text,
         'brandInstructions'    => $brand?->brand_instructions,
     ])

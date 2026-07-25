@@ -9,6 +9,7 @@
         $heading    = $brandHeading    ?: 'Get Connected';
         $subheading = $brandSubheading ?: 'Type below to connect instantly.';
         $btnText    = $brandButtonText ?: 'Connect';
+        $inputPlaceholder = $brandInputPlaceholder ?: 'Phone, email, username, or voucher';
         $helpText   = $brandHelpText;
     @endphp
 
@@ -87,7 +88,7 @@
                     wire:model="identifier"
                     wire:keydown.enter="connect"
                     type="text"
-                    placeholder="Phone, email, username, or voucher"
+                    placeholder="{{ $inputPlaceholder }}"
                     autocomplete="off"
                     autocorrect="off"
                     autocapitalize="off"

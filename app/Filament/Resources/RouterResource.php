@@ -233,6 +233,12 @@ class RouterResource extends Resource
                                     ->maxLength(40)
                                     ->helperText('Text on the connect button.'),
 
+                                TextInput::make('brand_input_placeholder')
+                                    ->label('Input Placeholder')
+                                    ->placeholder('Phone, email, username, or voucher')
+                                    ->maxLength(100)
+                                    ->helperText('Grey hint text inside the input field.'),
+
                                 Textarea::make('brand_help_text')
                                     ->label('Help Text')
                                     ->placeholder('Need WiFi access? Visit the reception desk')

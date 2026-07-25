@@ -41,6 +41,7 @@ class Router extends Model
         'brand_heading',
         'brand_subheading',
         'brand_button_text',
+        'brand_input_placeholder',
         'brand_help_text',
         'brand_instructions',
     ];

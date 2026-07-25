@@ -29,7 +29,8 @@ class CaptiveAuth extends Component
     public ?string $brandLogoUrl    = null;
     public ?string $brandHeading      = null;
     public ?string $brandSubheading   = null;
-    public ?string $brandButtonText   = null;
+    public ?string $brandButtonText        = null;
+    public ?string $brandInputPlaceholder  = null;
     public ?string $brandHelpText     = null;
     public ?array  $brandInstructions = null;
 
