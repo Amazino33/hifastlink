@@ -55,6 +55,11 @@ class CreateRouter extends CreateRecord
             return;
         }
 
+        if (! app()->isProduction()) {
+            Log::info("Skipping SSH provisioning for router [{$router->name}] in non-production environment.");
+            return;
+        }
+
         try {
             // 1. Establish the secure SSH connection
             $ssh = new SSH2(config('services.digitalocean.ip'));

@@ -102,6 +102,11 @@ class EditRouter extends EditRecord
             return;
         }
 
+        if (! app()->isProduction()) {
+            Log::info("Skipping SSH provisioning for router [{$router->name}] in non-production environment.");
+            return;
+        }
+
         try {
             $ssh = new SSH2(config('services.digitalocean.ip'));
             if (! $ssh->login(config('services.digitalocean.user'), config('services.digitalocean.pass'))) {
