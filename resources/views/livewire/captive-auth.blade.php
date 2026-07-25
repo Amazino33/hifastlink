@@ -120,6 +120,15 @@
         <p class="text-center text-xs text-gray-400 mt-6">
             @if($helpText)
                 {{ $helpText }}
+                @if($brandHelpLinkText && $brandHelpLinkUrl)
+                    <a href="{{ $brandHelpLinkUrl }}"
+                       class="font-medium"
+                       style="{{ $iconStyle }}"
+                       @if(str_starts_with($brandHelpLinkUrl, 'http')) target="_blank" rel="noopener" @endif
+                    >{{ $brandHelpLinkText }}</a>
+                @elseif($brandHelpLinkText)
+                    <span class="font-medium text-gray-600">{{ $brandHelpLinkText }}</span>
+                @endif
             @elseif($isBranded)
                 Need WiFi access? <span class="font-medium text-gray-600">Visit the reception desk</span>
             @else

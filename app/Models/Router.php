@@ -43,6 +43,8 @@ class Router extends Model
         'brand_button_text',
         'brand_input_placeholder',
         'brand_help_text',
+        'brand_help_link_text',
+        'brand_help_link_url',
         'brand_instructions',
     ];
 

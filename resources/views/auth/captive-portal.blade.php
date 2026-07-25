@@ -8,6 +8,8 @@
         'brandButtonText'       => $brand?->brand_button_text,
         'brandInputPlaceholder' => $brand?->brand_input_placeholder,
         'brandHelpText'        => $brand?->brand_help_text,
+        'brandHelpLinkText'    => $brand?->brand_help_link_text,
+        'brandHelpLinkUrl'     => $brand?->brand_help_link_url,
         'brandInstructions'    => $brand?->brand_instructions,
     ])
 </x-captive-layout>

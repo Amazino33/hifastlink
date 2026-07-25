@@ -241,11 +241,23 @@ class RouterResource extends Resource
 
                                 Textarea::make('brand_help_text')
                                     ->label('Help Text')
-                                    ->placeholder('Need WiFi access? Visit the reception desk')
+                                    ->placeholder('Need WiFi access? Visit the')
                                     ->maxLength(200)
                                     ->rows(2)
-                                    ->helperText('Small line shown below the button.')
+                                    ->helperText('Text shown below the button. Add a link below to append a clickable word/phrase at the end.')
                                     ->columnSpanFull(),
+
+                                TextInput::make('brand_help_link_text')
+                                    ->label('Link Label')
+                                    ->placeholder('reception desk')
+                                    ->maxLength(60)
+                                    ->helperText('The clickable word(s) appended after the help text.'),
+
+                                TextInput::make('brand_help_link_url')
+                                    ->label('Link URL')
+                                    ->placeholder('tel:+2348012345678  or  https://…')
+                                    ->maxLength(255)
+                                    ->helperText('Supports tel:, mailto:, or any https:// URL.'),
                             ])
                             ->columns(2)
                             ->columnSpanFull(),
