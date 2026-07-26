@@ -66,7 +66,10 @@ class PharmacyVoucher extends Component
                 return;
             }
 
-            $this->invoiceNumber = $invoice;
+            // Always use the full invoice number returned by BasmelCare as the
+            // RADIUS username — even if the customer only typed the 6-char suffix.
+            // This keeps revocation consistent (BasmelCare revokes by full number).
+            $this->invoiceNumber = strtoupper($response->json('invoice_number', $invoice));
             $this->expiresAt     = $response->json('expires_at');
             $this->validityHours = $response->json('validity_hours', 24);
             $this->error         = '';

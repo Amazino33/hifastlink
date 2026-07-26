@@ -7,7 +7,7 @@
             @endif
         </h2>
         <p class="text-gray-500 text-sm">
-            @if($step === 'invoice')  Enter your BasmelCare receipt number to claim 1 free day of internet
+            @if($step === 'invoice')  Enter the last 6 characters of your BasmelCare receipt to claim 1 free day of internet
             @else  Your free internet access is now active
             @endif
         </p>
@@ -24,17 +24,19 @@
     @if($step === 'invoice')
         <div class="space-y-5">
             <div>
-                <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">
                     <i class="fa-solid fa-receipt mr-2 text-emerald-600"></i>
-                    Receipt / Invoice Number
+                    Receipt Code
                 </label>
+                <p class="text-xs text-gray-400 mb-3">The last 6 characters printed on your receipt</p>
                 <input
                     wire:model="invoiceNumber"
                     wire:keydown.enter="validateInvoice"
                     type="text"
-                    placeholder="e.g. INV-20260722-0042-K7M9Q2"
+                    placeholder="e.g. K7M9Q2"
                     autocomplete="off"
-                    class="w-full px-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-all duration-300 uppercase"
+                    maxlength="30"
+                    class="w-full px-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-all duration-300 uppercase tracking-widest"
                 >
             </div>
 
