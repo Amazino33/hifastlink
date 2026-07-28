@@ -159,7 +159,10 @@ class CaptiveAuth extends Component
         try {
             $response = Http::timeout(10)
                 ->withHeaders(['X-API-Key' => $apiKey])
+                ->post($apiUrl, ['invoice_number' => $invoice])
                 ->post($apiUrl, ['invoice_number' => $invoice]);
+
+            Log::debug('[BasmelCare] status=' . $response->status() . ' body=' . $response->body());
 
             if (! $response->successful() || ! $response->json('valid')) {
                 return false;
