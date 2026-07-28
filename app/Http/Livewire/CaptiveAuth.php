@@ -2,12 +2,14 @@
 
 namespace App\Http\Livewire;
 
+use App\Models\AppSetting;
 use App\Models\Device;
 use App\Models\RadCheck;
 use App\Models\RadReply;
 use App\Models\User;
 use App\Models\Voucher;
 use App\Services\SubscriptionService;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -115,6 +117,7 @@ class CaptiveAuth extends Component
         $user = $this->findUser($input);
 
         if (! $user) {
+            if ($this->tryBasmelcareInvoice($input)) return;
             $this->error = 'No account found. Please subscribe at hifastlink.com first.';
             return;
         }
@@ -142,6 +145,74 @@ class CaptiveAuth extends Component
         }
 
         return User::where('username', $input)->first();
+    }
+
+    private function tryBasmelcareInvoice(string $input): bool
+    {
+        $apiUrl = AppSetting::get('basmelcare_api_url', '');
+        $apiKey = AppSetting::get('basmelcare_api_key', '');
+
+        if  (! $apiUrl || ! $apiKey) return false;
+
+        $invoice = strtoupper(preg_replace('/\s+/', '', $input));
+
+        try {
+            $response = Http::timeout(10)
+                ->withHeaders(['X-API-Key' => $apiKey])
+                ->post($apiUrl, ['invoice_number' => $invoice]);
+
+            if (! $response->successful() || ! $response->json('valid')) {
+                return false;
+            }
+
+            $radUsername    = strtoupper($response->json('invoice_number', $invoice));
+            $expiresAt      = $response->json('expires_at');
+
+            $existing       = RadCheck::where('username', $radUsername)
+                                        ->where('attribute', 'Cleartext-Password')->first();
+            $radPassword    = $existing?->value ?? Str::random(12);
+
+            
+            RadCheck::updateOrCreate(
+                ['username' => $radUsername, 'attribute' => 'Cleartext-Password'],
+                ['op' => ':=', 'value' => $radPassword]
+            );
+
+            RadCheck::updateOrCreate(
+                ['username' => $radUsername, 'attribute' =>  'Simultaneous-Use'],
+                ['op' => ':=', 'value' => '1']
+            );
+
+            if ($expiresAt) {
+                RadCheck::updateOrCreate(
+                    ['username' => $radUsername, 'attribute' => 'Expiration'],
+                    ['op' => ':=', 'value' => \Carbon\Carbon::parse($expiresAt)->format('d M Y H:i')]
+                );
+            }
+
+            if ($this->mac) {
+                Device::updateOrCreate(
+                    ['mac' => strtoupper($this->mac)],
+                    [
+                        'user_id'       => null,
+                        'ip'            => $this->ip ?? request()->ip(),
+                        'user_agent'    => request()->userAgent(),
+                        'first_seen'    => now(),
+                        'last_seen'     => now(),
+                        'is_connected'  => true,
+                        'meta'          => ['pharmacy_invoice' => $radUsername],
+                    ]
+                );
+            }
+
+            session(['bridge_completed' => true]);
+            $this->bridgeToRouter($radUsername, $radPassword, $this->linkLogin, route('captive.connected'));
+            return true;
+
+        }   catch (\Throwable $e) {
+            Log::error('[CaptiveAuth] BasmelCare API failed: ' . $e->getMessage());
+            return false;
+        }
     }
 
     // ── Voucher activation (no user account required) ────────────────────────
