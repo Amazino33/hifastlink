@@ -45,6 +45,7 @@ class Router extends Model
         'brand_help_text',
         'brand_help_link_text',
         'brand_help_link_url',
+        'brand_error_not_found',
         'brand_instructions',
     ];
 

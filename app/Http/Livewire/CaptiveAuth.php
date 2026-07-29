@@ -36,7 +36,8 @@ class CaptiveAuth extends Component
     public ?string $brandHelpText     = null;
     public ?string $brandHelpLinkText = null;
     public ?string $brandHelpLinkUrl  = null;
-    public ?array  $brandInstructions = null;
+    public ?array  $brandInstructions  = null;
+    public ?string $brandErrorNotFound = null;
 
     public function mount(): void
     {
@@ -118,7 +119,8 @@ class CaptiveAuth extends Component
 
         if (! $user) {
             if ($this->tryBasmelcareInvoice($input)) return;
-            $this->error = 'No account found. Please subscribe at hifastlink.com first.';
+            $this->error = $this->brandErrorNotFound
+                ?: 'No account found. Please subscribe at hifastlink.com first.';
             return;
         }
 
@@ -166,10 +168,10 @@ class CaptiveAuth extends Component
 
             $body = json_decode($res->getBody()->getContents(), true);
 
-            Log::debug('[BasmelCare] status=' . $res->getStatusCode() . ' body=' . json_encode($body));
-
             if (empty($body['valid'])) {
-                return false;
+                // BasmelCare gave a specific reason (expired, unpaid, etc.) — show it directly
+                $this->error = $body['message'] ?? 'Invalid or unrecognised receipt.';
+                return true;
             }
 
             $radUsername = strtoupper($body['invoice_number'] ?? $invoice);
@@ -216,8 +218,13 @@ class CaptiveAuth extends Component
             return true;
 
         } catch (\Throwable $e) {
-            Log::error('[CaptiveAuth] BasmelCare API failed: ' . $e->getMessage());
-            return false;
+            Log::error('[CaptiveAuth] BasmelCare API error', [
+                'invoice' => $invoice,
+                'url'     => $apiUrl,
+                'error'   => $e->getMessage(),
+            ]);
+            $this->error = 'Could not reach the pharmacy system. Please try again or contact support.';
+            return true;
         }
     }
 

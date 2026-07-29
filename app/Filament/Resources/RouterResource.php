@@ -262,6 +262,12 @@ class RouterResource extends Resource
                             ->columns(2)
                             ->columnSpanFull(),
 
+                        TextInput::make('brand_error_not_found')
+                            ->label('"Not Found" Error Message')
+                            ->placeholder('No account found. Please subscribe at hifastlink.com first.')
+                            ->helperText('Shown when the entered code doesn\'t match any account, voucher, or receipt.')
+                            ->columnSpanFull(),
+
                         Repeater::make('brand_instructions')
                             ->label('Access Instructions')
                             ->helperText('The hint boxes shown above the login field. Leave empty to use the defaults (Subscriber + Voucher).')

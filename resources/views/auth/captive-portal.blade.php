@@ -11,5 +11,6 @@
         'brandHelpLinkText'    => $brand?->brand_help_link_text,
         'brandHelpLinkUrl'     => $brand?->brand_help_link_url,
         'brandInstructions'    => $brand?->brand_instructions,
+        'brandErrorNotFound'   => $brand?->brand_error_not_found,
     ])
 </x-captive-layout>
