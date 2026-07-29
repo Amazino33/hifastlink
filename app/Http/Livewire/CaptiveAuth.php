@@ -152,7 +152,7 @@ class CaptiveAuth extends Component
         $apiUrl = AppSetting::get('basmelcare_api_url', '');
         $apiKey = AppSetting::get('basmelcare_api_key', '');
 
-        if  (! $apiUrl || ! $apiKey) return false;
+        if (! $apiUrl || ! $apiKey) return false;
 
         $invoice = strtoupper(preg_replace('/\s+/', '', $input));
 
@@ -160,8 +160,8 @@ class CaptiveAuth extends Component
             $client = new \GuzzleHttp\Client(['timeout' => 10, 'http_errors' => false]);
 
             $res = $client->post($apiUrl, [
-                'header' => ['X-API-Key' => $apiKey, 'Accept' => 'application/json'],
-                'json'   => ['invoice_number' => $invoice],
+                'headers' => ['X-API-Key' => $apiKey, 'Accept' => 'application/json'],
+                'json'    => ['invoice_number' => $invoice],
             ]);
 
             $body = json_decode($res->getBody()->getContents(), true);
@@ -174,6 +174,47 @@ class CaptiveAuth extends Component
 
             $radUsername = strtoupper($body['invoice_number'] ?? $invoice);
             $expiresAt   = $body['expires_at'] ?? null;
+
+            $existing    = RadCheck::where('username', $radUsername)
+                                   ->where('attribute', 'Cleartext-Password')->first();
+            $radPassword = $existing?->value ?? Str::random(12);
+
+            RadCheck::updateOrCreate(
+                ['username' => $radUsername, 'attribute' => 'Cleartext-Password'],
+                ['op' => ':=', 'value' => $radPassword]
+            );
+
+            RadCheck::updateOrCreate(
+                ['username' => $radUsername, 'attribute' => 'Simultaneous-Use'],
+                ['op' => ':=', 'value' => '1']
+            );
+
+            if ($expiresAt) {
+                RadCheck::updateOrCreate(
+                    ['username' => $radUsername, 'attribute' => 'Expiration'],
+                    ['op' => ':=', 'value' => \Carbon\Carbon::parse($expiresAt)->format('d M Y H:i')]
+                );
+            }
+
+            if ($this->mac) {
+                Device::updateOrCreate(
+                    ['mac' => strtoupper($this->mac)],
+                    [
+                        'user_id'      => null,
+                        'ip'           => $this->ip ?? request()->ip(),
+                        'user_agent'   => request()->userAgent(),
+                        'first_seen'   => now(),
+                        'last_seen'    => now(),
+                        'is_connected' => true,
+                        'meta'         => ['pharmacy_invoice' => $radUsername],
+                    ]
+                );
+            }
+
+            session(['bridge_completed' => true]);
+            $this->bridgeToRouter($radUsername, $radPassword, $this->linkLogin, route('captive.connected'));
+            return true;
+
         } catch (\Throwable $e) {
             Log::error('[CaptiveAuth] BasmelCare API failed: ' . $e->getMessage());
             return false;
