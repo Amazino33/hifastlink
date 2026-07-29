@@ -95,6 +95,9 @@ class EditRouter extends EditRecord
      */
     protected function afterSave(): void
     {
+        // Capture the pre-save name BEFORE fresh() resets getOriginal()
+        $oldName = $this->record->getOriginal('nas_identifier') ?: $this->record->getOriginal('name');
+
         $router = $this->record->fresh(); // Fresh from DB to get any new keys/IP we just saved
 
         if (empty($router->wireguard_public_key) || empty($router->vpn_ip)) {
@@ -125,8 +128,13 @@ class EditRouter extends EditRecord
             // Remove from live interface (silently fails if not present)
             $ssh->exec("sudo wg set wg0 peer '{$pubKey}' remove 2>/dev/null || true");
 
-            // Remove old block from wg0.conf by matching the comment line we always write
-            $ssh->exec("sudo sed -i '/^# {$name}$/,/^$/d' /etc/wireguard/wg0.conf");
+            // Remove old block from wg0.conf using the OLD name (handles renames correctly)
+            $ssh->exec("sudo sed -i '/^# {$oldName}$/,/^$/d' /etc/wireguard/wg0.conf");
+
+            // If renamed, also clean any existing block under the new name
+            if ($oldName !== $name) {
+                $ssh->exec("sudo sed -i '/^# {$name}$/,/^$/d' /etc/wireguard/wg0.conf");
+            }
 
             // Append fresh peer block to wg0.conf (persists across reboots)
             $peerBlock = "# {$name}\n[Peer]\nPublicKey = {$pubKey}\nAllowedIPs = {$vpnIp}/32";
@@ -138,8 +146,13 @@ class EditRouter extends EditRecord
             Log::info("WireGuard peer synced for: {$router->name} ({$vpnIp})");
 
             // -------------------------------------------------------
-            // 2. FreeRADIUS — overwrite clients.d file for this router
+            // 2. FreeRADIUS — delete old file on rename, write new
             // -------------------------------------------------------
+
+            // If the NAS identifier was renamed, remove the old client config
+            if ($oldName && $oldName !== $name) {
+                $ssh->exec("sudo rm -f /etc/freeradius/3.0/clients.d/{$oldName}.conf");
+            }
 
             $clientConf = "client {$name} {\n    ipaddr = {$vpnIp}\n    secret = {$secret}\n    nas_type = other\n}\n";
             $ssh->exec("echo '{$clientConf}' | sudo tee /etc/freeradius/3.0/clients.d/{$name}.conf > /dev/null");
