@@ -906,11 +906,12 @@
                         @foreach($myVouchers as $v)
                         @php
                             [$badgeClass, $badgeLabel] = match($v['status']) {
-                                'active'    => ['bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400', 'Active'],
-                                'idle'      => ['bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300', 'Idle'],
-                                'exhausted' => ['bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400', 'Exhausted'],
-                                'expired'   => ['bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400', 'Expired'],
-                                default     => ['bg-gray-100 text-gray-600', ucfirst($v['status'])],
+                                'active'   => ['bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400', 'Active'],
+                                'in_use'   => ['bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400', 'In Use'],
+                                'idle'     => ['bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300', 'Idle'],
+                                'redeemed' => ['bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400', 'Redeemed'],
+                                'expired'  => ['bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400', 'Expired'],
+                                default    => ['bg-gray-100 text-gray-600', ucfirst($v['status'])],
                             };
                         @endphp
                         <div class="border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden">

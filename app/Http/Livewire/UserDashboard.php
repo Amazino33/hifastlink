@@ -743,7 +743,7 @@ class UserDashboard extends Component
                     'sessions'  => $vSessions,
                     'data_used' => Number::fileSize($bytes),
                     'expires_at'=> $v->expires_at?->format('M d, Y') ?? 'No expiry',
-                    'status'    => $expired ? 'expired' : ($exhausted ? 'exhausted' : ($online > 0 ? 'active' : 'idle')),
+                    'status'    => $expired ? 'expired' : ($exhausted ? ($online > 0 ? 'in_use' : 'redeemed') : ($online > 0 ? 'active' : 'idle')),
                 ];
             });
         }
