@@ -25,5 +25,13 @@ Route::get('/routers/speed', [RouterSpeedController::class, 'report']);
 use App\Http\Controllers\Api\PharmacyController;
 Route::post('/pharmacy/revoke', [PharmacyController::class, 'revoke']);
 
-// PWA connectivity probe — accessible via walled garden before hotspot auth
-Route::get('/ping', fn () => response()->json(['ok' => true]));
+// PWA connectivity probe — accessible via walled garden before hotspot auth.
+// Also returns the router identifier so the PWA can call /connect-bridge directly.
+Route::get('/ping', function (Request $request) {
+    $ip     = $request->ip();
+    $router = \App\Models\Router::where('ip_address', $ip)->where('is_active', true)->first();
+    return response()->json([
+        'ok'     => true,
+        'router' => $router?->nas_identifier,
+    ]);
+});

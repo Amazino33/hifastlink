@@ -161,8 +161,8 @@
 
     function checkHotspot() {
         return fetch('/api/ping', { method: 'GET', cache: 'no-store' })
-            .then(function (r) { return r.ok; })
-            .catch(function () { return false; });
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; });
     }
 
     async function run() {
@@ -173,18 +173,22 @@
             return;
         }
 
-        var onHotspot = await checkHotspot();
-        if (!onHotspot) {
+        var hotspot = await checkHotspot();
+        if (!hotspot) {
             showState('s-offline');
             return;
         }
 
-        // On the hotspot but not authenticated — trigger MikroTik captive redirect automatically.
+        // On the hotspot but not authenticated — go straight to connect-bridge (same as dashboard button).
         document.getElementById('checking-title').textContent = 'Getting you online…';
-        document.getElementById('checking-body').textContent = 'Opening the HiFastLink login. This takes a moment.';
-        setTimeout(function () {
-            window.location.href = 'http://detectportal.firefox.com/';
-        }, 600);
+        document.getElementById('checking-body').textContent = 'Connecting you to HiFastLink. Just a moment.';
+
+        if (hotspot.router) {
+            window.location.href = '/connect-bridge?router=' + encodeURIComponent(hotspot.router);
+        } else {
+            // Router IP not in database yet — fall back to triggering MikroTik's captive redirect.
+            window.location.href = 'http://neverssl.com/';
+        }
     }
 
     function recheck() {
