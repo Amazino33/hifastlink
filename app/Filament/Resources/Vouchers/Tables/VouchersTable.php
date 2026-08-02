@@ -15,6 +15,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class VouchersTable
@@ -211,6 +212,39 @@ class VouchersTable
                         \Filament\Notifications\Notification::make()
                             ->title('RADIUS resynced for ' . $record->code)
                             ->body('Simultaneous-Use set to ' . $record->max_uses . '. Devices can reconnect.')
+                            ->success()
+                            ->send();
+                    }),
+                Action::make('reset_voucher')
+                    ->label('Reset')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalHeading('Reset this voucher?')
+                    ->modalDescription('Sets used_count back to 0 and clears the expiry so the code can be used again. Also closes any stale RADIUS sessions for this voucher.')
+                    ->visible(fn ($record) => $record->used_count > 0)
+                    ->action(function ($record): void {
+                        $updates = ['used_count' => 0];
+                        // Clear auto-set expiry (set by consume() from duration_hours) but leave
+                        // manually pre-set expires_at alone — we can't tell them apart, but if
+                        // duration_hours is set the expiry will be recalculated on next use anyway.
+                        if ($record->duration_hours) {
+                            $updates['expires_at'] = null;
+                        }
+                        $record->update($updates);
+
+                        // Close any stale open RADIUS sessions so Simultaneous-Use doesn't block the next attempt
+                        DB::table('radacct')
+                            ->where('username', 'vch_' . strtolower($record->code))
+                            ->whereNull('acctstoptime')
+                            ->update([
+                                'acctstoptime'        => now(),
+                                'acctterminatecause'  => 'Admin-Reset',
+                            ]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Voucher ' . $record->code . ' reset')
+                            ->body('Slot freed and stale sessions cleared. The code can be used again.')
                             ->success()
                             ->send();
                     }),

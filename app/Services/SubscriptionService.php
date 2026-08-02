@@ -227,10 +227,16 @@ class SubscriptionService
             return true;
         }
 
-        // Add voucher sessions to the stored data_used so the check is accurate
+        // Add voucher sessions to the stored data_used so the check is accurate.
+        // Vouchers used via the captive portal have RADIUS username "vch_<lowercase_code>",
+        // while auth-form vouchers use the raw code — we must count both.
         $voucherCodes = \App\Models\Voucher::where('created_by', $checkUser->id)->pluck('code');
-        $voucherUsed  = $voucherCodes->isNotEmpty()
-            ? (int) \App\Models\RadAcct::whereIn('username', $voucherCodes)
+        $allVoucherUsernames = $voucherCodes->flatMap(fn ($code) => [
+            $code,
+            'vch_' . strtolower($code),
+        ]);
+        $voucherUsed  = $allVoucherUsernames->isNotEmpty()
+            ? (int) \App\Models\RadAcct::whereIn('username', $allVoucherUsernames)
                 ->where('acctstarttime', '>=', $checkUser->plan_started_at ?? now()->subYears(1))
                 ->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)'))
             : 0;

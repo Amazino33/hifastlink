@@ -9,7 +9,6 @@ use App\Models\RadReply;
 use App\Models\User;
 use App\Models\Voucher;
 use App\Services\SubscriptionService;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -80,14 +79,20 @@ class CaptiveAuth extends Component
 
         if (! $voucherCode) return;
 
-        $radUsername = 'vch_' . strtolower($voucherCode);
-        $rad         = RadCheck::where('username', $radUsername)->where('attribute', 'Cleartext-Password')->first();
+        $radUsername  = 'vch_' . strtolower($voucherCode);
+        $rad          = RadCheck::where('username', $radUsername)->where('attribute', 'Cleartext-Password')->first();
 
         if (! $rad) return;
 
         $expiryRow = RadCheck::where('username', $radUsername)->where('attribute', 'Expiration')->first();
         if ($expiryRow && \Carbon\Carbon::parse($expiryRow->value)->isPast()) {
             return; // Voucher expired → show form
+        }
+
+        // Block silent reconnect if the creator's plan is currently exhausted/expired
+        $voucherModel = Voucher::where('code', strtoupper($voucherCode))->first();
+        if ($voucherModel?->creator && ! (new SubscriptionService())->canConnectToHotspot($voucherModel->creator)) {
+            return; // Creator's plan is out — show captive portal so they know
         }
 
         Log::info('CaptiveAuth: MAC auto-login (voucher)', ['mac' => $this->mac, 'voucher' => $voucherCode]);
@@ -247,10 +252,23 @@ class CaptiveAuth extends Component
         }
 
         // Use a stable RADIUS identity derived from the voucher code
+        // Refuse early — before consuming the slot — if there's no hotspot session to bridge to
+        if (! $this->linkLogin) {
+            $this->error = 'Voucher activated but no hotspot session found. Please reconnect to the WiFi.';
+            return;
+        }
+
         $radUsername = 'vch_' . strtolower($code);
 
         $existing    = RadCheck::where('username', $radUsername)->where('attribute', 'Cleartext-Password')->first();
         $radPassword = $existing?->value ?? Str::random(12);
+
+        // Consume first so expires_at is set from redemption time for duration_hours-based vouchers.
+        // Only consume if this is the first activation (no existing RADIUS entry) so that a device
+        // reconnecting after a session drop doesn't burn an extra slot.
+        if (! $existing) {
+            $voucher->consume();
+        }
 
         RadCheck::updateOrCreate(
             ['username' => $radUsername, 'attribute' => 'Cleartext-Password'],
@@ -291,8 +309,6 @@ class CaptiveAuth extends Component
                 );
             }
         }
-
-        $voucher->consume();
 
         if ($this->mac) {
             Device::updateOrCreate(

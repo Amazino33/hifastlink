@@ -244,6 +244,26 @@ class PlanSyncService
                     ->delete();
             }
 
+            // Propagate the new plan expiry to all voucher RADIUS entries this creator owns,
+            // so already-activated vouchers start working again after a renewal instead of
+            // being blocked by a stale Expiration from the previous plan cycle.
+            $voucherRadNames = \App\Models\Voucher::where('created_by', $user->id)
+                ->pluck('code')
+                ->map(fn ($c) => 'vch_' . strtolower($c));
+
+            if ($voucherRadNames->isNotEmpty()) {
+                if ($user->plan_expiry) {
+                    $expiryStr = Carbon::parse($user->plan_expiry)->format('d M Y H:i');
+                    RadCheck::whereIn('username', $voucherRadNames)
+                        ->where('attribute', 'Expiration')
+                        ->update(['value' => $expiryStr]);
+                } else {
+                    RadCheck::whereIn('username', $voucherRadNames)
+                        ->where('attribute', 'Expiration')
+                        ->delete();
+                }
+            }
+
             // Ensure radusergroup is set to the appropriate groupname
             try {
                 $groupName = $plan ? ($plan->radius_group_name ?: $plan->name) : 'default_group';
