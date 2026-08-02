@@ -30,8 +30,18 @@ Route::post('/pharmacy/revoke', [PharmacyController::class, 'revoke']);
 Route::get('/ping', function (Request $request) {
     $ip     = $request->ip();
     $router = \App\Models\Router::where('ip_address', $ip)->where('is_active', true)->first();
+
+    $gateway  = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY');
+    $linkLogin = null;
+    if ($gateway) {
+        $host      = preg_replace('#^https?://#i', '', rtrim($gateway, '/'));
+        $host      = preg_replace('#/login$#', '', $host);
+        $linkLogin = 'http://' . $host . '/login';
+    }
+
     return response()->json([
-        'ok'     => true,
-        'router' => $router?->nas_identifier,
+        'ok'         => true,
+        'router'     => $router?->nas_identifier,
+        'link_login' => $linkLogin,
     ]);
 });
