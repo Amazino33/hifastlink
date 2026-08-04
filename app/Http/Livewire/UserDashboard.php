@@ -832,15 +832,23 @@ class UserDashboard extends Component
             ->where('acctstarttime', '>=', now()->startOfMonth())
             ->sum(DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
 
+        $recentPayouts = $router->payouts()
+            ->orderBy('created_at', 'desc')
+            ->limit(6)
+            ->get();
+
         return [
-            'router'          => $router,
-            'is_online'       => $router->is_online,
-            'active_users'    => $activeSessions->pluck('username')->unique()->count(),
-            'active_sessions' => $activeSessions,
-            'subscribers'     => $subscribers,
+            'router'            => $router,
+            'is_online'         => $router->is_online,
+            'active_users'      => $activeSessions->pluck('username')->unique()->count(),
+            'active_sessions'   => $activeSessions,
+            'subscribers'       => $subscribers,
             'total_subscribers' => $subscribers->count(),
-            'today_bytes'     => Number::fileSize($todayBytes),
-            'month_bytes'     => Number::fileSize($monthBytes),
+            'today_bytes'       => Number::fileSize($todayBytes),
+            'month_bytes'       => Number::fileSize($monthBytes),
+            'total_earned'      => (float) $router->payouts()->where('status', 'paid')->sum('amount'),
+            'total_pending'     => (float) $router->payouts()->where('status', 'pending')->sum('amount'),
+            'recent_payouts'    => $recentPayouts,
         ];
     }
 

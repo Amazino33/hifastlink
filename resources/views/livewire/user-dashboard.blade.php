@@ -1080,6 +1080,84 @@
                 </div>
                 @endif
 
+                {{-- ══════════════════════════════════════════ --}}
+                {{-- ROUTER OWNER — Earnings & Payouts          --}}
+                {{-- ══════════════════════════════════════════ --}}
+                @if($ownedRouter)
+                <div id="my-earnings" class="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-xl">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 bg-green-100 dark:bg-green-900/40 rounded-xl flex items-center justify-center">
+                            <i class="fa-solid fa-building-columns text-green-600 dark:text-green-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-black text-gray-900 dark:text-white">Your Earnings</h3>
+                            <p class="text-xs text-gray-400">Monthly payouts from {{ $ownedRouter['router']->name }}</p>
+                        </div>
+                    </div>
+
+                    {{-- Summary cards --}}
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-4">
+                            <div class="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider mb-1">Total Paid Out</div>
+                            <div class="text-2xl font-black text-green-700 dark:text-green-300">
+                                ₦{{ number_format($ownedRouter['total_earned'], 2) }}
+                            </div>
+                        </div>
+                        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4">
+                            <div class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1">Pending</div>
+                            <div class="text-2xl font-black text-amber-700 dark:text-amber-300">
+                                ₦{{ number_format($ownedRouter['total_pending'], 2) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Payout history --}}
+                    @if($ownedRouter['recent_payouts']->isNotEmpty())
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Payout History</p>
+                        <div class="space-y-2">
+                            @foreach($ownedRouter['recent_payouts'] as $payout)
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                                <div>
+                                    <div class="text-sm font-bold text-gray-900 dark:text-white">
+                                        {{ $payout->period_start->format('M d') }} – {{ $payout->period_end->format('M d, Y') }}
+                                    </div>
+                                    @if($payout->notes)
+                                    <div class="text-xs text-gray-400">{{ $payout->notes }}</div>
+                                    @endif
+                                </div>
+                                <div class="text-right flex-shrink-0 ml-3">
+                                    <div class="text-sm font-black text-gray-900 dark:text-white">₦{{ number_format($payout->amount, 2) }}</div>
+                                    <span class="inline-block text-xs font-bold px-2 py-0.5 rounded-full
+                                        {{ $payout->status === 'paid'
+                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' }}">
+                                        {{ $payout->status === 'paid' ? 'Paid' : 'Pending' }}
+                                    </span>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @else
+                    <div class="text-center py-6 text-gray-400 dark:text-gray-500">
+                        <i class="fa-solid fa-receipt text-3xl mb-2 block opacity-40"></i>
+                        <p class="text-sm">No payouts recorded yet.</p>
+                        <p class="text-xs mt-1">Your first payout will appear here once processed.</p>
+                    </div>
+                    @endif
+
+                    @if(!auth()->user()->bank_account_number)
+                    <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+                        <p class="text-xs text-blue-700 dark:text-blue-300">
+                            <i class="fa-solid fa-circle-info mr-1"></i>
+                            Add your bank details on your <a href="{{ route('profile.edit') }}" class="font-bold underline">profile page</a> so we can send your earnings.
+                        </p>
+                    </div>
+                    @endif
+                </div>
+                @endif
+
                 <div class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl">
                     <div class="flex items-center justify-between mb-6">
                         <h3 id="hot-deals" class="text-2xl font-black text-gray-900 dark:text-white">Hot Deals</h3>

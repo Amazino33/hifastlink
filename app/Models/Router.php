@@ -211,6 +211,11 @@ class Router extends Model
         return $this->hasMany(User::class, 'router_id');
     }
 
+    public function payouts(): HasMany
+    {
+        return $this->hasMany(\App\Models\RouterPayout::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

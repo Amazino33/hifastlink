@@ -33,6 +33,9 @@ class ProfileUpdateRequest extends FormRequest
                 'alpha_num',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+            'bank_name'           => ['nullable', 'string', 'max:100'],
+            'bank_account_number' => ['nullable', 'string', 'max:20'],
+            'bank_account_name'   => ['nullable', 'string', 'max:255'],
         ];
     }
 }

@@ -50,6 +50,10 @@ class User extends Authenticatable implements FilamentUser
         'google_id',
         'email_verified_at',
         'phone_verified_at',
+        'bank_name',
+        'bank_account_number',
+        'bank_account_name',
+        'paystack_recipient_code',
     ];
 
     /**
@@ -61,11 +65,32 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
-     * Router relationship
+     * Router relationship (the router the user is subscribed to)
      */
     public function router(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(\App\Models\Router::class);
+    }
+
+    /**
+     * Routers this user owns
+     */
+    public function ownedRouters(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\Router::class, 'owner_id');
+    }
+
+    /**
+     * Payouts earned across all owned routers
+     */
+    public function routerPayouts(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    {
+        return $this->hasManyThrough(
+            \App\Models\RouterPayout::class,
+            \App\Models\Router::class,
+            'owner_id',
+            'router_id'
+        );
     }
 
     /**

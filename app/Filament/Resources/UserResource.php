@@ -221,6 +221,31 @@ class UserResource extends Resource
                             ->columnSpan(2),
                     ])->columns(2),
 
+                Fieldset::make('Bank Details (Payout)')
+                    ->schema([
+                        TextInput::make('bank_name')
+                            ->label('Bank Name')
+                            ->placeholder('e.g. Access Bank')
+                            ->maxLength(100)
+                            ->columnSpan(1),
+                        TextInput::make('bank_account_number')
+                            ->label('Account Number')
+                            ->placeholder('10-digit account number')
+                            ->maxLength(20)
+                            ->columnSpan(1),
+                        TextInput::make('bank_account_name')
+                            ->label('Account Name')
+                            ->placeholder('Name on the bank account')
+                            ->maxLength(255)
+                            ->columnSpan(2),
+                        TextInput::make('paystack_recipient_code')
+                            ->label('Paystack Recipient Code')
+                            ->placeholder('RCP_xxxxxxxx (auto-filled when Paystack API is integrated)')
+                            ->maxLength(100)
+                            ->helperText('Leave blank — will be auto-populated when Paystack Transfer API is connected.')
+                            ->columnSpan(2),
+                    ])->columns(2),
+
                 Fieldset::make('Family Plan Settings')
                     ->schema([
                         Toggle::make('is_family_admin')

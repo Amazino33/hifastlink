@@ -92,6 +92,48 @@
             <x-input-error class="mt-2" :messages="$errors->get('phone')" />
         </div>
 
+        {{-- Bank Details — only shown to router owners --}}
+        @if($user->ownedRouters()->exists())
+        <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 class="text-base font-bold text-gray-800 dark:text-gray-200 mb-1">
+                <i class="fa-solid fa-building-columns mr-2 text-primary"></i>
+                Bank Details for Payouts
+            </h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                Your monthly earnings from HiFastLink routers you own will be sent to this account.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <x-input-label for="bank_name" :value="__('Bank Name')" />
+                    <x-text-input id="bank_name" name="bank_name" type="text"
+                        class="mt-1 block w-full"
+                        :value="old('bank_name', $user->bank_name)"
+                        placeholder="e.g. Access Bank" />
+                    <x-input-error class="mt-2" :messages="$errors->get('bank_name')" />
+                </div>
+
+                <div>
+                    <x-input-label for="bank_account_number" :value="__('Account Number')" />
+                    <x-text-input id="bank_account_number" name="bank_account_number" type="text"
+                        class="mt-1 block w-full"
+                        :value="old('bank_account_number', $user->bank_account_number)"
+                        placeholder="10-digit account number" maxlength="20" />
+                    <x-input-error class="mt-2" :messages="$errors->get('bank_account_number')" />
+                </div>
+
+                <div class="sm:col-span-2">
+                    <x-input-label for="bank_account_name" :value="__('Account Name')" />
+                    <x-text-input id="bank_account_name" name="bank_account_name" type="text"
+                        class="mt-1 block w-full"
+                        :value="old('bank_account_name', $user->bank_account_name)"
+                        placeholder="Name on bank account" />
+                    <x-input-error class="mt-2" :messages="$errors->get('bank_account_name')" />
+                </div>
+            </div>
+        </div>
+        @endif
+
         {{-- Save Button --}}
         <div class="flex items-center gap-4 pt-4">
             <x-primary-button class="flex items-center gap-2">
