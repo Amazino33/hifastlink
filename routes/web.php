@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\FreeWifiController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileController;
@@ -42,12 +41,6 @@ Route::get('/pharmacy-voucher', fn () => view('pharmacy-voucher'))->name('pharma
 // Simple connected page — public, no auth, used as MikroTik dst after login
 Route::get('/connected', fn () => view('hotspot.connected'))->name('captive.connected');
 
-// ============================================================
-// FREE WIFI — public registration via QR code poster
-// Add /free-wifi/* to MikroTik walled garden so it loads before auth
-// ============================================================
-Route::get('/free-wifi/{router}', [FreeWifiController::class, 'show'])->name('free-wifi.show');
-Route::post('/free-wifi/{router}', [FreeWifiController::class, 'register'])->name('free-wifi.register');
 
 // Layout preview — local dev only
 if (! app()->isProduction()) {

@@ -7,9 +7,25 @@
         <p class="text-gray-500">Create your account and get connected</p>
     </div>
 
+    @if(request('bonus') === 'free_trial')
+    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 flex items-start gap-3">
+        <span class="text-2xl leading-none">🎁</span>
+        <div>
+            <p class="text-sm font-bold text-blue-800">Free WiFi Offer</p>
+            <p class="text-xs text-blue-600 mt-0.5">Register below and you'll get instant free internet access — no payment needed.</p>
+        </div>
+    </div>
+    @endif
+
     <!-- Registration Form -->
     <form method="POST" action="{{ route('register') }}" class="space-y-5">
         @csrf
+        @if(request('bonus'))
+            <input type="hidden" name="bonus" value="{{ request('bonus') }}">
+        @endif
+        @if(request('router'))
+            <input type="hidden" name="router" value="{{ request('router') }}">
+        @endif
 
         <!-- Full Name Field -->
         <div class="group">
