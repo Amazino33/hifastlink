@@ -54,6 +54,7 @@ class User extends Authenticatable implements FilamentUser
         'bank_account_number',
         'bank_account_name',
         'paystack_recipient_code',
+        'free_trial_claimed_at',
     ];
 
     /**
@@ -146,7 +147,8 @@ class User extends Authenticatable implements FilamentUser
             'is_family_admin' => 'boolean',
             'family_limit' => 'integer',
             'rollover_available_bytes' => 'integer',
-            'rollover_validity_days' => 'integer',
+            'rollover_validity_days'   => 'integer',
+            'free_trial_claimed_at'   => 'datetime',
         ];
     }
 

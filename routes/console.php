@@ -38,6 +38,12 @@ Schedule::command('routers:notify-owners --type=daily')->dailyAt('08:00');
 // Clean up expired and stale vouchers daily at 3 AM
 Schedule::command('vouchers:cleanup')->dailyAt('03:00');
 
+// Auto-generate router owner payout records on the 1st of each month at 8 AM
+Schedule::command('payouts:generate')->monthlyOn(1, '08:00');
+
+// Block/unblock routers based on owner subscription status — runs hourly
+Schedule::command('routers:check-owner-subscriptions')->hourly();
+
 
 
 Artisan::command('inspire', function () {

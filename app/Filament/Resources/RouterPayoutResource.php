@@ -17,7 +17,6 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -80,13 +79,14 @@ class RouterPayoutResource extends Resource
                             ->numeric()
                             ->prefix('₦')
                             ->required()
-                            ->helperText('Auto-filled from completed Paystack transactions in the period. You can override it.'),
+                            ->helperText('Auto-filled from completed Paystack transactions, excluding the router owner\'s own payments.'),
 
                         Select::make('status')
                             ->label('Status')
                             ->options([
                                 'pending' => 'Pending',
                                 'paid'    => 'Paid',
+                                'denied'  => 'Denied',
                             ])
                             ->default('pending')
                             ->required(),
@@ -94,7 +94,13 @@ class RouterPayoutResource extends Resource
                         Textarea::make('notes')
                             ->label('Notes')
                             ->rows(2)
-                            ->placeholder('Optional — e.g. transfer reference, bank details used, etc.')
+                            ->placeholder('Optional — e.g. transfer reference, bank details used.')
+                            ->columnSpanFull(),
+
+                        Textarea::make('denied_reason')
+                            ->label('Denial Reason')
+                            ->rows(2)
+                            ->placeholder('Why was this payout denied?')
                             ->columnSpanFull(),
                     ])->columns(2),
             ]);
@@ -102,10 +108,19 @@ class RouterPayoutResource extends Resource
 
     protected static function recalculate(?string $routerId, ?string $start, ?string $end, callable $set): void
     {
-        if ($routerId && $start && $end) {
-            $amount = RouterPayout::calculateRevenue((int) $routerId, $start, $end);
-            $set('amount', $amount);
+        if (! ($routerId && $start && $end)) {
+            return;
         }
+
+        $router = Router::find($routerId);
+        $amount = RouterPayout::calculateRevenue(
+            (int) $routerId,
+            $start,
+            $end,
+            $router?->owner_id // exclude owner's own subscription payments
+        );
+
+        $set('amount', $amount);
     }
 
     public static function table(Table $table): Table
@@ -117,15 +132,17 @@ class RouterPayoutResource extends Resource
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('router.owner.name')
+                TextColumn::make('owner')
                     ->label('Owner')
-                    ->getStateUsing(fn ($record) => $record->router?->owner?->name ?? $record->router?->owner?->phone ?? '—')
-                    ->searchable(query: fn ($query, $search) => $query->whereHas('router.owner', fn ($q) => $q->where('name', 'like', "%{$search}%")))
+                    ->getStateUsing(fn ($record) => $record->router?->owner?->name
+                        ?? $record->router?->owner?->phone
+                        ?? '—')
                     ->sortable(false),
 
                 TextColumn::make('period_start')
                     ->label('Period')
-                    ->getStateUsing(fn ($record) => $record->period_start->format('M d') . ' – ' . $record->period_end->format('M d, Y'))
+                    ->getStateUsing(fn ($record) => $record->period_start->format('M d')
+                        . ' – ' . $record->period_end->format('M d, Y'))
                     ->sortable(),
 
                 TextColumn::make('amount')
@@ -133,12 +150,14 @@ class RouterPayoutResource extends Resource
                     ->money('NGN')
                     ->sortable(),
 
-                BadgeColumn::make('status')
+                TextColumn::make('status')
                     ->label('Status')
-                    ->colors([
-                        'warning' => 'pending',
-                        'success' => 'paid',
-                    ]),
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'paid'    => 'success',
+                        'denied'  => 'danger',
+                        default   => 'warning',
+                    }),
 
                 TextColumn::make('paid_at')
                     ->label('Paid On')
@@ -152,6 +171,7 @@ class RouterPayoutResource extends Resource
                     ->options([
                         'pending' => 'Pending',
                         'paid'    => 'Paid',
+                        'denied'  => 'Denied',
                     ]),
 
                 SelectFilter::make('router_id')
@@ -160,27 +180,49 @@ class RouterPayoutResource extends Resource
                     ->searchable(),
             ])
             ->actions([
-                Action::make('mark_paid')
-                    ->label('Mark as Paid')
+                Action::make('approve')
+                    ->label('Approve & Pay')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->visible(fn ($record) => $record->status === 'pending')
                     ->requiresConfirmation()
-                    ->modalHeading('Mark payout as paid?')
-                    ->modalDescription(fn ($record) => "This will mark the ₦" . number_format($record->amount, 2) . " payout for {$record->router?->name} as paid.")
+                    ->modalHeading('Approve this payout?')
+                    ->modalDescription(fn ($record) => 'This confirms you have transferred ₦'
+                        . number_format($record->amount, 2)
+                        . ' to ' . ($record->router?->owner?->name ?? $record->router?->owner?->phone ?? 'the router owner')
+                        . '. This cannot be undone.')
                     ->action(function ($record) {
                         $record->update([
                             'status'  => 'paid',
                             'paid_at' => now(),
                         ]);
 
-                        Notification::make()
-                            ->title('Payout marked as paid')
-                            ->success()
-                            ->send();
+                        Notification::make()->title('Payout approved and marked as paid.')->success()->send();
                     }),
 
-                EditAction::make(),
+                Action::make('deny')
+                    ->label('Deny')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->visible(fn ($record) => $record->status === 'pending')
+                    ->form([
+                        Textarea::make('denied_reason')
+                            ->label('Reason (optional)')
+                            ->rows(3)
+                            ->placeholder('e.g. dispute in amount, owner request, etc.'),
+                    ])
+                    ->action(function ($record, array $data) {
+                        $record->update([
+                            'status'        => 'denied',
+                            'denied_reason' => $data['denied_reason'] ?? null,
+                        ]);
+
+                        Notification::make()->title('Payout denied.')->warning()->send();
+                    }),
+
+                EditAction::make()
+                    ->visible(fn ($record) => $record->status === 'pending'),
+
                 DeleteAction::make(),
             ])
             ->bulkActions([]);

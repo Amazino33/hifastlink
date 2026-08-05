@@ -31,6 +31,8 @@ class Router extends Model
         'wifi_ssid',
         'wifi_password',
         'owner_id',
+        'requires_owner_subscription',
+        'access_blocked',
         'brand_name',
         'brand_logo',
         'brand_favicon',
@@ -50,8 +52,10 @@ class Router extends Model
     ];
 
     protected $casts = [
-        'is_active'          => 'boolean',
-        'api_port'           => 'integer',
+        'is_active'                    => 'boolean',
+        'requires_owner_subscription'  => 'boolean',
+        'access_blocked'               => 'boolean',
+        'api_port'                     => 'integer',
         'last_seen_at'       => 'datetime',
         'offline_notified_at'=> 'datetime',
         'brand_instructions' => 'array',

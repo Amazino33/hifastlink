@@ -155,7 +155,13 @@ class RouterResource extends Resource
                             ->preload()
                             ->label('Router Owner')
                             ->placeholder('No owner — HiFastLink managed')
-                            ->helperText('The person who rented/bought this router. They see subscriber analytics on their dashboard.'),
+                            ->helperText('The person who rented/bought this router. They see subscriber analytics on their dashboard.')
+                            ->live(),
+
+                        Toggle::make('requires_owner_subscription')
+                            ->label('Require Owner Subscription')
+                            ->helperText('When ON, every user on this router is immediately blocked if the owner\'s plan expires — and restored automatically when the owner renews.')
+                            ->visible(fn ($get) => (bool) $get('owner_id')),
                     ]),
 
                 ComponentsSection::make('Custom Branding')
@@ -357,6 +363,17 @@ class RouterResource extends Resource
                     ->label('Owner')
                     ->formatStateUsing(fn ($record) => $record->owner?->display_name ?? '—')
                     ->placeholder('—')
+                    ->toggleable(),
+
+                TextColumn::make('access_blocked')
+                    ->label('Access')
+                    ->badge()
+                    ->getStateUsing(fn ($record) => $record->access_blocked ? 'Blocked' : ($record->requires_owner_subscription ? 'Gated' : '—'))
+                    ->color(fn (string $state): string => match ($state) {
+                        'Blocked' => 'danger',
+                        'Gated'   => 'warning',
+                        default   => 'gray',
+                    })
                     ->toggleable(),
 
                 TextColumn::make('active_users_count')
