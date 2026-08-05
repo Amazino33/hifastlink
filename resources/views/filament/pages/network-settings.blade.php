@@ -290,7 +290,7 @@
             <li>Registering via this URL shows a "Free WiFi Offer" banner and auto-assigns the trial plan on sign-up.</li>
             <li>One claim per account — ever.</li>
         </ul>
-        <div class="url-example">{{ config('app.url') }}/register?bonus=free_trial&amp;router=<strong>{NAS_IDENTIFIER}</strong></div>
+        <div class="url-example">{{ config('app.url') }}/login?bonus=free_trial&amp;router=<strong>{NAS_IDENTIFIER}</strong></div>
     </div>
 
     <div class="s-btn-row">

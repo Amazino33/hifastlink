@@ -10,6 +10,16 @@
 
     <x-auth-session-status class="mb-6" :status="session('status')" />
 
+    @if(request('bonus') === 'free_trial')
+    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 flex items-start gap-3">
+        <span class="text-2xl leading-none">🎁</span>
+        <div>
+            <p class="text-sm font-bold text-blue-800">Free WiFi Offer</p>
+            <p class="text-xs text-blue-600 mt-0.5">Log in or create an account below — you'll get instant free internet access automatically.</p>
+        </div>
+    </div>
+    @endif
+
     {{-- Login method tabs --}}
     <div x-data="{ tab: 'pin' }" class="mb-6">
         <div class="flex rounded-2xl bg-gray-100 p-1 mb-6">
@@ -88,6 +98,9 @@
         @endforeach
         @if(request()->has('username'))
             <input type="hidden" name="router_username" value="{{ request()->get('username') }}">
+        @endif
+        @if(request('bonus'))
+            <input type="hidden" name="bonus" value="{{ request('bonus') }}">
         @endif
 
         {{-- Smart login field --}}
@@ -207,7 +220,10 @@
         </div>
 
         @if (Route::has('register'))
-            <a href="{{ route('register') }}"
+            @php
+                $registerUrl = route('register') . (request('bonus') ? '?' . http_build_query(array_filter(['bonus' => request('bonus'), 'router' => request('router')])) : '');
+            @endphp
+            <a href="{{ $registerUrl }}"
                 class="block w-full text-center bg-white border-2 border-gray-300 hover:border-primary text-gray-700 hover:text-primary font-semibold py-4 rounded-2xl transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg group">
                 <i class="fa-solid fa-user-plus mr-2 group-hover:scale-110 inline-block transition-transform duration-300"></i>
                 Create Account

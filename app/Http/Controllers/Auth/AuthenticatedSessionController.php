@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\FreeTrialService;
 use App\Models\RadCheck;
 use App\Models\Voucher;
 use Illuminate\Http\RedirectResponse;
@@ -323,6 +324,10 @@ class AuthenticatedSessionController extends Controller
                 'ip' => $request->input('ip'),
                 'router' => $request->input('router') ?? null,
             ]);
+        }
+
+        if ($request->input('bonus') === 'free_trial') {
+            FreeTrialService::apply(Auth::user(), $request->input('router'));
         }
 
         return redirect()->intended(route('dashboard', absolute: false));
