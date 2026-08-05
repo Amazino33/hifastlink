@@ -75,12 +75,38 @@
     border-radius:8px; padding:8px 14px; font-size:13px; color:var(--text2); margin-top:16px;
 }
 .rate-preview strong { color:var(--text); font-family:monospace; }
+.s-select {
+    width:100%; padding:8px 12px; border:1px solid var(--border);
+    border-radius:8px; background:var(--bg2); color:var(--text);
+    font-size:14px; outline:none; box-sizing:border-box;
+    transition:border-color .15s; font-family:inherit;
+}
+.s-select:focus { border-color:var(--accent); }
 .info-box {
     background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;
     padding:14px 16px; font-size:13px; color:#1e40af; line-height:1.6;
 }
 .dark .info-box { background:#1e3a5f; border-color:#3b82f6; color:#93c5fd; }
 .info-box ul { margin:6px 0 0; padding-left:18px; }
+.plan-preview {
+    display:flex; align-items:center; gap:14px;
+    background:var(--bg3); border:1px solid var(--border);
+    border-radius:8px; padding:14px 16px; margin-top:16px; font-size:13px;
+}
+.plan-preview-stat { text-align:center; }
+.plan-preview-stat strong { display:block; font-size:20px; font-weight:800; color:var(--text); }
+.plan-preview-stat span  { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; }
+.plan-preview-divider { width:1px; background:var(--border); align-self:stretch; }
+.warn-box {
+    background:#fffbeb; border:1px solid #fde68a; border-radius:8px;
+    padding:14px 16px; font-size:13px; color:#92400e; line-height:1.6; margin-bottom:16px;
+}
+.dark .warn-box { background:#422006; border-color:#d97706; color:#fcd34d; }
+.url-example {
+    background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+    padding:12px 14px; font-family:monospace; font-size:12px; color:var(--text2);
+    margin-top:10px; word-break:break-all;
+}
 </style>
 
 {{-- Global Bandwidth Cap --}}
@@ -193,6 +219,84 @@
         <button class="s-btn s-btn-primary" wire:click="savePharmacy" wire:loading.attr="disabled">
             <span wire:loading.remove wire:target="savePharmacy">Save Pharmacy Settings</span>
             <span wire:loading wire:target="savePharmacy">Saving...</span>
+        </button>
+    </div>
+</div>
+
+{{-- Free WiFi Trial --}}
+<div class="s-card">
+    <div class="s-card-title">Free WiFi Trial Offer</div>
+    <div class="s-card-desc">
+        When enabled, new users who register via the QR code URL below automatically
+        receive the trial plan. One claim per account — abuse prevention is always enforced
+        regardless of this toggle.
+    </div>
+
+    <div class="s-toggle-row" style="border-top:none;padding-top:0;margin-bottom:20px;">
+        <label class="toggle-switch">
+            <input type="checkbox" wire:model.live="free_wifi_enabled">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </label>
+        <div>
+            <div class="s-toggle-label">Enable Free WiFi Trial</div>
+            <div class="s-toggle-desc">Turn off to temporarily pause the offer without deleting any settings.</div>
+        </div>
+        <div style="margin-left:auto">
+            <span class="status-badge {{ $free_wifi_enabled ? 'status-on' : 'status-off' }}">
+                <span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block"></span>
+                {{ $free_wifi_enabled ? 'Active' : 'Paused' }}
+            </span>
+        </div>
+    </div>
+
+    <div style="margin-bottom:20px;">
+        <label class="s-label">Trial Plan</label>
+        @if(! $free_wifi_plan_id)
+        <div class="warn-box">⚠️ No plan selected — the bonus will not be applied until you pick a plan and save.</div>
+        @endif
+        <select wire:model.live="free_wifi_plan_id" class="s-select">
+            <option value="">— Choose a plan —</option>
+            @foreach($this->plans as $id => $label)
+                <option value="{{ $id }}">{{ $label }}</option>
+            @endforeach
+        </select>
+        @error('free_wifi_plan_id')<p class="s-err">{{ $message }}</p>@enderror
+        <p class="s-hint">Only active plans are listed. Mark a plan <strong>Admin Only</strong> to hide it from the public shop while still using it here.</p>
+
+        @if($this->selectedPlan)
+        <div class="plan-preview">
+            <div class="plan-preview-stat">
+                <strong>{{ $this->selectedPlan->validity_days }}</strong>
+                <span>Days</span>
+            </div>
+            <div class="plan-preview-divider"></div>
+            <div class="plan-preview-stat">
+                <strong>{{ $this->selectedPlan->data_limit ? \Illuminate\Support\Number::fileSize($this->selectedPlan->data_limit * 1048576) : '∞' }}</strong>
+                <span>Data</span>
+            </div>
+            <div class="plan-preview-divider"></div>
+            <div class="plan-preview-stat">
+                <strong style="font-size:15px">{{ $this->selectedPlan->name }}</strong>
+                <span>Plan name</span>
+            </div>
+        </div>
+        @endif
+    </div>
+
+    <div class="info-box" style="margin-bottom:16px;">
+        Generate one QR code per router using the router's <strong>NAS Identifier</strong> (found on the router's edit page).
+        <ul>
+            <li>Points to the standard registration page — no MikroTik walled garden entry needed.</li>
+            <li>Registering via this URL shows a "Free WiFi Offer" banner and auto-assigns the trial plan on sign-up.</li>
+            <li>One claim per account — ever.</li>
+        </ul>
+        <div class="url-example">{{ config('app.url') }}/register?bonus=free_trial&amp;router=<strong>{NAS_IDENTIFIER}</strong></div>
+    </div>
+
+    <div class="s-btn-row">
+        <button class="s-btn s-btn-primary" wire:click="saveFreeWifi" wire:loading.attr="disabled">
+            <span wire:loading.remove wire:target="saveFreeWifi">Save Free WiFi Settings</span>
+            <span wire:loading wire:target="saveFreeWifi">Saving...</span>
         </button>
     </div>
 </div>

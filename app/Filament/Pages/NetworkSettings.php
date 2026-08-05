@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\AppSetting;
+use App\Models\Plan;
 use App\Models\User;
 use App\Services\PlanSyncService;
 use Filament\Notifications\Notification;
@@ -28,9 +29,11 @@ class NetworkSettings extends Page
     public int    $global_speed_upload   = 1024;
     public int    $global_speed_download = 2048;
 
-    // BasmelCare pharmacy integration
     public string $basmelcare_api_url = '';
     public string $basmelcare_api_key = '';
+
+    public bool   $free_wifi_enabled  = false;
+    public string $free_wifi_plan_id  = '';
 
     public function mount(): void
     {
@@ -40,6 +43,9 @@ class NetworkSettings extends Page
 
         $this->basmelcare_api_url = AppSetting::get('basmelcare_api_url', '');
         $this->basmelcare_api_key = AppSetting::get('basmelcare_api_key', '');
+
+        $this->free_wifi_enabled = AppSetting::bool('free_wifi_enabled', false);
+        $this->free_wifi_plan_id = AppSetting::get('free_wifi_plan_id', '');
     }
 
     public function save(): void
@@ -67,6 +73,35 @@ class NetworkSettings extends Page
         AppSetting::set('basmelcare_api_key', $this->basmelcare_api_key);
 
         Notification::make()->title('Pharmacy integration saved.')->success()->send();
+    }
+
+    public function saveFreeWifi(): void
+    {
+        $this->validate([
+            'free_wifi_plan_id' => ['nullable', 'integer', 'exists:plans,id'],
+        ]);
+
+        AppSetting::set('free_wifi_enabled', $this->free_wifi_enabled ? '1' : '0');
+        AppSetting::set('free_wifi_plan_id', (string) $this->free_wifi_plan_id);
+
+        Notification::make()->title('Free WiFi trial settings saved.')->success()->send();
+    }
+
+    public function getPlansProperty(): array
+    {
+        return Plan::where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(fn ($p) => [
+                $p->id => $p->name . ' — ' . $p->validity_days . ' day(s)'
+                    . ($p->data_limit ? '' : ', Unlimited'),
+            ])
+            ->toArray();
+    }
+
+    public function getSelectedPlanProperty(): ?Plan
+    {
+        return $this->free_wifi_plan_id ? Plan::find($this->free_wifi_plan_id) : null;
     }
 
     public function applyGlobally(): void
