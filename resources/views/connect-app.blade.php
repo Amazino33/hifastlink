@@ -8,8 +8,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="HiFastLink">
     <meta name="theme-color" content="#007AFE">
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/images/pwa-icon.svg">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <title>HiFastLink</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -95,14 +97,7 @@
 <body>
 <div class="card">
     <div class="logo">
-        <svg viewBox="0 0 316 316" xmlns="http://www.w3.org/2000/svg" width="72" height="72">
-            <defs><clipPath id="c"><rect width="316" height="316" rx="72"/></clipPath></defs>
-            <rect width="316" height="316" rx="72" fill="#ffffff"/>
-            <g clip-path="url(#c)">
-                <path fill="#007afc" d="M 35,210 L 158,68 L 281,210 L 281,172 L 158,106 L 35,172 Z"/>
-                <path fill="#bad2fc" d="M 35,298 L 158,156 L 281,298 L 281,260 L 158,194 L 35,260 Z"/>
-            </g>
-        </svg>
+        <img src="/logo.png" alt="HiFastLink" style="width:72px;height:72px;object-fit:contain;border-radius:18px;">
     </div>
     <h1>HiFastLink</h1>
     <p class="tagline">Fast · Reliable · Satellite-powered</p>

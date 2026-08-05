@@ -4,6 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#007AFE">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
     <title>Free WiFi — {{ $router->name }}</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -289,12 +293,7 @@
     {{-- Hero --}}
     <div class="hero">
         <div class="logo-wrap">
-            <svg viewBox="0 0 316 316" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
-                <rect width="316" height="316" rx="72" fill="rgba(255,255,255,.15)"/>
-                <path fill="#fff" d="M 35,210 L 158,68 L 281,210 L 281,172 L 158,106 L 35,172 Z"/>
-                <path fill="rgba(255,255,255,.5)" d="M 35,298 L 158,156 L 281,298 L 281,260 L 158,194 L 35,260 Z"/>
-            </svg>
-            <span style="color:#fff;font-weight:800;font-size:17px;letter-spacing:-.01em">HiFastLink</span>
+            <img src="/logo-1.png" alt="HiFastLink" style="height:36px;width:auto;object-fit:contain;">
         </div>
 
         <div class="badge-free">✦ Free Offer</div>
