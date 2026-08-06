@@ -21,7 +21,7 @@ Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCa
 Route::get('login', [AuthenticatedSessionController::class, 'create'])
     ->name('login');
 
-Route::get('register', fn () => redirect()->route('login'))
+Route::get('register', fn () => redirect()->route('login', ['register' => 1]))
     ->name('register');
 
 Route::middleware('guest')->group(function () {

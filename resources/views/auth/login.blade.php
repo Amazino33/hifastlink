@@ -3,13 +3,15 @@
 <x-guest-layout>
 
 @php
-    $isFreeWifi  = request('bonus') === 'free_trial';
+    $isFreeWifi   = request('bonus') === 'free_trial';
     $hasRegErrors = $errors->has('name') || $errors->has('username') || $errors->has('password_confirmation');
-    $defaultMode  = ($isFreeWifi || $hasRegErrors) ? 'register' : 'login';
+    $defaultMode  = ($isFreeWifi || $hasRegErrors || request()->has('register')) ? 'register' : 'login';
+    $defaultTab   = $isFreeWifi ? 'otp' : 'pin';
 @endphp
 
 <div x-data="{
     mode: '{{ $defaultMode }}',
+    tab:  '{{ $defaultTab }}',
     get loginHeading()    { return {{ $isFreeWifi ? "'Get Free WiFi'" : "'Welcome Back'" }}; },
     get registerHeading() { return {{ $isFreeWifi ? "'Get Free WiFi'" : "'Join HiFastLink'" }}; },
     get loginSub()        { return {{ $isFreeWifi ? "'Sign in to get connected instantly'" : "'Sign in to continue your journey'" }}; },
@@ -38,7 +40,7 @@
     <div>
         <p class="text-sm font-bold text-blue-800">Free WiFi Offer</p>
         <p class="text-xs text-blue-600 mt-0.5" x-show="mode === 'register'">
-            Fill in your details — free internet access is applied the moment your account is created.
+            Verify your WhatsApp number — free internet access is applied the moment your account is created.
         </p>
         <p class="text-xs text-blue-600 mt-0.5" x-show="mode === 'login'" x-cloak>
             Sign in and your free access will be applied automatically.
@@ -64,7 +66,7 @@
 </div>
 
 {{-- Google — works for both modes --}}
-<a href="{{ route('auth.google') }}"
+<a href="{{ route('auth.google', array_filter(['bonus' => request('bonus'), 'router' => request('router')])) }}"
     class="flex items-center justify-center gap-3 w-full border-2 border-gray-300 hover:border-blue-400 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-4 rounded-2xl transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg mb-6">
     <svg class="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -86,143 +88,141 @@
     </div>
 </div>
 
+{{-- ── Shared method tabs (PIN / WhatsApp OTP) ──────────────────── --}}
+<div class="flex rounded-2xl bg-gray-100 p-1 mb-6">
+    <button type="button"
+        @click="tab = 'pin'"
+        :class="tab === 'pin' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'"
+        class="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200">
+        <i class="fa-solid fa-key mr-1.5"></i> PIN / Password
+    </button>
+    <button type="button"
+        @click="tab = 'otp'"
+        :class="tab === 'otp' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'"
+        class="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200">
+        <i class="fa-brands fa-whatsapp mr-1.5"></i> WhatsApp OTP
+    </button>
+</div>
+
 
 {{-- ═══════════════════════════════════════════════════════
      SIGN IN
 ═══════════════════════════════════════════════════════ --}}
 <div x-show="mode === 'login'" x-cloak>
 
-    <div x-data="{ tab: 'pin' }">
-        {{-- Method tabs --}}
-        <div class="flex rounded-2xl bg-gray-100 p-1 mb-6">
-            <button type="button"
-                @click="tab = 'pin'"
-                :class="tab === 'pin' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'"
-                class="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200">
-                <i class="fa-solid fa-key mr-1.5"></i> PIN / Password
-            </button>
-            <button type="button"
-                @click="tab = 'otp'"
-                :class="tab === 'otp' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'"
-                class="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200">
-                <i class="fa-brands fa-whatsapp mr-1.5"></i> WhatsApp OTP
-            </button>
-        </div>
+    {{-- PIN / Password --}}
+    <div x-show="tab === 'pin'" x-cloak>
+        <noscript>
+            <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800">
+                <i class="fa-solid fa-circle-info mr-1"></i>
+                Using a voucher code? Enter it below and leave the PIN field blank.
+            </div>
+        </noscript>
 
-        {{-- PIN / Password --}}
-        <div x-show="tab === 'pin'" x-cloak>
-            <noscript>
-                <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800">
-                    <i class="fa-solid fa-circle-info mr-1"></i>
-                    Using a voucher code? Enter it below and leave the PIN field blank.
-                </div>
-            </noscript>
-
-            <form method="POST" action="{{ route('login') }}" class="space-y-6"
-                x-data="{
-                    isVoucher: false,
-                    voucherPattern: /^VCH-[A-Z0-9]+$/i,
-                    checkTimer: null,
-                    onLoginInput(val) {
-                        clearTimeout(this.checkTimer);
-                        this.checkTimer = setTimeout(() => { this.isVoucher = this.voucherPattern.test(val.trim()); }, 200);
-                    },
-                    fillPasswordAndSubmit(form) {
-                        const v = form.querySelector('#login').value.trim();
-                        if (this.isVoucher || this.voucherPattern.test(v)) {
-                            const p = form.querySelector('#password');
-                            p.removeAttribute('required');
-                            p.value = v;
-                        }
+        <form method="POST" action="{{ route('login') }}" class="space-y-6"
+            x-data="{
+                isVoucher: false,
+                voucherPattern: /^VCH-[A-Z0-9]+$/i,
+                checkTimer: null,
+                onLoginInput(val) {
+                    clearTimeout(this.checkTimer);
+                    this.checkTimer = setTimeout(() => { this.isVoucher = this.voucherPattern.test(val.trim()); }, 200);
+                },
+                fillPasswordAndSubmit(form) {
+                    const v = form.querySelector('#login').value.trim();
+                    if (this.isVoucher || this.voucherPattern.test(v)) {
+                        const p = form.querySelector('#password');
+                        p.removeAttribute('required');
+                        p.value = v;
                     }
-                }"
-                @submit="fillPasswordAndSubmit($el)">
-                @csrf
+                }
+            }"
+            @submit="fillPasswordAndSubmit($el)">
+            @csrf
 
-                @if(request()->hasAny(['link-login', 'link-login-only', 'link-orig', 'link_login', 'link_orig']))
-                    <input type="hidden" name="link_login" value="{{ request()->get('link-login') ?? request()->get('link-login-only') ?? request()->get('link_login') ?? request()->get('link-orig') ?? request()->get('link_orig') }}">
-                    <input type="hidden" name="link_orig" value="{{ request()->get('link-orig') ?? request()->get('link_orig') ?? '' }}">
+            @if(request()->hasAny(['link-login', 'link-login-only', 'link-orig', 'link_login', 'link_orig']))
+                <input type="hidden" name="link_login" value="{{ request()->get('link-login') ?? request()->get('link-login-only') ?? request()->get('link_login') ?? request()->get('link-orig') ?? request()->get('link_orig') }}">
+                <input type="hidden" name="link_orig" value="{{ request()->get('link-orig') ?? request()->get('link_orig') ?? '' }}">
+            @endif
+            @foreach (['mac', 'ip', 'router'] as $param)
+                @if(request()->has($param))
+                    <input type="hidden" name="{{ $param }}" value="{{ request()->get($param) }}">
                 @endif
-                @foreach (['mac', 'ip', 'router'] as $param)
-                    @if(request()->has($param))
-                        <input type="hidden" name="{{ $param }}" value="{{ request()->get($param) }}">
-                    @endif
-                @endforeach
-                @if(request()->has('username'))
-                    <input type="hidden" name="router_username" value="{{ request()->get('username') }}">
+            @endforeach
+            @if(request()->has('username'))
+                <input type="hidden" name="router_username" value="{{ request()->get('username') }}">
+            @endif
+            @if(request('bonus'))
+                <input type="hidden" name="bonus" value="{{ request('bonus') }}">
+            @endif
+
+            <div class="group">
+                <label for="login" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                    <i class="fa-solid fa-envelope mr-2 text-primary"></i>Email, Phone, Username or Voucher Code
+                </label>
+                <div class="relative">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <input id="login" type="text" name="login" value="{{ old('login') }}"
+                        required autofocus autocomplete="username"
+                        placeholder="Email, phone, username or voucher code"
+                        class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('login') border-red-500 ring-4 ring-red-100 @enderror"
+                        @input="onLoginInput($event.target.value)">
+                </div>
+                <div x-show="isVoucher" x-transition class="mt-2 flex items-center gap-2 text-green-600 text-sm font-medium">
+                    <i class="fa-solid fa-ticket"></i> Voucher detected — no PIN needed
+                </div>
+                <x-input-error :messages="$errors->get('login')" class="mt-2" />
+            </div>
+
+            <div x-show="!isVoucher" x-transition x-data="{ show: false }" class="group">
+                <label for="password" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                    <i class="fa-solid fa-lock mr-2 text-primary"></i>PIN
+                </label>
+                <div class="relative">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary transition-colors duration-300">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                    <input id="password" :type="show ? 'text' : 'password'" name="password"
+                        :required="!isVoucher" autocomplete="current-password" placeholder="Enter your PIN"
+                        class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-primary focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('password') border-red-500 ring-4 ring-red-100 @enderror">
+                    <button type="button" @click="show = !show" tabindex="-1"
+                        class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none p-1 hover:bg-gray-100 rounded-lg transition-all duration-300">
+                        <i :class="show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'" class="text-lg"></i>
+                    </button>
+                </div>
+                <x-input-error :messages="$errors->get('password')" class="mt-2" />
+            </div>
+
+            <div class="flex items-center justify-between">
+                <label class="flex items-center cursor-pointer group">
+                    <input id="remember_me" type="checkbox" name="remember"
+                        class="w-5 h-5 text-blue-600 bg-gray-50 border-2 border-gray-300 rounded focus:ring-4 focus:ring-blue-100 transition-all duration-300 cursor-pointer">
+                    <span class="ml-3 text-sm text-gray-600 group-hover:text-gray-900 transition-colors duration-300">Remember me</span>
+                </label>
+                @if (Route::has('password.request'))
+                    <a href="{{ route('password.request') }}"
+                        class="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-all duration-300">
+                        Forgot PIN?
+                    </a>
                 @endif
-                @if(request('bonus'))
-                    <input type="hidden" name="bonus" value="{{ request('bonus') }}">
-                @endif
+            </div>
 
-                <div class="group">
-                    <label for="login" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                        <i class="fa-solid fa-envelope mr-2 text-primary"></i>Email, Phone, Username or Voucher Code
-                    </label>
-                    <div class="relative">
-                        <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
-                            <i class="fa-solid fa-user"></i>
-                        </div>
-                        <input id="login" type="text" name="login" value="{{ old('login') }}"
-                            required autofocus autocomplete="username"
-                            placeholder="Email, phone, username or voucher code"
-                            class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('login') border-red-500 ring-4 ring-red-100 @enderror"
-                            @input="onLoginInput($event.target.value)">
-                    </div>
-                    <div x-show="isVoucher" x-transition class="mt-2 flex items-center gap-2 text-green-600 text-sm font-medium">
-                        <i class="fa-solid fa-ticket"></i> Voucher detected — no PIN needed
-                    </div>
-                    <x-input-error :messages="$errors->get('login')" class="mt-2" />
-                </div>
+            <button type="submit"
+                class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 group">
+                <span class="flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket group-hover:translate-x-1 transition-transform duration-300"></i>
+                    <span x-text="isVoucher ? 'Connect' : 'Sign In'">Sign In</span>
+                </span>
+            </button>
+        </form>
+    </div>{{-- end tab: pin --}}
 
-                <div x-show="!isVoucher" x-transition x-data="{ show: false }" class="group">
-                    <label for="password" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                        <i class="fa-solid fa-lock mr-2 text-primary"></i>PIN
-                    </label>
-                    <div class="relative">
-                        <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary transition-colors duration-300">
-                            <i class="fa-solid fa-key"></i>
-                        </div>
-                        <input id="password" :type="show ? 'text' : 'password'" name="password"
-                            :required="!isVoucher" autocomplete="current-password" placeholder="Enter your PIN"
-                            class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-primary focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('password') border-red-500 ring-4 ring-red-100 @enderror">
-                        <button type="button" @click="show = !show" tabindex="-1"
-                            class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none p-1 hover:bg-gray-100 rounded-lg transition-all duration-300">
-                            <i :class="show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'" class="text-lg"></i>
-                        </button>
-                    </div>
-                    <x-input-error :messages="$errors->get('password')" class="mt-2" />
-                </div>
-
-                <div class="flex items-center justify-between">
-                    <label class="flex items-center cursor-pointer group">
-                        <input id="remember_me" type="checkbox" name="remember"
-                            class="w-5 h-5 text-blue-600 bg-gray-50 border-2 border-gray-300 rounded focus:ring-4 focus:ring-blue-100 transition-all duration-300 cursor-pointer">
-                        <span class="ml-3 text-sm text-gray-600 group-hover:text-gray-900 transition-colors duration-300">Remember me</span>
-                    </label>
-                    @if (Route::has('password.request'))
-                        <a href="{{ route('password.request') }}"
-                            class="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-all duration-300">
-                            Forgot PIN?
-                        </a>
-                    @endif
-                </div>
-
-                <button type="submit"
-                    class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 group">
-                    <span class="flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-right-to-bracket group-hover:translate-x-1 transition-transform duration-300"></i>
-                        <span x-text="isVoucher ? 'Connect' : 'Sign In'">Sign In</span>
-                    </span>
-                </button>
-            </form>
-        </div>{{-- end tab: pin --}}
-
-        {{-- WhatsApp OTP --}}
-        <div x-show="tab === 'otp'" x-cloak>
-            @livewire('phone-otp-login')
-        </div>
-    </div>{{-- end inner tabs --}}
+    {{-- WhatsApp OTP (login) --}}
+    <div x-show="tab === 'otp'" x-cloak>
+        @livewire('phone-otp-login', ['mode' => 'login'], key('otp-login'))
+    </div>
 
 </div>{{-- end mode: login --}}
 
@@ -232,129 +232,141 @@
 ═══════════════════════════════════════════════════════ --}}
 <div x-show="mode === 'register'" x-cloak>
 
-    <form method="POST" action="{{ route('register') }}" class="space-y-5">
-        @csrf
-        @if(request('bonus'))
-            <input type="hidden" name="bonus" value="{{ request('bonus') }}">
-        @endif
-        @if(request('router'))
-            <input type="hidden" name="router" value="{{ request('router') }}">
-        @endif
+    {{-- PIN / Password (traditional registration) --}}
+    <div x-show="tab === 'pin'" x-cloak>
+        <form method="POST" action="{{ route('register') }}" class="space-y-5">
+            @csrf
+            @if(request('bonus'))
+                <input type="hidden" name="bonus" value="{{ request('bonus') }}">
+            @endif
+            @if(request('router'))
+                <input type="hidden" name="router" value="{{ request('router') }}">
+            @endif
 
-        {{-- Full Name --}}
-        <div class="group">
-            <label for="reg_name" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                <i class="fa-solid fa-user mr-2 text-primary"></i>Full Name
-            </label>
-            <div class="relative">
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
-                    <i class="fa-solid fa-id-card"></i>
+            {{-- Full Name --}}
+            <div class="group">
+                <label for="reg_name" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                    <i class="fa-solid fa-user mr-2 text-primary"></i>Full Name
+                </label>
+                <div class="relative">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
+                        <i class="fa-solid fa-id-card"></i>
+                    </div>
+                    <input id="reg_name" type="text" name="name" value="{{ old('name') }}" required
+                        autocomplete="name" placeholder="Enter your full name"
+                        class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('name') border-red-500 ring-4 ring-red-100 @enderror">
                 </div>
-                <input id="reg_name" type="text" name="name" value="{{ old('name') }}" required
-                    autocomplete="name" placeholder="Enter your full name"
-                    class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('name') border-red-500 ring-4 ring-red-100 @enderror">
+                <x-input-error :messages="$errors->get('name')" class="mt-2" />
             </div>
-            <x-input-error :messages="$errors->get('name')" class="mt-2" />
-        </div>
 
-        {{-- Username --}}
-        <div class="group">
-            <label for="reg_username" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                <i class="fa-solid fa-user-tag mr-2 text-primary"></i>Username
-            </label>
-            <div class="relative">
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
-                    <i class="fa-solid fa-at"></i>
+            {{-- Username --}}
+            <div class="group">
+                <label for="reg_username" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                    <i class="fa-solid fa-user-tag mr-2 text-primary"></i>Username
+                </label>
+                <div class="relative">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
+                        <i class="fa-solid fa-at"></i>
+                    </div>
+                    <input id="reg_username" type="text" name="username" value="{{ old('username') }}" required
+                        autocomplete="off" placeholder="Choose a unique username"
+                        class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('username') border-red-500 ring-4 ring-red-100 @enderror">
                 </div>
-                <input id="reg_username" type="text" name="username" value="{{ old('username') }}" required
-                    autocomplete="off" placeholder="Choose a unique username"
-                    class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('username') border-red-500 ring-4 ring-red-100 @enderror">
+                <x-input-error :messages="$errors->get('username')" class="mt-2" />
             </div>
-            <x-input-error :messages="$errors->get('username')" class="mt-2" />
-        </div>
 
-        {{-- Email --}}
-        <div class="group">
-            <label for="reg_email" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                <i class="fa-solid fa-envelope mr-2 text-primary"></i>Email Address
-            </label>
-            <div class="relative">
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
-                    <i class="fa-solid fa-at"></i>
+            {{-- Email --}}
+            <div class="group">
+                <label for="reg_email" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                    <i class="fa-solid fa-envelope mr-2 text-primary"></i>Email Address
+                </label>
+                <div class="relative">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
+                        <i class="fa-solid fa-at"></i>
+                    </div>
+                    <input id="reg_email" type="email" name="email" value="{{ old('email') }}" required
+                        autocomplete="email" placeholder="Enter your email"
+                        class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('email') border-red-500 ring-4 ring-red-100 @enderror">
                 </div>
-                <input id="reg_email" type="email" name="email" value="{{ old('email') }}" required
-                    autocomplete="email" placeholder="Enter your email"
-                    class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('email') border-red-500 ring-4 ring-red-100 @enderror">
+                <x-input-error :messages="$errors->get('email')" class="mt-2" />
             </div>
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
 
-        {{-- Phone --}}
-        <div class="group">
-            <label for="reg_phone" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                <i class="fa-solid fa-phone mr-2 text-primary"></i>Phone Number
-                <span class="text-gray-400 font-normal normal-case">(optional)</span>
-            </label>
-            <div class="relative">
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
-                    <i class="fa-solid fa-mobile-screen"></i>
+            {{-- Phone --}}
+            <div class="group">
+                <label for="reg_phone" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                    <i class="fa-solid fa-phone mr-2 text-primary"></i>Phone Number
+                    <span class="text-gray-400 font-normal normal-case">(optional)</span>
+                </label>
+                <div class="relative">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
+                        <i class="fa-solid fa-mobile-screen"></i>
+                    </div>
+                    <input id="reg_phone" type="tel" name="phone" value="{{ old('phone') }}"
+                        placeholder="Enter your phone number"
+                        class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('phone') border-red-500 ring-4 ring-red-100 @enderror">
                 </div>
-                <input id="reg_phone" type="tel" name="phone" value="{{ old('phone') }}"
-                    placeholder="Enter your phone number"
-                    class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('phone') border-red-500 ring-4 ring-red-100 @enderror">
+                <x-input-error :messages="$errors->get('phone')" class="mt-2" />
             </div>
-            <x-input-error :messages="$errors->get('phone')" class="mt-2" />
-        </div>
 
-        {{-- Password --}}
-        <div x-data="{ show: false }" class="group">
-            <label for="reg_password" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                <i class="fa-solid fa-lock mr-2 text-primary"></i>Password
-            </label>
-            <div class="relative">
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
-                    <i class="fa-solid fa-key"></i>
+            {{-- Password --}}
+            <div x-data="{ show: false }" class="group">
+                <label for="reg_password" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                    <i class="fa-solid fa-lock mr-2 text-primary"></i>Password
+                </label>
+                <div class="relative">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                    <input id="reg_password" :type="show ? 'text' : 'password'" name="password" required
+                        autocomplete="new-password" placeholder="Create a strong password"
+                        class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('password') border-red-500 ring-4 ring-red-100 @enderror">
+                    <button type="button" @click="show = !show" tabindex="-1"
+                        class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none p-1 hover:bg-gray-100 rounded-lg transition-all duration-300">
+                        <i :class="show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'" class="text-lg"></i>
+                    </button>
                 </div>
-                <input id="reg_password" :type="show ? 'text' : 'password'" name="password" required
-                    autocomplete="new-password" placeholder="Create a strong password"
-                    class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('password') border-red-500 ring-4 ring-red-100 @enderror">
-                <button type="button" @click="show = !show" tabindex="-1"
-                    class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none p-1 hover:bg-gray-100 rounded-lg transition-all duration-300">
-                    <i :class="show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'" class="text-lg"></i>
-                </button>
+                <x-input-error :messages="$errors->get('password')" class="mt-2" />
             </div>
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
 
-        {{-- Confirm Password --}}
-        <div x-data="{ show: false }" class="group">
-            <label for="reg_password_confirmation" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                <i class="fa-solid fa-lock mr-2 text-primary"></i>Confirm Password
-            </label>
-            <div class="relative">
-                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
-                    <i class="fa-solid fa-shield-halved"></i>
+            {{-- Confirm Password --}}
+            <div x-data="{ show: false }" class="group">
+                <label for="reg_password_confirmation" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
+                    <i class="fa-solid fa-lock mr-2 text-primary"></i>Confirm Password
+                </label>
+                <div class="relative">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <input id="reg_password_confirmation" :type="show ? 'text' : 'password'"
+                        name="password_confirmation" required autocomplete="new-password"
+                        placeholder="Confirm your password"
+                        class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('password_confirmation') border-red-500 ring-4 ring-red-100 @enderror">
+                    <button type="button" @click="show = !show" tabindex="-1"
+                        class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none p-1 hover:bg-gray-100 rounded-lg transition-all duration-300">
+                        <i :class="show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'" class="text-lg"></i>
+                    </button>
                 </div>
-                <input id="reg_password_confirmation" :type="show ? 'text' : 'password'"
-                    name="password_confirmation" required autocomplete="new-password"
-                    placeholder="Confirm your password"
-                    class="w-full pl-12 pr-14 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('password_confirmation') border-red-500 ring-4 ring-red-100 @enderror">
-                <button type="button" @click="show = !show" tabindex="-1"
-                    class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none p-1 hover:bg-gray-100 rounded-lg transition-all duration-300">
-                    <i :class="show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'" class="text-lg"></i>
-                </button>
+                <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
             </div>
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
-        </div>
 
-        <button type="submit"
-            class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 group mt-2">
-            <span class="flex items-center justify-center gap-2">
-                <i class="fa-solid fa-rocket group-hover:translate-x-1 transition-transform duration-300"></i>
-                {{ $isFreeWifi ? 'Create Account & Connect' : 'Create Account' }}
-            </span>
-        </button>
-    </form>
+            <button type="submit"
+                class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-300 group mt-2">
+                <span class="flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rocket group-hover:translate-x-1 transition-transform duration-300"></i>
+                    {{ $isFreeWifi ? 'Create Account & Connect' : 'Create Account' }}
+                </span>
+            </button>
+        </form>
+    </div>{{-- end tab: pin --}}
+
+    {{-- WhatsApp OTP (register) --}}
+    <div x-show="tab === 'otp'" x-cloak>
+        @livewire('phone-otp-login', [
+            'mode'   => 'register',
+            'bonus'  => request('bonus', ''),
+            'router' => request('router', ''),
+        ], key('otp-register'))
+    </div>
 
 </div>{{-- end mode: register --}}
 

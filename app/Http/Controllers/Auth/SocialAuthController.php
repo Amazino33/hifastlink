@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\FreeTrialService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +16,10 @@ class SocialAuthController extends Controller
 {
     public function redirectToGoogle(): RedirectResponse
     {
+        if (request('bonus')) {
+            session(['oauth_bonus' => request('bonus'), 'oauth_router' => request('router')]);
+        }
+
         return Socialite::driver('google')->redirect();
     }
 
@@ -59,6 +64,11 @@ class SocialAuthController extends Controller
         }
 
         Auth::login($user);
+
+        if (session('oauth_bonus') === 'free_trial') {
+            FreeTrialService::apply($user, session('oauth_router'));
+            session()->forget(['oauth_bonus', 'oauth_router']);
+        }
 
         return redirect()->intended(route('dashboard', absolute: false));
     }
