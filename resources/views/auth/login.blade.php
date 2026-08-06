@@ -7,6 +7,7 @@
     $hasRegErrors = $errors->has('name') || $errors->has('username') || $errors->has('password_confirmation');
     $defaultMode  = ($isFreeWifi || $hasRegErrors || request()->has('register')) ? 'register' : 'login';
     $defaultTab   = $isFreeWifi ? 'otp' : 'pin';
+    $freeWifiInstruction = \App\Models\AppSetting::get('free_wifi_instruction') ?: 'Verify your WhatsApp number — free internet access is applied the moment your account is created.';
 @endphp
 
 <div x-data="{
@@ -40,7 +41,7 @@
     <div>
         <p class="text-sm font-bold text-blue-800">Free WiFi Offer</p>
         <p class="text-xs text-blue-600 mt-0.5" x-show="mode === 'register'">
-            Verify your WhatsApp number — free internet access is applied the moment your account is created.
+            {{ $freeWifiInstruction }}
         </p>
         <p class="text-xs text-blue-600 mt-0.5" x-show="mode === 'login'" x-cloak>
             Sign in and your free access will be applied automatically.

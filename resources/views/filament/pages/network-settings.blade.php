@@ -283,6 +283,22 @@
         @endif
     </div>
 
+    <div style="margin-bottom:20px;">
+        <label class="s-label">Banner Instruction
+            <span style="font-weight:400;color:var(--text3);font-size:12px;"> — shown on the login page when a user scans your QR code</span>
+        </label>
+        <textarea
+            wire:model.live="free_wifi_instruction"
+            rows="3"
+            maxlength="500"
+            placeholder="e.g. Scan to register and get free internet access instantly. One claim per account."
+            class="s-select"
+            style="resize:vertical;min-height:80px;line-height:1.5;"
+        ></textarea>
+        @error('free_wifi_instruction')<p class="s-err">{{ $message }}</p>@enderror
+        <p class="s-hint">Leave blank to use the default message. Max 500 characters.</p>
+    </div>
+
     <div class="info-box" style="margin-bottom:16px;">
         Generate one QR code per router using the router's <strong>NAS Identifier</strong> (found on the router's edit page).
         <ul>

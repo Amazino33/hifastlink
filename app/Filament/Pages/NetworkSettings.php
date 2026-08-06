@@ -32,8 +32,9 @@ class NetworkSettings extends Page
     public string $basmelcare_api_url = '';
     public string $basmelcare_api_key = '';
 
-    public bool   $free_wifi_enabled  = false;
-    public string $free_wifi_plan_id  = '';
+    public bool   $free_wifi_enabled     = false;
+    public string $free_wifi_plan_id     = '';
+    public string $free_wifi_instruction = '';
 
     public function mount(): void
     {
@@ -44,8 +45,9 @@ class NetworkSettings extends Page
         $this->basmelcare_api_url = AppSetting::get('basmelcare_api_url', '');
         $this->basmelcare_api_key = AppSetting::get('basmelcare_api_key', '');
 
-        $this->free_wifi_enabled = AppSetting::bool('free_wifi_enabled', false);
-        $this->free_wifi_plan_id = AppSetting::get('free_wifi_plan_id', '');
+        $this->free_wifi_enabled     = AppSetting::bool('free_wifi_enabled', false);
+        $this->free_wifi_plan_id     = AppSetting::get('free_wifi_plan_id', '');
+        $this->free_wifi_instruction = AppSetting::get('free_wifi_instruction', '');
     }
 
     public function save(): void
@@ -78,11 +80,13 @@ class NetworkSettings extends Page
     public function saveFreeWifi(): void
     {
         $this->validate([
-            'free_wifi_plan_id' => ['nullable', 'integer', 'exists:plans,id'],
+            'free_wifi_plan_id'     => ['nullable', 'integer', 'exists:plans,id'],
+            'free_wifi_instruction' => ['nullable', 'string', 'max:500'],
         ]);
 
-        AppSetting::set('free_wifi_enabled', $this->free_wifi_enabled ? '1' : '0');
-        AppSetting::set('free_wifi_plan_id', (string) $this->free_wifi_plan_id);
+        AppSetting::set('free_wifi_enabled',     $this->free_wifi_enabled ? '1' : '0');
+        AppSetting::set('free_wifi_plan_id',     (string) $this->free_wifi_plan_id);
+        AppSetting::set('free_wifi_instruction', $this->free_wifi_instruction);
 
         Notification::make()->title('Free WiFi trial settings saved.')->success()->send();
     }
