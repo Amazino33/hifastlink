@@ -41,6 +41,16 @@ Route::get('/pharmacy-voucher', fn () => view('pharmacy-voucher'))->name('pharma
 // Simple connected page — public, no auth, used as MikroTik dst after login
 Route::get('/connected', fn () => view('hotspot.connected'))->name('captive.connected');
 
+// WiFi short link — /wifi/{slug} resolves to the router's free trial or login page
+Route::get('/wifi/{slug}', function (string $slug) {
+    $router = \App\Models\Router::where('wifi_slug', $slug)->where('is_active', true)->firstOrFail();
+    $params = ['router' => $router->nas_identifier];
+    if (\App\Models\AppSetting::bool('free_wifi_enabled', false)) {
+        $params['bonus'] = 'free_trial';
+    }
+    return redirect()->route('login', $params);
+})->name('wifi.short');
+
 
 // Layout preview — local dev only
 if (! app()->isProduction()) {

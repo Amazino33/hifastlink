@@ -23,6 +23,7 @@ class Router extends Model
         'wireguard_public_key',
         'wireguard_private_key',
         'nas_identifier',
+        'wifi_slug',
         'secret',
         'api_user',
         'api_password',

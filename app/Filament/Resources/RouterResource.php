@@ -100,6 +100,28 @@ class RouterResource extends Resource
                             ->unique(ignoreRecord: true)
                             ->placeholder('e.g., router_uyo_01')
                             ->helperText('Unique identifier for RADIUS (no spaces)'),
+
+                        TextInput::make('wifi_slug')
+                            ->label('WiFi Short Code')
+                            ->placeholder('e.g., lobby')
+                            ->maxLength(50)
+                            ->unique(ignoreRecord: true)
+                            ->regex('/^[a-z0-9\-]*$/')
+                            ->validationMessages(['regex' => 'Use lowercase letters, numbers, and hyphens only.'])
+                            ->live(debounce: 400)
+                            ->hintAction(
+                                \Filament\Forms\Components\Actions\Action::make('generate_slug')
+                                    ->label('Generate from name')
+                                    ->icon('heroicon-m-sparkles')
+                                    ->action(function ($get, $set) {
+                                        $slug = strtolower(preg_replace('/[^a-z0-9]+/', '-', $get('name') ?? ''));
+                                        $set('wifi_slug', trim($slug, '-'));
+                                    })
+                            )
+                            ->helperText(fn ($get) => $get('wifi_slug')
+                                ? 'Short URL → ' . config('app.url') . '/wifi/' . $get('wifi_slug')
+                                : 'Optional. Gives this router a short, typeable URL for the free WiFi offer.'
+                            ),
                         
                         TextInput::make('secret')
                             ->label('RADIUS Secret')
@@ -357,6 +379,14 @@ class RouterResource extends Resource
                     ->label('NAS ID')
                     ->searchable()
                     ->copyable()
+                    ->toggleable(),
+
+                TextColumn::make('wifi_slug')
+                    ->label('WiFi Short URL')
+                    ->formatStateUsing(fn ($state) => $state ? config('app.url') . '/wifi/' . $state : '—')
+                    ->copyable(fn ($record) => (bool) $record->wifi_slug)
+                    ->copyMessage('Short URL copied!')
+                    ->placeholder('—')
                     ->toggleable(),
                 
                 TextColumn::make('owner.username')
