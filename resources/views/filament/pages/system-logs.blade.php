@@ -138,9 +138,13 @@
             <div class="log-message">{{ Str::limit($log->message, 200) }}</div>
             <div class="log-meta">
                 @if($log->url)
-                <span>
+                <span x-data="{ copied: false }"
+                    @click.stop="navigator.clipboard.writeText('{{ addslashes($log->url) }}').then(() => { copied = true; setTimeout(() => copied = false, 2000) })"
+                    title="Click to copy full URL"
+                    style="cursor:pointer;user-select:none;"
+                    x-bind:style="copied ? 'color:var(--success,#22c55e)' : ''">
                     <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                    {{ $log->method }} {{ Str::limit($log->url, 80) }}
+                    <span x-text="copied ? 'Copied!' : '{{ addslashes($log->method . ' ' . Str::limit($log->url, 80)) }}'">{{ $log->method }} {{ Str::limit($log->url, 80) }}</span>
                 </span>
                 @endif
                 @if($log->user_id)

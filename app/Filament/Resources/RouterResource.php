@@ -109,8 +109,8 @@ class RouterResource extends Resource
                             ->regex('/^[a-z0-9\-]*$/')
                             ->validationMessages(['regex' => 'Use lowercase letters, numbers, and hyphens only.'])
                             ->live(debounce: 400)
-                            ->hintAction(
-                                \Filament\Forms\Components\Actions\Action::make('generate_slug')
+                            ->suffixAction(
+                                \Filament\Actions\Action::make('generate_slug')
                                     ->label('Generate from name')
                                     ->icon('heroicon-m-sparkles')
                                     ->action(function ($get, $set) {
