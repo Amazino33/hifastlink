@@ -496,7 +496,11 @@ class UserDashboard extends Component
         } elseif (!$masterUser->plan_id) {
             $subscriptionStatus = 'inactive';
         } else {
-            $subscriptionStatus = $masterUser->current_plan_status ?? 'inactive';
+            if ($masterUser->plan_expiry && $masterUser->plan_expiry->isFuture()) {
+                $subscriptionStatus = $masterUser->connection_status === 'exhausted' ? 'exhausted' : 'active';
+            } else {
+                $subscriptionStatus = 'inactive';
+            }
         }
 
         $connectionStatus = ($activeSession) ? 'active' : 'offline';
