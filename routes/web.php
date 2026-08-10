@@ -36,8 +36,12 @@ Route::get('/network-status', [PageController::class, 'status'])->name('status')
 
 Route::post('/voucher/check-input', [VoucherController::class, 'checkInput'])->name('voucher.check-input');
 Route::get('/voucher/success', [VoucherController::class, 'success'])->name('voucher.success');
-Route::get('/pharmacy-voucher',  fn () => view('pharmacy-voucher'))->name('pharmacy.voucher');
-Route::get('/gameshop-voucher', fn () => view('gameshop-voucher'))->name('gameshop.voucher');
+// Legacy short-links — redirect to the generic portal so old printed QR codes keep working
+Route::get('/pharmacy-voucher',  fn () => redirect()->route('voucher.portal', ['slug' => 'basmelcare']))->name('pharmacy.voucher');
+Route::get('/gameshop-voucher', fn () => redirect()->route('voucher.portal', ['slug' => 'brotherscrib']))->name('gameshop.voucher');
+
+// Generic partner voucher portal
+Route::get('/voucher/{slug}', fn (string $slug) => view('voucher-portal', compact('slug')))->name('voucher.portal');
 
 // Simple connected page — public, no auth, used as MikroTik dst after login
 Route::get('/connected', fn () => view('hotspot.connected'))->name('captive.connected');
