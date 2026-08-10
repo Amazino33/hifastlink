@@ -36,7 +36,8 @@ Route::get('/network-status', [PageController::class, 'status'])->name('status')
 
 Route::post('/voucher/check-input', [VoucherController::class, 'checkInput'])->name('voucher.check-input');
 Route::get('/voucher/success', [VoucherController::class, 'success'])->name('voucher.success');
-Route::get('/pharmacy-voucher', fn () => view('pharmacy-voucher'))->name('pharmacy.voucher');
+Route::get('/pharmacy-voucher',  fn () => view('pharmacy-voucher'))->name('pharmacy.voucher');
+Route::get('/gameshop-voucher', fn () => view('gameshop-voucher'))->name('gameshop.voucher');
 
 // Simple connected page — public, no auth, used as MikroTik dst after login
 Route::get('/connected', fn () => view('hotspot.connected'))->name('captive.connected');

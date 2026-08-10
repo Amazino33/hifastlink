@@ -223,6 +223,51 @@
     </div>
 </div>
 
+{{-- Brothers Crib Game Shop Integration --}}
+<div class="s-card">
+    <div class="s-card-title">Brothers Crib Game Shop Integration</div>
+    <div class="s-card-desc">
+        Players who pay at Brothers Crib game shop can redeem the Wi-Fi code on their receipt at
+        <strong>hifastlink.com/gameshop-voucher</strong> for free internet access.
+        Get the API key from Brothers Crib → Settings → Wi-Fi Vouchers → Generate.
+    </div>
+
+    <div class="s-row">
+        <div>
+            <label class="s-label">Brothers Crib API URL</label>
+            <input type="url" wire:model="gameshop_api_url" class="s-input"
+                   placeholder="https://gameshop.com/api/voucher/redeem">
+            @error('gameshop_api_url')<p class="s-err">{{ $message }}</p>@enderror
+            <p class="s-hint">The full redeem endpoint URL from Brothers Crib</p>
+        </div>
+        <div>
+            <label class="s-label">API Key</label>
+            <input type="password" wire:model="gameshop_api_key" class="s-input"
+                   placeholder="Paste the key from Brothers Crib settings">
+            @error('gameshop_api_key')<p class="s-err">{{ $message }}</p>@enderror
+            <p class="s-hint">Keep this secret — it authorises HiFastLink to validate codes</p>
+        </div>
+    </div>
+
+    @if($gameshop_api_url && $gameshop_api_key)
+    <div class="info-box" style="margin-bottom:16px;">
+        <strong>✅ Integration active.</strong>
+        Players can redeem codes at <code>/gameshop-voucher</code>.
+    </div>
+    @else
+    <div class="info-box" style="background:#fffbeb;border-color:#fde68a;color:#92400e;margin-bottom:16px;">
+        ⚠️ Fill in both fields and save to activate the game shop voucher feature.
+    </div>
+    @endif
+
+    <div class="s-btn-row">
+        <button class="s-btn s-btn-primary" wire:click="saveGameShop" wire:loading.attr="disabled">
+            <span wire:loading.remove wire:target="saveGameShop">Save Brothers Crib Settings</span>
+            <span wire:loading wire:target="saveGameShop">Saving...</span>
+        </button>
+    </div>
+</div>
+
 {{-- Free WiFi Trial --}}
 <div class="s-card">
     <div class="s-card-title">Free WiFi Trial Offer</div>

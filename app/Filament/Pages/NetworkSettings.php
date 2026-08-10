@@ -32,6 +32,9 @@ class NetworkSettings extends Page
     public string $basmelcare_api_url = '';
     public string $basmelcare_api_key = '';
 
+    public string $gameshop_api_url = '';
+    public string $gameshop_api_key = '';
+
     public bool   $free_wifi_enabled     = false;
     public string $free_wifi_plan_id     = '';
     public string $free_wifi_instruction = '';
@@ -44,6 +47,9 @@ class NetworkSettings extends Page
 
         $this->basmelcare_api_url = AppSetting::get('basmelcare_api_url', '');
         $this->basmelcare_api_key = AppSetting::get('basmelcare_api_key', '');
+
+        $this->gameshop_api_url = AppSetting::get('gameshop_api_url', '');
+        $this->gameshop_api_key = AppSetting::get('gameshop_api_key', '');
 
         $this->free_wifi_enabled     = AppSetting::bool('free_wifi_enabled', false);
         $this->free_wifi_plan_id     = AppSetting::get('free_wifi_plan_id', '');
@@ -75,6 +81,19 @@ class NetworkSettings extends Page
         AppSetting::set('basmelcare_api_key', $this->basmelcare_api_key);
 
         Notification::make()->title('Pharmacy integration saved.')->success()->send();
+    }
+
+    public function saveGameShop(): void
+    {
+        $this->validate([
+            'gameshop_api_url' => ['nullable', 'url', 'max:255'],
+            'gameshop_api_key' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        AppSetting::set('gameshop_api_url', $this->gameshop_api_url);
+        AppSetting::set('gameshop_api_key', $this->gameshop_api_key);
+
+        Notification::make()->title('Brothers Crib integration saved.')->success()->send();
     }
 
     public function saveFreeWifi(): void
