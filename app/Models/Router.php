@@ -156,7 +156,7 @@ class Router extends Model
      */
     public function activeSessions(): HasMany
     {
-        return $this->hasMany(RadAcct::class, 'nas_identifier', 'nas_identifier')
+        return $this->hasMany(RadAcct::class, 'nasipaddress', 'vpn_ip')
             ->whereNull('acctstoptime');
     }
 
@@ -165,7 +165,7 @@ class Router extends Model
      */
     public function sessions(): HasMany
     {
-        return $this->hasMany(RadAcct::class, 'nas_identifier', 'nas_identifier');
+        return $this->hasMany(RadAcct::class, 'nasipaddress', 'vpn_ip');
     }
 
     /**
