@@ -234,8 +234,12 @@ class DashboardController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        // Family-aware subscription check: allow connect when either the user or their family master has an active plan.
-        $masterUser = $user->parent_id ? $user->parent : $user;
+        // Family-aware subscription check: if the user has their own active plan, use it.
+        // Only fall back to the parent when the user has no plan of their own.
+        $hasSelfPlan = $user->plan_id
+            && $user->plan_expiry
+            && $user->plan_expiry->isFuture();
+        $masterUser = ($hasSelfPlan || ! $user->parent_id) ? $user : $user->parent;
 
         // Admins and staff always have access — no plan required
         if ($user->hasUnrestrictedAccess()) {

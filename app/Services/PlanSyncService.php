@@ -221,11 +221,19 @@ class PlanSyncService
                 }
             }
 
-            // Update plan expiry
-            if (! empty($plan->validity_days) && $plan->validity_days > 0) {
-                $user->plan_expiry = Carbon::now()->addDays($plan->validity_days);
-            } else {
-                $user->plan_expiry = null;
+            // Update plan expiry.
+            // If the caller (e.g. FreeTrialService) already wrote a future expiry onto the
+            // model before triggering this sync, keep it — don't recalculate from validity_days,
+            // which could be 0/null for an open-ended trial plan and would null out the expiry.
+            $alreadyHasFutureExpiry = $user->plan_expiry
+                && Carbon::parse($user->plan_expiry)->isFuture();
+
+            if (! $alreadyHasFutureExpiry) {
+                if (! empty($plan->validity_days) && $plan->validity_days > 0) {
+                    $user->plan_expiry = Carbon::now()->addDays($plan->validity_days);
+                } else {
+                    $user->plan_expiry = null;
+                }
             }
 
             // RADIUS-enforced expiry: reject any login - including a silent

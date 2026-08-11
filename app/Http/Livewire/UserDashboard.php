@@ -277,8 +277,13 @@ class UserDashboard extends Component
         // Determine start date for counting usage (plan start). If missing, fallback to 1 year back to avoid huge scans
         $startDate = $user->plan_started_at ?? now()->subYears(1);
 
-        // Identify the family master ID (parent if exists, else self)
-        $masterId = $user->parent_id ?? $user->id;
+        // Identify the family master: use the parent only when the user has no active plan
+        // of their own. A user who purchased their own plan must never be blocked by the
+        // parent's expired or absent subscription.
+        $hasSelfPlan = $user->plan_id
+            && $user->plan_expiry
+            && \Carbon\Carbon::parse($user->plan_expiry)->isFuture();
+        $masterId = ($hasSelfPlan || ! $user->parent_id) ? $user->id : $user->parent_id;
 
         // Get the master user with plan loaded
         $masterUser = User::with('plan')->find($masterId);
