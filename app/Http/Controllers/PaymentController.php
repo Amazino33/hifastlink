@@ -227,6 +227,7 @@ class PaymentController extends Controller
             $user->data_limit = $planBytes === null ? null : ($planBytes + ($rolloverData ?? 0));
             $user->plan_expiry = now()->addDays($plan->validity_days ?? 0);
             $user->plan_started_at = now();
+            $user->connection_status = 'active';
             if ($plan->is_family) {
                 $user->is_family_admin = true;
                 $user->parent_id = null;

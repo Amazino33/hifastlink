@@ -35,6 +35,7 @@ class FreeTrialService
         $user->plan_expiry           = now()->addDays($trialPlan->validity_days ?: 1);
         $user->plan_started_at       = now();
         $user->free_trial_claimed_at = now();
+        $user->connection_status     = 'active';
         $user->save();
 
         PlanSyncService::syncUserPlan($user->fresh());

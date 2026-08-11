@@ -267,7 +267,9 @@ class User extends Authenticatable implements FilamentUser
     public function getDisplayStatusAttribute(): string
     {
         try {
-            if ($this->remaining_data <= 0 && $this->plan_id) {
+            // null remaining_data means unlimited — never treat as expired
+            $remaining = $this->remaining_data;
+            if ($remaining !== null && $remaining <= 0 && $this->plan_id) {
                 return 'PLAN EXPIRED';
             }
         } catch (\Exception $e) {
