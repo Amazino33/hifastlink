@@ -13,6 +13,16 @@ class EditRouter extends EditRecord
 {
     protected static string $resource = RouterResource::class;
 
+    /** Holds the nas_identifier value before the save so afterSave() can detect renames. */
+    protected ?string $nasIdentifierBeforeSave = null;
+
+    protected function beforeSave(): void
+    {
+        // Capture BEFORE save() calls syncOriginal() — after save getOriginal() returns the new value
+        $this->nasIdentifierBeforeSave = $this->record->getOriginal('nas_identifier')
+            ?: $this->record->getOriginal('name');
+    }
+
     /**
      * Before saving, check if the router is missing keys or VPN IP.
      * If so, generate them fresh (handles old routers created before this logic existed).
@@ -95,8 +105,7 @@ class EditRouter extends EditRecord
      */
     protected function afterSave(): void
     {
-        // Capture the pre-save name BEFORE fresh() resets getOriginal()
-        $oldName = $this->record->getOriginal('nas_identifier') ?: $this->record->getOriginal('name');
+        $oldName = $this->nasIdentifierBeforeSave;
 
         $router = $this->record->fresh(); // Fresh from DB to get any new keys/IP we just saved
 
