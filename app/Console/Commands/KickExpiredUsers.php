@@ -89,6 +89,13 @@ class KickExpiredUsers extends Command
                 $query->update($updateData);
             }
 
+            // Block reconnection immediately — mac-cookie would otherwise re-auth and get
+            // a new session before subscriptions:check-expiry runs expireForExpiry().
+            RadReply::updateOrCreate(
+                ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
+                ['op' => ':=', 'value' => '0']
+            );
+
             $disconnectedUsers++;
         }
 

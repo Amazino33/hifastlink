@@ -81,16 +81,29 @@ class SyncRadius extends Command
             $usernames = DB::table('radacct')->distinct()->pluck('username');
 
             foreach ($usernames as $username) {
-                $total = DB::table('radacct')
-                    ->where('username', $username)
-                    ->selectRaw('COALESCE(SUM(COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)),0) AS total')
-                    ->value('total');
-
                 $user = User::where('username', $username)->first();
                 if (! $user) {
                     Log::info("sync: user not found while summing usage for {$username}");
                     continue;
                 }
+
+                // Don't touch data_used for users with no active plan — freeze it at
+                // the value written when the plan was last cleared, so the counter doesn't
+                // keep climbing from stale historical sessions after expiry.
+                if (! $user->plan_id && ! $user->plan_expiry) {
+                    continue;
+                }
+
+                // Sum only bytes from the current plan period (since plan_started_at).
+                // This keeps data_used consistent with what PlanSyncService writes to
+                // Mikrotik-Total-Limit, which also filters by plan_started_at.
+                $totalQuery = DB::table('radacct')->where('username', $username);
+                if ($user->plan_started_at) {
+                    $totalQuery->where('acctstarttime', '>=', $user->plan_started_at);
+                }
+                $total = $totalQuery
+                    ->selectRaw('COALESCE(SUM(COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)),0) AS total')
+                    ->value('total');
 
                 $this->info("Usage: {$username} total_bytes={$total}");
 

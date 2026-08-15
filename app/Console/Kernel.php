@@ -30,8 +30,8 @@ class Kernel extends ConsoleKernel
         // Kick expired users every minute
         $schedule->command('users:kick-expired')->everyMinute();
 
-        // Check subscriptions expiry daily and snapshot rollover bytes
-        $schedule->command('subscriptions:check-expiry')->dailyAt('02:00');
+        // Check subscriptions expiry every 5 minutes so trial/plan blocks apply promptly
+        $schedule->command('subscriptions:check-expiry')->everyFiveMinutes();
 
         // Generate daily reports at 1 AM
         $schedule->command('reports:generate --type=daily')->dailyAt('01:00');
