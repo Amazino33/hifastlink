@@ -46,30 +46,6 @@ Route::get('/voucher/{slug}', fn (string $slug) => view('voucher-portal', compac
 // Simple connected page — public, no auth, used as MikroTik dst after login
 Route::get('/connected', fn () => view('hotspot.connected'))->name('captive.connected');
 
-// RFC 8908 Captive Portal API — DHCP option 114 points devices here so they show
-// "Sign in to Wi-Fi" instead of silently failing to detect the portal.
-// The {identifier} segment is the router's nas_identifier, injected by the RSC script
-// into DHCP option 114 so each router's portal opens the correct branded login page.
-Route::get('/captive/api/{identifier?}', function (string $identifier = '') {
-    $base = rtrim(config('app.url'), '/');
-
-    $router = $identifier
-        ? \App\Models\Router::where('nas_identifier', $identifier)->where('is_active', true)->first()
-        : null;
-
-    $portalUrl = $router
-        ? $base . '/login?router=' . urlencode($identifier)
-        : 'http://login.wifi/';
-
-    return response()->json([
-        'captive'           => true,
-        'user-portal-url'   => $portalUrl,
-        'can-extend-session'=> false,
-        'venue-info-url'    => $base,
-    ])->header('Content-Type', 'application/captive+json')
-      ->header('Cache-Control', 'no-store');
-})->name('captive.api');
-
 // WiFi short link — /wifi/{slug} resolves to the router's free trial or login page
 Route::get('/wifi/{slug}', function (string $slug) {
     $router = \App\Models\Router::where('wifi_slug', $slug)->where('is_active', true)->firstOrFail();

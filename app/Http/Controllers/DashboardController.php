@@ -286,13 +286,11 @@ class DashboardController extends Controller
             $loginUrl = rtrim($loginUrl, '/') . '/login';
         }
 
-        // Build URL with top-level parameters (MikroTik format).
-        // dst points to hifastlink.com/connected (a real page) so MikroTik has somewhere
-        // to redirect after auth — login.wifi/redirect.html may not exist in the hotspot files.
-        $redirectUrl = $loginUrl
+        // Build URL with top-level parameters (MikroTik format)
+        $redirectUrl = $loginUrl 
             . '?username=' . urlencode($user->username)
             . '&password=' . urlencode($password)
-            . '&dst=' . urlencode(route('captive.connected'));
+            . '&dst=' . urlencode("http://login.wifi/redirect.html");
 
         return response()->json(['redirect_url' => $redirectUrl]);
     }
