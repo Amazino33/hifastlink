@@ -52,7 +52,7 @@ Route::get('/connected', fn () => view('hotspot.connected'))->name('captive.conn
 Route::get('/captive/api', function () {
     return response()->json([
         'captive'           => true,
-        'user-portal-url'   => 'http://login.wifi/login',
+        'user-portal-url'   => 'http://login.wifi/',
         'can-extend-session'=> false,
         'venue-info-url'    => rtrim(config('app.url'), '/'),
     ])->header('Content-Type', 'application/captive+json')
