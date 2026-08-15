@@ -48,13 +48,24 @@ Route::get('/connected', fn () => view('hotspot.connected'))->name('captive.conn
 
 // RFC 8908 Captive Portal API — DHCP option 114 points devices here so they show
 // "Sign in to Wi-Fi" instead of silently failing to detect the portal.
-// Must be HTTPS (hifastlink.com has a valid cert) and return Content-Type: application/captive+json.
-Route::get('/captive/api', function () {
+// The {identifier} segment is the router's nas_identifier, injected by the RSC script
+// into DHCP option 114 so each router's portal opens the correct branded login page.
+Route::get('/captive/api/{identifier?}', function (string $identifier = '') {
+    $base = rtrim(config('app.url'), '/');
+
+    $router = $identifier
+        ? \App\Models\Router::where('nas_identifier', $identifier)->where('is_active', true)->first()
+        : null;
+
+    $portalUrl = $router
+        ? $base . '/login?router=' . urlencode($identifier)
+        : 'http://login.wifi/';
+
     return response()->json([
         'captive'           => true,
-        'user-portal-url'   => 'http://login.wifi/',
+        'user-portal-url'   => $portalUrl,
         'can-extend-session'=> false,
-        'venue-info-url'    => rtrim(config('app.url'), '/'),
+        'venue-info-url'    => $base,
     ])->header('Content-Type', 'application/captive+json')
       ->header('Cache-Control', 'no-store');
 })->name('captive.api');

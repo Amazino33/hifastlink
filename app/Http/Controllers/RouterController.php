@@ -240,7 +240,7 @@ class RouterController extends Controller
 # "Sign in to Wi-Fi" notification instead of silently failing portal detection.
 :do { /ip/dhcp-server/option      remove [find name="capport"] }     on-error={}
 :do { /ip/dhcp-server/option/sets remove [find name="capport-set"] } on-error={}
-:local capportURL ("'https://" . $DomainName . "/captive/api'")
+:local capportURL ("'https://" . $DomainName . "/captive/api/" . $LocationName . "'")
 /ip/dhcp-server/option      add name="capport" code=114 value=$capportURL force=yes
 /ip/dhcp-server/option/sets add name="capport-set" options=capport
 /ip/dhcp-server/network set [find address="192.168.88.0/24"] dhcp-option-set=capport-set
