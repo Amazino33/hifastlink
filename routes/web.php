@@ -46,6 +46,19 @@ Route::get('/voucher/{slug}', fn (string $slug) => view('voucher-portal', compac
 // Simple connected page — public, no auth, used as MikroTik dst after login
 Route::get('/connected', fn () => view('hotspot.connected'))->name('captive.connected');
 
+// RFC 8908 Captive Portal API — DHCP option 114 points devices here so they show
+// "Sign in to Wi-Fi" instead of silently failing to detect the portal.
+// Must be HTTPS (hifastlink.com has a valid cert) and return Content-Type: application/captive+json.
+Route::get('/captive/api', function () {
+    return response()->json([
+        'captive'           => true,
+        'user-portal-url'   => 'http://login.wifi/login',
+        'can-extend-session'=> false,
+        'venue-info-url'    => rtrim(config('app.url'), '/'),
+    ])->header('Content-Type', 'application/captive+json')
+      ->header('Cache-Control', 'no-store');
+})->name('captive.api');
+
 // WiFi short link — /wifi/{slug} resolves to the router's free trial or login page
 Route::get('/wifi/{slug}', function (string $slug) {
     $router = \App\Models\Router::where('wifi_slug', $slug)->where('is_active', true)->firstOrFail();

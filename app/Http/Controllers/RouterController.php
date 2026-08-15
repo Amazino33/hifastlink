@@ -236,6 +236,14 @@ class RouterController extends Controller
 /ip/pool add name="hs-pool" ranges="192.168.88.10-192.168.88.254"
 /ip/dhcp-server add name="hifastlink-dhcp" interface=$BridgeName address-pool="hs-pool" disabled=no comment="HiFastLink DHCP"
 /ip/dhcp-server/network add address="192.168.88.0/24" gateway="192.168.88.1" dns-server="192.168.88.1" comment="HiFastLink Network"
+# RFC 8910 / DHCP option 114 — tells iOS 14+, Android 11+, macOS to show
+# "Sign in to Wi-Fi" notification instead of silently failing portal detection.
+:do { /ip/dhcp-server/option      remove [find name="capport"] }     on-error={}
+:do { /ip/dhcp-server/option/sets remove [find name="capport-set"] } on-error={}
+:local capportURL ("'https://" . $DomainName . "/captive/api'")
+/ip/dhcp-server/option      add name="capport" code=114 value=$capportURL force=yes
+/ip/dhcp-server/option/sets add name="capport-set" options=capport
+/ip/dhcp-server/network set [find address="192.168.88.0/24"] dhcp-option-set=capport-set
 :put ">> DHCP server ready"
 
 # =======================================================
