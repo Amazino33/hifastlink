@@ -96,3 +96,33 @@ Route::get('/admin/radius-fix/{username}', function ($username) {
         'radusergroup' => RadUserGroup::where('username', $username)->first(),
     ], 200, [], JSON_PRETTY_PRINT);
 })->name('radius.fix');
+
+Route::get('/admin/server-log', function () {
+    if (!auth()->check()) abort(403);
+    $currentUser = auth()->user();
+    if (!$currentUser->hasRole('super_admin') && !$currentUser->hasRole('panel_user')) abort(403);
+
+    $lines = (int) request('lines', 150);
+    $logPath = storage_path('logs/laravel.log');
+
+    if (!file_exists($logPath)) {
+        return response('<pre>Log file not found at: ' . $logPath . '</pre>', 404);
+    }
+
+    // Read last N lines without loading the whole file
+    $file = new \SplFileObject($logPath, 'r');
+    $file->seek(PHP_INT_MAX);
+    $totalLines = $file->key();
+    $startLine  = max(0, $totalLines - $lines);
+    $file->seek($startLine);
+
+    $output = '';
+    while (!$file->eof()) {
+        $output .= $file->fgets();
+    }
+
+    return response('<pre style="font-size:12px;white-space:pre-wrap;word-break:break-all;">'
+        . htmlspecialchars($output)
+        . '</pre>')
+        ->header('Content-Type', 'text/html');
+})->name('server.log');
