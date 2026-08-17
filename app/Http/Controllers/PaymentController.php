@@ -147,6 +147,12 @@ class PaymentController extends Controller
             return redirect()->route('dashboard')->with('error', 'Plan not found for this payment.');
         }
 
+        // Idempotency: Paystack sometimes fires the callback twice. If this reference was
+        // already processed (transaction row exists), skip re-activation and return success.
+        if (\App\Models\Transaction::where('reference', $data['reference'])->exists()) {
+            return redirect()->route('dashboard')->with('success', 'Your payment was already processed.');
+        }
+
         // Resolve router from the user's current connection
         $routerId = $user->router_id ?? null;
 
@@ -181,17 +187,19 @@ class PaymentController extends Controller
                 'router_id' => $routerId,
             ]);
  
-            // Also create transaction record
-            \App\Models\Transaction::create([
-                'user_id' => $user->id,
-                'plan_id' => $plan->id,
-                'amount' => $data['amount'] / 100,
-                'reference' => $data['reference'],
-                'status' => 'completed',
-                'gateway' => 'paystack',
-                'paid_at' => now(),
-                'router_id' => $routerId,
-            ]);
+            // Also create transaction record (firstOrCreate guards against duplicate callbacks)
+            \App\Models\Transaction::firstOrCreate(
+                ['reference' => $data['reference']],
+                [
+                    'user_id'   => $user->id,
+                    'plan_id'   => $plan->id,
+                    'amount'    => $data['amount'] / 100,
+                    'status'    => 'completed',
+                    'gateway'   => 'paystack',
+                    'paid_at'   => now(),
+                    'router_id' => $routerId,
+                ]
+            );
 
             // PlanSyncService runs via the UserObserver when plan_id changes — no manual RADIUS sync needed here.
 
@@ -251,29 +259,20 @@ class PaymentController extends Controller
                 'router_id' => $routerId,
             ]);
 
-            // Also create transaction record
-            try {
-                $transaction = \App\Models\Transaction::create([
-                    'user_id' => $user->id,
-                    'plan_id' => $plan->id,
-                    'amount' => $data['amount'] / 100,
-                    'reference' => $data['reference'],
-                    'status' => 'completed',
-                    'gateway' => 'paystack',
-                    'paid_at' => now(),
+            // Also create transaction record (firstOrCreate guards against duplicate callbacks)
+            $transaction = \App\Models\Transaction::firstOrCreate(
+                ['reference' => $data['reference']],
+                [
+                    'user_id'   => $user->id,
+                    'plan_id'   => $plan->id,
+                    'amount'    => $data['amount'] / 100,
+                    'status'    => 'completed',
+                    'gateway'   => 'paystack',
+                    'paid_at'   => now(),
                     'router_id' => $routerId,
-                ]);
-
-                \Illuminate\Support\Facades\Log::info("Transaction created successfully for payment {$data['reference']} with ID: {$transaction->id}");
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Failed to create transaction for payment {$data['reference']}: " . $e->getMessage(), [
-                    'exception' => $e,
-                    'user_id' => $user->id,
-                    'plan_id' => $plan->id,
-                    'plan_exists' => \App\Models\Plan::find($plan->id) ? 'yes' : 'no',
-                    'user_exists' => \App\Models\User::find($user->id) ? 'yes' : 'no',
-                ]);
-            }
+                ]
+            );
+            \Illuminate\Support\Facades\Log::info("Transaction recorded for payment {$data['reference']} with ID: {$transaction->id}");
 
             // PlanSyncService runs via the UserObserver when plan_id changes — no manual RADIUS sync needed here.
 

@@ -63,17 +63,10 @@ class KickExpiredUsers extends Command
             ];
 
             foreach ($sessions as $session) {
-                try {
-                    $this->sendRadiusDisconnect($user->username, (int) config('services.radius.disconnect_timeout', 3));
-                } catch (\Throwable $e) {
-                    Log::warning('Router unreachable during expiry disconnect', [
-                        'user' => $user->username,
-                        'session_id' => $session->acctsessionid ?? null,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-
-                // Force-close session in DB regardless of router response
+                // Force-close session in DB — this is the authoritative disconnect.
+                // A RADIUS CoA/PoD packet would also terminate the live TCP session,
+                // but the web server cannot reach the MikroTik LAN IP from shared hosting.
+                // Mikrotik-Total-Limit=0 (set below) blocks data on any mac-cookie reconnect.
                 $query = DB::table('radacct')
                     ->where('username', $user->username)
                     ->whereNull('acctstoptime');
@@ -100,30 +93,5 @@ class KickExpiredUsers extends Command
         }
 
         $this->info("Checked {$checkedUsers} users. Disconnected {$disconnectedUsers} users.");
-    }
-
-    /**
-     * Attempt a RADIUS CoA/Disconnect with a short timeout.
-     */
-    protected function sendRadiusDisconnect(string $username, int $timeoutSeconds = 3): bool
-    {
-        try {
-            $radius = new \Net_RADIUS(config('services.radius.server'), config('services.radius.secret'), 1812);
-            $radius->addAttribute('User-Name', $username);
-            $radius->addAttribute('Acct-Session-Id', 'expire_disconnect');
-
-            if (method_exists($radius, 'setOption')) {
-                $radius->setOption('timeout', max(1, $timeoutSeconds));
-            }
-
-            $result = $radius->sendRequest(\Net_RADIUS::DISCONNECT_REQUEST);
-            return $result === \Net_RADIUS::DISCONNECT_ACK;
-        } catch (\Throwable $e) {
-            Log::error('RADIUS disconnect failed (expire)', [
-                'user' => $username,
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
-        }
     }
 }

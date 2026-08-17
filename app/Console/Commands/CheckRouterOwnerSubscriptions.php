@@ -114,18 +114,9 @@ class CheckRouterOwnerSubscriptions extends Command
             ->whereRaw("username COLLATE {$collation} = ? COLLATE {$collation}", [$username])
             ->get();
 
-        foreach ($sessions as $session) {
-            // Send RADIUS CoA disconnect packet — best effort, won't halt on failure
-            try {
-                $this->sendRadiusDisconnect($username);
-            } catch (\Throwable $e) {
-                Log::warning('Router block: RADIUS disconnect failed', [
-                    'user'  => $username,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
-            // Force-close the session in the DB regardless of whether the router responded
+            // Force-close the session in the DB — authoritative disconnect from the server side.
+            // A RADIUS CoA/PoD packet would also terminate the live connection on the router,
+            // but the web server cannot reach the MikroTik LAN IP from shared hosting.
             DB::table('radacct')
                 ->where('radacctid', $session->radacctid)
                 ->whereNull('acctstoptime')
@@ -133,28 +124,6 @@ class CheckRouterOwnerSubscriptions extends Command
                     'acctstoptime'       => now(),
                     'acctterminatecause' => 'Admin-Reset',
                 ]);
-        }
-    }
-
-    protected function sendRadiusDisconnect(string $username, int $timeoutSeconds = 3): bool
-    {
-        try {
-            $radius = new \Net_RADIUS(config('services.radius.server'), config('services.radius.secret'), 1812);
-            $radius->addAttribute('User-Name', $username);
-            $radius->addAttribute('Acct-Session-Id', 'router_block');
-
-            if (method_exists($radius, 'setOption')) {
-                $radius->setOption('timeout', max(1, $timeoutSeconds));
-            }
-
-            $result = $radius->sendRequest(\Net_RADIUS::DISCONNECT_REQUEST);
-            return $result === \Net_RADIUS::DISCONNECT_ACK;
-        } catch (\Throwable $e) {
-            Log::error('RADIUS disconnect failed (router block)', [
-                'user'  => $username,
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
         }
     }
 }
