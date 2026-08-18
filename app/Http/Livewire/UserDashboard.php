@@ -39,6 +39,10 @@ class UserDashboard extends Component
     public $voucherCode = '';
     public $router = null; // URL parameter for router identification
 
+    // Managed sub-accounts
+    public string $subUserName     = '';
+    public bool   $showSubUserForm = false;
+
     protected $queryString = [
         'router' => ['as' => 'router'],
     ];
@@ -801,6 +805,7 @@ class UserDashboard extends Component
             'hasVoucherAccess' => $hasVoucherAccess,
             'networkStats'     => $networkStats,
             'ownedRouter'      => $this->getOwnedRouterData($user),
+            'subUsers'         => $this->getSubUsers($user),
         ]);
     }
 
@@ -1261,24 +1266,24 @@ class UserDashboard extends Component
                 'timeout' => 5,
                 'verify' => false, // Disable SSL verification for local routers
             ]);
-            
+
             // Get active sessions
             $response = $client->get("http://{$apiHost}/rest/ip/hotspot/active", [
                 'auth' => [$apiUser, $apiPassword],
             ]);
-            
+
             $sessions = json_decode($response->getBody(), true);
-            
+
             // Find session(s) for this username
             foreach ($sessions as $session) {
                 if (isset($session['user']) && $session['user'] === $username) {
                     $sessionId = $session['.id'];
-                    
+
                     // Remove the session
                     $client->delete("http://{$apiHost}/rest/ip/hotspot/active/{$sessionId}", [
                         'auth' => [$apiUser, $apiPassword],
                     ]);
-                    
+
                     Log::info("Successfully disconnected user {$username} from MikroTik (session ID: {$sessionId})");
                 }
             }
@@ -1286,5 +1291,97 @@ class UserDashboard extends Component
             Log::error("MikroTik API error: " . $e->getMessage());
             throw $e;
         }
+    }
+
+    // ── Managed sub-accounts ──────────────────────────────────────────────────
+
+    private function getSubUsers(User $user): \Illuminate\Support\Collection
+    {
+        return User::where('parent_id', $user->id)
+            ->select(['id', 'name', 'username', 'radius_password', 'plan_expiry', 'data_used'])
+            ->get()
+            ->map(function (User $sub) {
+                $online = \App\Models\RadAcct::where('username', $sub->username)
+                    ->whereNull('acctstoptime')
+                    ->exists();
+                return [
+                    'id'       => $sub->id,
+                    'name'     => $sub->name,
+                    'username' => $sub->username,
+                    'password' => $sub->radius_password,
+                    'online'   => $online,
+                    'expiry'   => $sub->plan_expiry?->format('d M Y') ?? '—',
+                ];
+            });
+    }
+
+    public function createSubUser(): void
+    {
+        $this->validate(['subUserName' => 'required|string|max:60']);
+
+        $owner = Auth::user();
+
+        if (! $owner->plan_expiry || $owner->plan_expiry->isPast()) {
+            session()->flash('error', 'You need an active plan before creating sub-accounts.');
+            return;
+        }
+
+        // Build a unique username: owner prefix + random suffix
+        $base     = preg_replace('/[^a-z0-9]/', '', strtolower($owner->username ?? 'sub'));
+        $username = $base . '_' . \Illuminate\Support\Str::random(5);
+        $password = \Illuminate\Support\Str::random(8);
+
+        $sub = User::create([
+            'name'            => $this->subUserName,
+            'username'        => $username,
+            'radius_password' => $password,
+            'parent_id'       => $owner->id,
+            'router_id'       => $owner->router_id,
+            'email'           => $username . '@sub.local',
+            'password'        => Hash::make($password),
+        ]);
+
+        // Set RADIUS credentials — Expiration matches parent's plan
+        \App\Models\RadCheck::updateOrCreate(
+            ['username' => $username, 'attribute' => 'Cleartext-Password'],
+            ['op' => ':=', 'value' => $password]
+        );
+        \App\Models\RadCheck::updateOrCreate(
+            ['username' => $username, 'attribute' => 'Simultaneous-Use'],
+            ['op' => ':=', 'value' => '2']
+        );
+        \App\Models\RadCheck::updateOrCreate(
+            ['username' => $username, 'attribute' => 'Expiration'],
+            ['op' => ':=', 'value' => $owner->plan_expiry->format('d M Y H:i')]
+        );
+
+        $this->subUserName     = '';
+        $this->showSubUserForm = false;
+
+        session()->flash('success', "Sub-account created. Username: {$username} | Password: {$password}");
+    }
+
+    public function deleteSubUser(int $subId): void
+    {
+        $owner = Auth::user();
+        $sub   = User::where('id', $subId)->where('parent_id', $owner->id)->first();
+
+        if (! $sub) {
+            return;
+        }
+
+        // Remove RADIUS credentials so they cannot reconnect
+        \App\Models\RadCheck::where('username', $sub->username)->delete();
+        \App\Models\RadReply::where('username', $sub->username)->delete();
+
+        // Close any live sessions
+        DB::table('radacct')
+            ->where('username', $sub->username)
+            ->whereNull('acctstoptime')
+            ->update(['acctstoptime' => now(), 'acctterminatecause' => 'Admin-Reset']);
+
+        $sub->delete();
+
+        session()->flash('success', "Sub-account '{$sub->name}' removed.");
     }
 }

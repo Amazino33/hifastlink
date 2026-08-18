@@ -155,8 +155,11 @@ class PlanSyncService
                 $totalUsed = 0;
             }
 
-            // Remaining data in bytes (plan->data_limit stored as MB)
-            $remainingBytes = max(0, ($plan->data_limit * 1024 * 1024) - $totalUsed);
+            // Remaining data in bytes — respect the plan's limit_unit (MB or GB)
+            $planLimitBytes = $plan->limit_unit === 'GB'
+                ? (int) ($plan->data_limit * 1073741824)
+                : (int) ($plan->data_limit * 1048576);
+            $remainingBytes = max(0, $planLimitBytes - $totalUsed);
 
             // Include rollover bytes when applicable (same-duration rule)
             $rolloverBytes = (int) ($user->rollover_available_bytes ?? 0);
@@ -193,14 +196,26 @@ class PlanSyncService
                 }
             }
 
-            // Tell MikroTik the limit for THIS specific session
+            // Tell MikroTik the remaining data for this session.
+            // Mikrotik-Total-Limit is a 32-bit attribute (max ~4 GB). For larger values
+            // we split into Gigawords (each unit = 4,294,967,296 bytes) + the low remainder.
             if ($remainingBytes > 0) {
+                $gigawords  = (int) ($remainingBytes / 4294967296);
+                $totalLimit = $remainingBytes - ($gigawords * 4294967296);
                 RadReply::create([
-                    'username' => $user->username,
+                    'username'  => $user->username,
                     'attribute' => 'Mikrotik-Total-Limit',
-                    'op' => ':=',
-                    'value' => (string) $remainingBytes,
+                    'op'        => ':=',
+                    'value'     => (string) $totalLimit,
                 ]);
+                if ($gigawords > 0) {
+                    RadReply::create([
+                        'username'  => $user->username,
+                        'attribute' => 'Mikrotik-Total-Limit-Gigawords',
+                        'op'        => ':=',
+                        'value'     => (string) $gigawords,
+                    ]);
+                }
             }
 
             // Unlimited-data plans have no Mikrotik-Total-Limit to end the session,
@@ -267,6 +282,22 @@ class PlanSyncService
                         ->update(['value' => $expiryStr]);
                 } else {
                     RadCheck::whereIn('username', $voucherRadNames)
+                        ->where('attribute', 'Expiration')
+                        ->delete();
+                }
+            }
+
+            // Propagate plan expiry to managed sub-accounts (family members this user created).
+            // Their credentials persist across renewals — only the Expiration date needs updating.
+            $subAccountUsernames = User::where('parent_id', $user->id)->pluck('username')->filter();
+            if ($subAccountUsernames->isNotEmpty()) {
+                if ($user->plan_expiry) {
+                    $expiryStr = Carbon::parse($user->plan_expiry)->format('d M Y H:i');
+                    RadCheck::whereIn('username', $subAccountUsernames)
+                        ->where('attribute', 'Expiration')
+                        ->update(['value' => $expiryStr]);
+                } else {
+                    RadCheck::whereIn('username', $subAccountUsernames)
                         ->where('attribute', 'Expiration')
                         ->delete();
                 }

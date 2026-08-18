@@ -439,28 +439,42 @@ class AuthenticatedSessionController extends Controller
         // NOT radcheck (which FreeRADIUS sqlcounter would treat as a cumulative shared cap
         // across all devices using this username, blocking device 4+ once the total is hit).
         if (! $voucher->is_unlimited) {
-            $planLimitMb = null;
+            $planLimitBytes = null;
             $refPlan = $voucher->plan ?? $familyHead?->plan;
             if ($refPlan && $refPlan->limit_unit !== 'Unlimited' && $refPlan->data_limit) {
-                $planLimitMb = $refPlan->limit_unit === 'GB'
-                    ? (int) ($refPlan->data_limit * 1024)
-                    : (int) $refPlan->data_limit;
+                $planLimitBytes = $refPlan->limit_unit === 'GB'
+                    ? (int) ($refPlan->data_limit * 1073741824)
+                    : (int) ($refPlan->data_limit * 1048576);
             }
-            $limitMb = $voucher->data_limit_mb ?? $planLimitMb;
-            if ($limitMb) {
+            // voucher->data_limit_mb is always stored in MB; plan bytes already computed above
+            $limitBytes = $voucher->data_limit_mb
+                ? (int) ($voucher->data_limit_mb * 1048576)
+                : $planLimitBytes;
+
+            if ($limitBytes) {
+                $gigawords  = (int) ($limitBytes / 4294967296);
+                $totalLimit = $limitBytes - ($gigawords * 4294967296);
                 \App\Models\RadReply::updateOrCreate(
                     ['username' => $code, 'attribute' => 'Mikrotik-Total-Limit'],
-                    ['op' => ':=', 'value' => (string) ($limitMb * 1048576)]
+                    ['op' => ':=', 'value' => (string) $totalLimit]
                 );
+                if ($gigawords > 0) {
+                    \App\Models\RadReply::updateOrCreate(
+                        ['username' => $code, 'attribute' => 'Mikrotik-Total-Limit-Gigawords'],
+                        ['op' => ':=', 'value' => (string) $gigawords]
+                    );
+                } else {
+                    \App\Models\RadReply::where('username', $code)->where('attribute', 'Mikrotik-Total-Limit-Gigawords')->delete();
+                }
             } else {
-                \App\Models\RadReply::where('username', $code)->where('attribute', 'Mikrotik-Total-Limit')->delete();
+                \App\Models\RadReply::where('username', $code)->whereIn('attribute', ['Mikrotik-Total-Limit', 'Mikrotik-Total-Limit-Gigawords'])->delete();
             }
             // Remove any stale radcheck entry from before this fix
             RadCheck::where('username', $code)->where('attribute', 'Mikrotik-Total-Limit')->delete();
         } else {
             // Unlimited — remove any stale cap from either table
             RadCheck::where('username', $code)->where('attribute', 'Mikrotik-Total-Limit')->delete();
-            \App\Models\RadReply::where('username', $code)->where('attribute', 'Mikrotik-Total-Limit')->delete();
+            \App\Models\RadReply::where('username', $code)->whereIn('attribute', ['Mikrotik-Total-Limit', 'Mikrotik-Total-Limit-Gigawords'])->delete();
         }
 
         // Store MAC so this device can auto-reconnect after router reboots

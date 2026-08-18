@@ -973,6 +973,79 @@
                 @endif
 
                 {{-- ══════════════════════════════════════════ --}}
+                {{-- MANAGED SUB-ACCOUNTS                       --}}
+                {{-- ══════════════════════════════════════════ --}}
+                @if($subscriptionStatus === 'active' && !$isAdminUser && !$isFreePass)
+                <div class="bg-white/5 border border-white/10 rounded-3xl shadow-xl overflow-hidden">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="text-white font-bold text-lg">Sub-Accounts</h3>
+                                <p class="text-white/40 text-xs mt-0.5">Users who share your data plan with a fixed username &amp; password</p>
+                            </div>
+                            <button wire:click="$set('showSubUserForm', true)"
+                                class="px-4 py-2 bg-blue-500/20 border border-blue-400/30 text-blue-300 text-sm font-semibold rounded-xl hover:bg-blue-500/30 transition-colors">
+                                + Add User
+                            </button>
+                        </div>
+
+                        @if($showSubUserForm)
+                        <div class="bg-black/30 border border-white/10 rounded-2xl p-4 mb-4">
+                            <p class="text-white/60 text-xs mb-3">Enter a name (e.g. "John's Phone") — the username and password will be auto-generated and shown once.</p>
+                            <div class="flex gap-3">
+                                <input wire:model.defer="subUserName"
+                                    type="text"
+                                    placeholder="Display name (e.g. Living Room TV)"
+                                    class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white text-sm placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400/50">
+                                <button wire:click="createSubUser"
+                                    class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-colors">
+                                    Create
+                                </button>
+                                <button wire:click="$set('showSubUserForm', false)"
+                                    class="px-4 py-2 text-white/40 hover:text-white/70 text-sm transition-colors">
+                                    Cancel
+                                </button>
+                            </div>
+                            @error('subUserName') <p class="text-red-400 text-xs mt-2">{{ $message }}</p> @enderror
+                        </div>
+                        @endif
+
+                        @if(session()->has('success') && str_contains(session('success'), 'Sub-account'))
+                        <div class="bg-green-500/10 border border-green-400/30 text-green-300 rounded-xl px-4 py-3 text-sm mb-4 font-mono break-all">
+                            {{ session('success') }}
+                        </div>
+                        @endif
+
+                        @if($subUsers->isNotEmpty())
+                        <div class="divide-y divide-white/5">
+                            @foreach($subUsers as $sub)
+                            <div class="flex items-center justify-between py-3 gap-4">
+                                <div class="min-w-0">
+                                    <p class="text-white text-sm font-semibold truncate">{{ $sub['name'] }}</p>
+                                    <p class="text-white/40 text-xs font-mono mt-0.5">{{ $sub['username'] }} &nbsp;·&nbsp; expires {{ $sub['expiry'] }}</p>
+                                </div>
+                                <div class="flex items-center gap-3 flex-shrink-0">
+                                    <span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full {{ $sub['online'] ? 'bg-green-500/20 text-green-300' : 'bg-white/5 text-white/30' }}">
+                                        <span class="w-1.5 h-1.5 rounded-full {{ $sub['online'] ? 'bg-green-400 animate-pulse' : 'bg-white/20' }}"></span>
+                                        {{ $sub['online'] ? 'Online' : 'Offline' }}
+                                    </span>
+                                    <button wire:click="deleteSubUser({{ $sub['id'] }})"
+                                        wire:confirm="Remove sub-account '{{ $sub['name'] }}'? They will be disconnected immediately."
+                                        class="text-red-400/60 hover:text-red-400 text-xs transition-colors">
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                        @else
+                        <p class="text-white/30 text-sm text-center py-6">No sub-accounts yet. Add users above to give them permanent credentials.</p>
+                        @endif
+                    </div>
+                </div>
+                @endif
+
+                {{-- ══════════════════════════════════════════ --}}
                 {{-- ROUTER OWNER — My Router Analytics         --}}
                 {{-- ══════════════════════════════════════════ --}}
                 @if($ownedRouter)

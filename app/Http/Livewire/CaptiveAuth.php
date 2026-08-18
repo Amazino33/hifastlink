@@ -300,13 +300,21 @@ class CaptiveAuth extends Component
             }
 
             if (! $voucher->is_unlimited && $plan->data_limit) {
-                $limitMb = $plan->limit_unit === 'GB'
-                    ? (int) ($plan->data_limit * 1024)
-                    : (int) $plan->data_limit;
+                $limitBytes = $plan->limit_unit === 'GB'
+                    ? (int) ($plan->data_limit * 1073741824)
+                    : (int) ($plan->data_limit * 1048576);
+                $gigawords  = (int) ($limitBytes / 4294967296);
+                $totalLimit = $limitBytes - ($gigawords * 4294967296);
                 RadReply::updateOrCreate(
                     ['username' => $radUsername, 'attribute' => 'Mikrotik-Total-Limit'],
-                    ['op' => ':=', 'value' => (string) ($limitMb * 1048576)]
+                    ['op' => ':=', 'value' => (string) $totalLimit]
                 );
+                if ($gigawords > 0) {
+                    RadReply::updateOrCreate(
+                        ['username' => $radUsername, 'attribute' => 'Mikrotik-Total-Limit-Gigawords'],
+                        ['op' => ':=', 'value' => (string) $gigawords]
+                    );
+                }
             }
         }
 
