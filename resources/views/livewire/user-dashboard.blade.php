@@ -991,7 +991,7 @@
 
                         @if($showSubUserForm)
                         <div class="bg-black/30 border border-white/10 rounded-2xl p-4 mb-4">
-                            <p class="text-white/60 text-xs mb-3">Enter a name (e.g. "John's Phone") — the username and password will be auto-generated and shown once.</p>
+                            <p class="text-white/60 text-xs mb-3">A label helps you identify who this account belongs to — leave it blank if you don't need one.</p>
                             <div class="flex gap-3">
                                 <input wire:model.defer="subUserName"
                                     type="text"
@@ -1022,7 +1022,12 @@
                             <div class="flex items-center justify-between py-3 gap-4">
                                 <div class="min-w-0">
                                     <p class="text-white text-sm font-semibold truncate">{{ $sub['name'] }}</p>
-                                    <p class="text-white/40 text-xs font-mono mt-0.5">{{ $sub['username'] }} &nbsp;·&nbsp; expires {{ $sub['expiry'] }}</p>
+                                    @if($showSubPasswords)
+                                    <p class="text-white/50 text-xs font-mono mt-0.5">{{ $sub['username'] }} / {{ $sub['password'] }}</p>
+                                    @else
+                                    <p class="text-white/50 text-xs font-mono mt-0.5">{{ $sub['username'] }}</p>
+                                    @endif
+                                    <p class="text-white/25 text-xs mt-0.5">expires {{ $sub['expiry'] }}</p>
                                 </div>
                                 <div class="flex items-center gap-3 flex-shrink-0">
                                     <span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full {{ $sub['online'] ? 'bg-green-500/20 text-green-300' : 'bg-white/5 text-white/30' }}">

@@ -806,6 +806,7 @@ class UserDashboard extends Component
             'networkStats'     => $networkStats,
             'ownedRouter'      => $this->getOwnedRouterData($user),
             'subUsers'         => $this->getSubUsers($user),
+            'showSubPasswords' => \App\Models\AppSetting::bool('show_sub_account_passwords', false),
         ]);
     }
 
@@ -1317,7 +1318,7 @@ class UserDashboard extends Component
 
     public function createSubUser(): void
     {
-        $this->validate(['subUserName' => 'required|string|max:60']);
+        $this->validate(['subUserName' => 'nullable|string|max:60']);
 
         $owner = Auth::user();
 
@@ -1331,13 +1332,25 @@ class UserDashboard extends Component
             return;
         }
 
-        // Build a unique username: owner prefix + random suffix
-        $base     = preg_replace('/[^a-z0-9]/', '', strtolower($owner->username ?? 'sub'));
-        $username = $base . '_' . \Illuminate\Support\Str::random(5);
+        // Generate a memorable username: short word + 3 digits (e.g. sun492, blue731)
+        $words = [
+            'sun','red','blue','sky','fast','gold','cool','star','fire','ace',
+            'ice','top','max','pro','big','hot','oak','sea','air','bay',
+            'dry','gem','jet','key','low','nut','owl','ray','tan','van',
+            'wax','zip','arc','bud','cap','dew','fin','fox','hop','ink',
+            'jam','kit','log','map','net','orb','pin','rib','sap','tip',
+        ];
+        $username = '';
+        $attempts = 0;
+        do {
+            $username = $words[array_rand($words)] . str_pad(random_int(0, 999), 3, '0', STR_PAD_LEFT);
+            $attempts++;
+        } while (User::where('username', $username)->exists() && $attempts < 20);
+
         $password = \Illuminate\Support\Str::random(8);
 
-        $sub = User::create([
-            'name'            => $this->subUserName,
+        User::create([
+            'name'            => $this->subUserName ?: $username,
             'username'        => $username,
             'radius_password' => $password,
             'parent_id'       => $owner->id,

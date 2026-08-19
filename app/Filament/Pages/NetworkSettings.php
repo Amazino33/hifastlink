@@ -39,6 +39,8 @@ class NetworkSettings extends Page
     public string $free_wifi_plan_id     = '';
     public string $free_wifi_instruction = '';
 
+    public bool $show_sub_account_passwords = false;
+
     public function mount(): void
     {
         $this->global_speed_enabled  = AppSetting::bool('global_speed_enabled', false);
@@ -54,6 +56,8 @@ class NetworkSettings extends Page
         $this->free_wifi_enabled     = AppSetting::bool('free_wifi_enabled', false);
         $this->free_wifi_plan_id     = AppSetting::get('free_wifi_plan_id', '');
         $this->free_wifi_instruction = AppSetting::get('free_wifi_instruction', '');
+
+        $this->show_sub_account_passwords = AppSetting::bool('show_sub_account_passwords', false);
     }
 
     public function save(): void
@@ -94,6 +98,12 @@ class NetworkSettings extends Page
         AppSetting::set('gameshop_api_key', $this->gameshop_api_key);
 
         Notification::make()->title('Brothers Crib integration saved.')->success()->send();
+    }
+
+    public function saveSubAccounts(): void
+    {
+        AppSetting::set('show_sub_account_passwords', $this->show_sub_account_passwords ? '1' : '0');
+        Notification::make()->title('Sub-account settings saved.')->success()->send();
     }
 
     public function saveFreeWifi(): void

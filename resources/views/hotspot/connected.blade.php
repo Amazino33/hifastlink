@@ -69,6 +69,14 @@
             margin-bottom: 0;
         }
         #install-btn { display: none; margin-top: 10px; font-size: 13px; padding: 10px; }
+        .account-link {
+            display: inline-block;
+            margin-top: 16px;
+            font-size: 13px;
+            color: #9ca3af;
+            text-decoration: none;
+        }
+        .account-link:hover { color: #6b7280; }
     </style>
 </head>
 <body>
@@ -80,9 +88,9 @@
         </div>
 
         <h1>You're Connected!</h1>
-        <p>You now have internet access on HiFastLink.<br>You can close this and start browsing.</p>
+        <p>You now have internet access.<br>This window will close in <strong id="count">3</strong>...</p>
 
-        <a href="https://hifastlink.com/dashboard" class="btn">Go to Dashboard</a>
+        <a href="{{ route('dashboard') }}" class="account-link">Go to your account</a>
 
         {{-- Install prompt — shown only if not already a standalone PWA --}}
         <div class="install-card" id="install-card" style="display:none">
@@ -93,6 +101,26 @@
             <button class="btn" id="install-btn">Install App</button>
         </div>
     </div>
+
+    <script>
+        (function () {
+            var n = 3;
+            var el = document.getElementById('count');
+            var timer = setInterval(function () {
+                n--;
+                if (el) el.textContent = n;
+                if (n <= 0) {
+                    clearInterval(timer);
+                    // Try to close the popup window first (MikroTik opens captive portals in a popup)
+                    try { window.close(); } catch (e) {}
+                    // If still open after 300ms, redirect to the homepage
+                    setTimeout(function () {
+                        if (!window.closed) window.location.href = '/';
+                    }, 300);
+                }
+            }, 1000);
+        })();
+    </script>
 
     <script>
         var deferredInstall = null;

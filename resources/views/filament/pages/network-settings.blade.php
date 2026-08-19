@@ -362,6 +362,40 @@
     </div>
 </div>
 
+{{-- Sub-Account Settings --}}
+<div class="s-card">
+    <div class="s-card-title">Sub-Account Settings</div>
+    <div class="s-card-desc">
+        Controls what router owners can see in their managed sub-accounts panel.
+        Sub-account passwords are plain-text by RADIUS design — only expose them when
+        you trust the router owner to keep their dashboard private.
+    </div>
+
+    <div class="s-toggle-row" style="border-top:none;padding-top:0;margin-bottom:20px;">
+        <label class="toggle-switch">
+            <input type="checkbox" wire:model.live="show_sub_account_passwords">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </label>
+        <div>
+            <div class="s-toggle-label">Show Passwords in Sub-Account List</div>
+            <div class="s-toggle-desc">When on, router owners see each sub-account's username and password together in their dashboard.</div>
+        </div>
+        <div style="margin-left:auto">
+            <span class="status-badge {{ $show_sub_account_passwords ? 'status-on' : 'status-off' }}">
+                <span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block"></span>
+                {{ $show_sub_account_passwords ? 'Visible' : 'Hidden' }}
+            </span>
+        </div>
+    </div>
+
+    <div class="s-btn-row">
+        <button class="s-btn s-btn-primary" wire:click="saveSubAccounts" wire:loading.attr="disabled">
+            <span wire:loading.remove wire:target="saveSubAccounts">Save Sub-Account Settings</span>
+            <span wire:loading wire:target="saveSubAccounts">Saving...</span>
+        </button>
+    </div>
+</div>
+
 {{-- Save + Apply --}}
 <div class="s-btn-row" style="margin-bottom:20px;">
     <button class="s-btn s-btn-secondary" wire:click="applyGlobally" wire:loading.attr="disabled"
