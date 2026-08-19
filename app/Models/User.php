@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Number;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     use HasFactory, Notifiable, HasRoles, SoftDeletes;
 
@@ -516,6 +517,23 @@ class User extends Authenticatable implements FilamentUser
     public function hasUnrestrictedAccess(): bool
     {
         return $this->isAdmin() || $this->isFreePass();
+    }
+
+    // Email verification is optional — users without an email are treated as verified.
+    // If an email IS set, it must be confirmed before it counts as verified.
+    public function hasVerifiedEmail(): bool
+    {
+        if (! $this->email) {
+            return true;
+        }
+        return ! is_null($this->email_verified_at);
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        if ($this->email) {
+            parent::sendEmailVerificationNotification();
+        }
     }
 
     /**

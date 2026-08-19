@@ -279,14 +279,14 @@
             {{-- Email --}}
             <div class="group">
                 <label for="reg_email" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                    <i class="fa-solid fa-envelope mr-2 text-primary"></i>Email Address
+                    <i class="fa-solid fa-envelope mr-2 text-primary"></i>Email Address <span class="text-gray-400 normal-case font-normal">(optional)</span>
                 </label>
                 <div class="relative">
                     <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-blue-600 transition-colors duration-300">
                         <i class="fa-solid fa-at"></i>
                     </div>
-                    <input id="reg_email" type="email" name="email" value="{{ old('email') }}" required
-                        autocomplete="email" placeholder="Enter your email"
+                    <input id="reg_email" type="email" name="email" value="{{ old('email') }}"
+                        autocomplete="email" placeholder="Optional — you can use your phone number instead"
                         class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('email') border-red-500 ring-4 ring-red-100 @enderror">
                 </div>
                 <x-input-error :messages="$errors->get('email')" class="mt-2" />

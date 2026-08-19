@@ -975,7 +975,7 @@
                 {{-- ══════════════════════════════════════════ --}}
                 {{-- MANAGED SUB-ACCOUNTS                       --}}
                 {{-- ══════════════════════════════════════════ --}}
-                @if($subscriptionStatus === 'active' && !$isAdminUser && !$isFreePass)
+                @if($ownedRouter && !$isAdminUser)
                 <div class="bg-white/5 border border-white/10 rounded-3xl shadow-xl overflow-hidden">
                     <div class="p-6">
                         <div class="flex items-center justify-between mb-4">

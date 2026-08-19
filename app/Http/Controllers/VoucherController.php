@@ -11,14 +11,16 @@ use Illuminate\Http\Request;
 class VoucherController extends Controller
 {
     /**
-     * Voucher management page — accessible to family heads and app admins.
+     * Voucher management page — accessible to router owners and app admins.
      */
     public function index(Request $request)
     {
         $user = $request->user();
 
-        if (! $user->is_family_admin && ! $user->isAdmin()) {
-            abort(403, 'Only family heads or admins can manage vouchers.');
+        $isRouterOwner = \App\Models\Router::where('owner_id', $user->id)->exists();
+
+        if (! $user->isAdmin() && ! $isRouterOwner) {
+            abort(403, 'Only router owners or admins can manage vouchers.');
         }
 
         $vouchers = \App\Models\Voucher::where('created_by', $user->id)
@@ -30,12 +32,11 @@ class VoucherController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'validity_days', 'data_limit', 'limit_unit', 'price']);
 
-        $isAdmin       = $user->isAdmin();
-        $isFamilyAdmin = (bool) $user->is_family_admin;
+        $isAdmin = $user->isAdmin();
 
-        // Compute plan limits for non-admin family heads so the view can enforce caps
+        // Compute plan limits for non-admin router owners so the view can enforce caps
         $planLimits = null;
-        if (! $isAdmin && $isFamilyAdmin && $user->plan) {
+        if (! $isAdmin && $user->plan) {
             $plan            = $user->plan;
             $planIsUnlimited = $plan->limit_unit === 'Unlimited';
             $planDataMb      = null;
@@ -55,7 +56,7 @@ class VoucherController extends Controller
             ];
         }
 
-        return view('vouchers.index', compact('vouchers', 'plans', 'isAdmin', 'isFamilyAdmin', 'planLimits'));
+        return view('vouchers.index', compact('vouchers', 'plans', 'isAdmin', 'isRouterOwner', 'planLimits'));
     }
 
     /**
@@ -78,36 +79,41 @@ class VoucherController extends Controller
     {
         $user = $request->user();
 
-        if (! $user->is_family_admin && ! $user->isAdmin()) {
+        $isRouterOwner = \App\Models\Router::where('owner_id', $user->id)->exists();
+
+        if (! $user->isAdmin() && ! $isRouterOwner) {
             return back()->with('error', 'You do not have permission to create vouchers.');
         }
 
         $mode = $request->input('mode', 'quick');
 
         if ($mode === 'custom') {
-            return $this->generateCustom($request, $user);
+            return $this->generateCustom($request, $user, $isRouterOwner);
         }
 
-        return $this->generateQuick($request, $user);
+        return $this->generateQuick($request, $user, $isRouterOwner);
     }
 
-    private function generateQuick(Request $request, $user)
+    private function generateQuick(Request $request, $user, bool $isRouterOwner = false)
     {
-        $maxAllowed       = $user->plan->family_limit ?? $user->family_limit ?? 10;
-        $activeCount      = Voucher::where('created_by', $user->id)
-            ->where(function ($q) {
-                $q->whereColumn('used_count', '<', 'max_uses')
-                  ->where(fn ($q2) => $q2->whereNull('expires_at')->orWhere('expires_at', '>', now()));
-            })
-            ->count();
-        $remainingSlots   = $maxAllowed - 1 - $activeCount;
-        $quantity         = (int) $request->input('quantity', 1);
+        // Router owners and admins have no slot cap — they run a business
+        if (! $user->isAdmin() && ! $isRouterOwner) {
+            $maxAllowed     = $user->plan->family_limit ?? $user->family_limit ?? 10;
+            $activeCount    = Voucher::where('created_by', $user->id)
+                ->where(function ($q) {
+                    $q->whereColumn('used_count', '<', 'max_uses')
+                      ->where(fn ($q2) => $q2->whereNull('expires_at')->orWhere('expires_at', '>', now()));
+                })
+                ->count();
+            $remainingSlots = $maxAllowed - 1 - $activeCount;
+            $quantity       = (int) $request->input('quantity', 1);
 
-        if ($remainingSlots <= 0) {
-            return back()->with('error', 'Slot limit reached. Remove old vouchers to add more.');
-        }
-        if ($quantity > $remainingSlots) {
-            return back()->with('error', "Only {$remainingSlots} slot(s) remaining.");
+            if ($remainingSlots <= 0) {
+                return back()->with('error', 'Slot limit reached. Remove old vouchers to add more.');
+            }
+            if ($quantity > $remainingSlots) {
+                return back()->with('error', "Only {$remainingSlots} slot(s) remaining.");
+            }
         }
 
         $duration    = ($user->plan->validity_days ?? 1) * 24;
@@ -130,7 +136,7 @@ class VoucherController extends Controller
         return back()->with('success', "{$quantity} voucher(s) created. {$remainingSlots} slot(s) remaining.");
     }
 
-    private function generateCustom(Request $request, $user)
+    private function generateCustom(Request $request, $user, bool $isRouterOwner = false)
     {
         $request->validate([
             'quantity'             => 'required|integer|min:1|max:100',
@@ -190,12 +196,14 @@ class VoucherController extends Controller
                 return back()->with('error', "Upload speed cannot exceed your plan limit of {$plan->speed_limit_upload} Kbps.");
             }
 
-            // Slot count
-            $maxAllowed     = $plan->family_limit ?? $user->family_limit ?? 10;
-            $activeCount    = Voucher::where('created_by', $user->id)->count();
-            $remainingSlots = $maxAllowed - 1 - $activeCount;
-            if ($quantity > $remainingSlots) {
-                return back()->with('error', "Only {$remainingSlots} slot(s) remaining in your plan.");
+            // Slot count — only applies to family plan users, not router owners
+            if (! $isRouterOwner) {
+                $maxAllowed     = $plan->family_limit ?? $user->family_limit ?? 10;
+                $activeCount    = Voucher::where('created_by', $user->id)->count();
+                $remainingSlots = $maxAllowed - 1 - $activeCount;
+                if ($quantity > $remainingSlots) {
+                    return back()->with('error', "Only {$remainingSlots} slot(s) remaining in your plan.");
+                }
             }
         }
 

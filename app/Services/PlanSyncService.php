@@ -287,19 +287,25 @@ class PlanSyncService
                 }
             }
 
-            // Propagate plan expiry to managed sub-accounts (family members this user created).
-            // Their credentials persist across renewals — only the Expiration date needs updating.
-            $subAccountUsernames = User::where('parent_id', $user->id)->pluck('username')->filter();
-            if ($subAccountUsernames->isNotEmpty()) {
+            // Propagate plan expiry to managed sub-accounts (router owner's customer accounts).
+            // Their credentials persist across renewals — update Expiration in radcheck AND
+            // plan_expiry in the users table so syncUserPlan stays correct if called for them.
+            $subAccounts = User::where('parent_id', $user->id)->get(['id', 'username']);
+            if ($subAccounts->isNotEmpty()) {
+                $subUsernames = $subAccounts->pluck('username')->filter();
                 if ($user->plan_expiry) {
                     $expiryStr = Carbon::parse($user->plan_expiry)->format('d M Y H:i');
-                    RadCheck::whereIn('username', $subAccountUsernames)
+                    RadCheck::whereIn('username', $subUsernames)
                         ->where('attribute', 'Expiration')
                         ->update(['value' => $expiryStr]);
+                    User::whereIn('id', $subAccounts->pluck('id'))
+                        ->update(['plan_expiry' => $user->plan_expiry]);
                 } else {
-                    RadCheck::whereIn('username', $subAccountUsernames)
+                    RadCheck::whereIn('username', $subUsernames)
                         ->where('attribute', 'Expiration')
                         ->delete();
+                    User::whereIn('id', $subAccounts->pluck('id'))
+                        ->update(['plan_expiry' => null]);
                 }
             }
 

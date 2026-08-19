@@ -5,7 +5,7 @@
                         auth()->user()->hasRole('cashier')     ||
                         auth()->user()->email === 'amazino33@gmail.com'
                     );
-    $isFamilyHead = auth()->check() && auth()->user()->is_family_admin;
+    $isFamilyHead = auth()->check() && \App\Models\Router::where('owner_id', auth()->id())->exists();
 
     $navLinks = [
         ['route' => 'dashboard', 'label' => 'Dashboard',  'icon' => 'fa-gauge-high'],

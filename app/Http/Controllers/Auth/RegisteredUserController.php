@@ -25,7 +25,7 @@ class RegisteredUserController extends Controller
         $request->validate([
             'name'     => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:255', 'unique:'.User::class, 'alpha_num'],
-            'email'    => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'email'    => ['nullable', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'phone'    => ['nullable', 'string', 'max:20'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
@@ -33,7 +33,7 @@ class RegisteredUserController extends Controller
         $user = User::create([
             'name'              => $request->name,
             'username'          => $request->username,
-            'email'             => $request->email,
+            'email'             => $request->email ?: null,
             'phone'             => $request->phone,
             'password'          => Hash::make($request->password),
             'radius_password'   => $request->password,
@@ -41,6 +41,8 @@ class RegisteredUserController extends Controller
             'connection_status' => 'active',
         ]);
 
+        // Fires SendEmailVerificationNotification — our User::sendEmailVerificationNotification()
+        // is a no-op when email is null, so this is safe to always call.
         event(new Registered($user));
         Auth::login($user);
 

@@ -52,8 +52,11 @@
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <i class="fa-solid fa-envelope text-gray-400"></i>
                 </div>
-                <x-text-input id="email" name="email" type="email" class="mt-1 block w-full pl-10" :value="old('email', $user->email)" required autocomplete="username" />
+                <x-text-input id="email" name="email" type="email" class="mt-1 block w-full pl-10" :value="old('email', $user->email)" autocomplete="email" placeholder="{{ __('Optional — leave blank if using phone') }}" />
             </div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <i class="fa-solid fa-circle-info"></i> Optional. If provided, you will need to verify it.
+            </p>
             <x-input-error class="mt-2" :messages="$errors->get('email')" />
 
             @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())

@@ -1321,6 +1321,11 @@ class UserDashboard extends Component
 
         $owner = Auth::user();
 
+        if (! \App\Models\Router::where('owner_id', $owner->id)->exists()) {
+            session()->flash('error', 'Sub-accounts are only available to router owners.');
+            return;
+        }
+
         if (! $owner->plan_expiry || $owner->plan_expiry->isPast()) {
             session()->flash('error', 'You need an active plan before creating sub-accounts.');
             return;
@@ -1339,6 +1344,9 @@ class UserDashboard extends Component
             'router_id'       => $owner->router_id,
             'email'           => $username . '@sub.local',
             'password'        => Hash::make($password),
+            'plan_id'         => $owner->plan_id,
+            'plan_expiry'     => $owner->plan_expiry,
+            'plan_started_at' => $owner->plan_started_at,
         ]);
 
         // Set RADIUS credentials — Expiration matches parent's plan

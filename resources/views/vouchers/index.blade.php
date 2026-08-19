@@ -10,19 +10,20 @@
 
             {{-- Stats bar --}}
             @php
-                $totalLimit      = auth()->user()->plan->family_limit ?? auth()->user()->family_limit ?? 10;
+                $unlimitedSlots  = $isAdmin || $isRouterOwner;
+                $totalLimit      = $unlimitedSlots ? null : (auth()->user()->plan->family_limit ?? auth()->user()->family_limit ?? 10);
                 $activeCount     = \App\Models\Voucher::where('created_by', auth()->id())->count();
-                $usedSlots       = $totalLimit - 1;
-                $remaining       = max(0, $usedSlots - $activeCount);
-                $canCustomCreate = $isAdmin || $isFamilyAdmin;
+                $usedSlots       = $unlimitedSlots ? null : ($totalLimit - 1);
+                $remaining       = $unlimitedSlots ? '∞' : max(0, $usedSlots - $activeCount);
+                $canCustomCreate = $isAdmin || $isRouterOwner;
             @endphp
 
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 @foreach([
-                    ['label' => 'Total Vouchers',  'value' => $activeCount,       'color' => 'blue'],
-                    ['label' => 'Slots Used',       'value' => $activeCount,       'color' => 'orange'],
-                    ['label' => 'Slots Available',  'value' => $isAdmin ? '∞' : $remaining, 'color' => 'green'],
-                    ['label' => 'Plan Limit',       'value' => $isAdmin ? 'Unlimited' : $usedSlots, 'color' => 'purple'],
+                    ['label' => 'Total Vouchers',  'value' => $activeCount,                          'color' => 'blue'],
+                    ['label' => 'Slots Used',       'value' => $activeCount,                          'color' => 'orange'],
+                    ['label' => 'Slots Available',  'value' => $remaining,                            'color' => 'green'],
+                    ['label' => 'Plan Limit',       'value' => $unlimitedSlots ? 'Unlimited' : $usedSlots, 'color' => 'purple'],
                 ] as $stat)
                 <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
                     <div class="text-2xl font-black text-{{ $stat['color'] }}-600 dark:text-{{ $stat['color'] }}-400">{{ $stat['value'] }}</div>
