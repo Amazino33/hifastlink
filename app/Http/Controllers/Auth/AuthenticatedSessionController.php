@@ -28,13 +28,7 @@ class AuthenticatedSessionController extends Controller
         // Check if we should skip auto-login due to recent voucher failure
         if (session()->get('skip_auto_login')) {
             session()->forget('skip_auto_login');
-            $brand = null;
-            $routerNas = request()->get('router');
-            if ($routerNas) {
-                $brand = \App\Models\Router::where('nas_identifier', $routerNas)
-                    ->whereNotNull('brand_name')
-                    ->first();
-            }
+            $brand = $this->resolveBrand($linkLogin);
             return view('auth.captive-portal', compact('brand'));
         }
 
@@ -242,14 +236,7 @@ class AuthenticatedSessionController extends Controller
         // ── Layer 3: Unknown — show appropriate form based on context ───
         // MikroTik always passes link-login; regular browser visits get the standard login page.
         if ($linkLogin) {
-            $brand = null;
-            $routerNas = request()->get('router');
-            if ($routerNas) {
-                $brand = \App\Models\Router::where('nas_identifier', $routerNas)
-                    ->whereNotNull('brand_name')
-                    ->first();
-            }
-
+            $brand = $this->resolveBrand($linkLogin);
             return view('auth.captive-portal', compact('brand'));
         }
 
@@ -522,6 +509,33 @@ class AuthenticatedSessionController extends Controller
         // No captive portal link — user opened the login page directly in a browser.
         // Just show the success page; they can connect manually from the dashboard.
         return redirect()->route('voucher.success')->with('voucher_code', $code);
+    }
+
+    private function resolveBrand(?string $linkLogin): ?\App\Models\Router
+    {
+        // Primary: explicit ?router=<nas_identifier> in the URL
+        $routerNas = request()->get('router');
+        if ($routerNas) {
+            $brand = \App\Models\Router::where('nas_identifier', $routerNas)
+                ->whereNotNull('brand_name')
+                ->first();
+            if ($brand) return $brand;
+        }
+
+        // Fallback: extract MikroTik's LAN IP from link-login and match ip_address column.
+        // MikroTik's link-login URL is always http://<router-lan-ip>/login, which matches
+        // the "Router LAN IP" (ip_address) stored in the routers table.
+        if ($linkLogin) {
+            $host = parse_url($linkLogin, PHP_URL_HOST);
+            if ($host) {
+                $brand = \App\Models\Router::where('ip_address', $host)
+                    ->whereNotNull('brand_name')
+                    ->first();
+                if ($brand) return $brand;
+            }
+        }
+
+        return null;
     }
 
     public function destroy(Request $request): RedirectResponse
