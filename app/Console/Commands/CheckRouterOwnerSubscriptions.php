@@ -114,6 +114,7 @@ class CheckRouterOwnerSubscriptions extends Command
             ->whereRaw("username COLLATE {$collation} = ? COLLATE {$collation}", [$username])
             ->get();
 
+        foreach ($sessions as $session) {
             // Force-close the session in the DB — authoritative disconnect from the server side.
             // A RADIUS CoA/PoD packet would also terminate the live connection on the router,
             // but the web server cannot reach the MikroTik LAN IP from shared hosting.
