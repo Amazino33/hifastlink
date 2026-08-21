@@ -515,10 +515,13 @@ class AuthenticatedSessionController extends Controller
     {
         // Primary: explicit ?router=<nas_identifier> in the URL
         $routerNas = request()->get('router');
+        Log::info('[resolveBrand] nas_identifier param: ' . ($routerNas ?? 'none') . ' | link-login: ' . ($linkLogin ?? 'none'));
+
         if ($routerNas) {
             $brand = \App\Models\Router::where('nas_identifier', $routerNas)
                 ->whereNotNull('brand_name')
                 ->first();
+            Log::info('[resolveBrand] NAS lookup result: ' . ($brand ? $brand->brand_name . ' (id=' . $brand->id . ')' : 'no match'));
             if ($brand) return $brand;
         }
 
@@ -527,10 +530,12 @@ class AuthenticatedSessionController extends Controller
         // the "Router LAN IP" (ip_address) stored in the routers table.
         if ($linkLogin) {
             $host = parse_url($linkLogin, PHP_URL_HOST);
+            Log::info('[resolveBrand] extracted host from link-login: ' . ($host ?? 'null'));
             if ($host) {
                 $brand = \App\Models\Router::where('ip_address', $host)
                     ->whereNotNull('brand_name')
                     ->first();
+                Log::info('[resolveBrand] IP lookup result: ' . ($brand ? $brand->brand_name . ' (id=' . $brand->id . ')' : 'no match'));
                 if ($brand) return $brand;
             }
         }
