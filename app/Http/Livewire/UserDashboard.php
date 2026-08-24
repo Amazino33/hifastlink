@@ -1311,7 +1311,6 @@ class UserDashboard extends Component
                     'username' => $sub->username,
                     'password' => $sub->radius_password,
                     'online'   => $online,
-                    'expiry'   => $sub->plan_expiry?->format('d M Y') ?? '—',
                 ];
             });
     }
@@ -1358,11 +1357,9 @@ class UserDashboard extends Component
             'email'           => $username . '@sub.local',
             'password'        => Hash::make($password),
             'plan_id'         => $owner->plan_id,
-            'plan_expiry'     => $owner->plan_expiry,
-            'plan_started_at' => $owner->plan_started_at,
         ]);
 
-        // Set RADIUS credentials — Expiration matches parent's plan
+        // Set RADIUS credentials — no Expiration: access is controlled by parent's plan, not a hard date
         \App\Models\RadCheck::updateOrCreate(
             ['username' => $username, 'attribute' => 'Cleartext-Password'],
             ['op' => ':=', 'value' => $password]
@@ -1371,10 +1368,7 @@ class UserDashboard extends Component
             ['username' => $username, 'attribute' => 'Simultaneous-Use'],
             ['op' => ':=', 'value' => '2']
         );
-        \App\Models\RadCheck::updateOrCreate(
-            ['username' => $username, 'attribute' => 'Expiration'],
-            ['op' => ':=', 'value' => $owner->plan_expiry->format('d M Y H:i')]
-        );
+        \App\Models\RadCheck::where('username', $username)->where('attribute', 'Expiration')->delete();
 
         $this->subUserName     = '';
         $this->showSubUserForm = false;

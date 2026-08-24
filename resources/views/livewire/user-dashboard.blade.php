@@ -1034,7 +1034,6 @@
                                     @else
                                     <p class="text-white/50 text-xs font-mono mt-0.5">{{ $sub['username'] }}</p>
                                     @endif
-                                    <p class="text-white/25 text-xs mt-0.5">expires {{ $sub['expiry'] }}</p>
                                 </div>
                                 <div class="flex items-center gap-3 flex-shrink-0">
                                     <span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full {{ $sub['online'] ? 'bg-green-500/20 text-green-300' : 'bg-white/5 text-white/30' }}">
