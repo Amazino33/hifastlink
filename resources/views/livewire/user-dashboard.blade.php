@@ -998,8 +998,15 @@
                                     placeholder="Display name (e.g. Living Room TV)"
                                     class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white text-sm placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400/50">
                                 <button wire:click="createSubUser"
-                                    class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-colors">
-                                    Create
+                                    wire:loading.attr="disabled"
+                                    wire:target="createSubUser"
+                                    class="px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-2">
+                                    <svg wire:loading wire:target="createSubUser" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                    </svg>
+                                    <span wire:loading.remove wire:target="createSubUser">Create</span>
+                                    <span wire:loading wire:target="createSubUser">Creating...</span>
                                 </button>
                                 <button wire:click="$set('showSubUserForm', false)"
                                     class="px-4 py-2 text-white/40 hover:text-white/70 text-sm transition-colors">
