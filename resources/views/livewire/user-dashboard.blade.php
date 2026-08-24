@@ -1,4 +1,4 @@
-<div class="px-4 py-6 md:px-6 lg:px-8">
+<div class="px-4 py-6 md:px-6 lg:px-8 overflow-x-hidden">
     <div wire:poll.30s class="mb-8">
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-xl rounded-3xl p-8 mb-8">
             <div class="flex items-center justify-between flex-wrap gap-4">
@@ -978,13 +978,13 @@
                 @if($ownedRouter && !$isAdminUser)
                 <div class="bg-white/5 border border-white/10 rounded-3xl shadow-xl overflow-hidden">
                     <div class="p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
+                        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                            <div class="min-w-0">
                                 <h3 class="text-white font-bold text-lg">Sub-Accounts</h3>
                                 <p class="text-white/40 text-xs mt-0.5">Users who share your data plan with a fixed username &amp; password</p>
                             </div>
                             <button wire:click="$set('showSubUserForm', true)"
-                                class="px-4 py-2 bg-blue-500/20 border border-blue-400/30 text-blue-300 text-sm font-semibold rounded-xl hover:bg-blue-500/30 transition-colors">
+                                class="flex-shrink-0 px-4 py-2 bg-blue-500/20 border border-blue-400/30 text-blue-300 text-sm font-semibold rounded-xl hover:bg-blue-500/30 transition-colors">
                                 + Add User
                             </button>
                         </div>
