@@ -28,8 +28,8 @@
     <script src="//code.jivosite.com/widget/Gh75GsLtvF" async></script>
 </head>
 
-<body class="font-sans antialiased">
-    <div class="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
+<body class="font-sans antialiased overflow-x-hidden">
+    <div class="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col overflow-x-hidden">
         @include('layouts.navigation')
 
         <!-- Page Heading -->
