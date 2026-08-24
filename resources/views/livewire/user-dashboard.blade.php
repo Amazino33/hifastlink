@@ -882,7 +882,7 @@
                                 </div>
                             @endforeach
                         </div>
-                        <div class="mt-4">
+                        <div class="mt-4 overflow-x-auto">
                             {{ $devices->links() }}
                         </div>
                     @else
@@ -964,7 +964,7 @@
                         @endforeach
 
                         @if($myVouchers->hasPages())
-                            <div class="mt-4">
+                            <div class="mt-4 overflow-x-auto">
                                 {{ $myVouchers->links() }}
                             </div>
                         @endif
@@ -1339,7 +1339,7 @@
                     </div>
 
                     @if($recentTransactions->hasPages())
-                        <div class="mt-6 flex justify-center">
+                        <div class="mt-6 overflow-x-auto">
                             {{ $recentTransactions->links() }}
                         </div>
                     @endif

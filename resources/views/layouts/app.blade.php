@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" style="overflow-x:hidden">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
 <head>
     <meta charset="utf-8">
@@ -28,8 +28,8 @@
     <script src="//code.jivosite.com/widget/Gh75GsLtvF" async></script>
 </head>
 
-<body class="font-sans antialiased overflow-x-hidden">
-    <div class="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col overflow-x-hidden">
+<body class="font-sans antialiased">
+    <div class="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
         @include('layouts.navigation')
 
         <!-- Page Heading -->
