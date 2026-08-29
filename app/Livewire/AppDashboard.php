@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\AppSetting;
 use App\Models\RadAcct;
 use App\Models\Router;
 use App\Models\Transaction;
@@ -39,37 +40,43 @@ class AppDashboard extends Component
         $user     = Auth::user();
         $clientIp = request()->ip();
 
-        // Prefer the router_id URL parameter that MikroTik includes when it
-        // redirects an unauthenticated device to the login page. Store it in
-        // session so it survives across page loads without the parameter.
-        $routerId = request()->query('router_id');
-        if ($routerId) {
-            session(['hotspot_router_id' => (int) $routerId]);
-        }
-
-        $hotspotRouter = null;
-
-        // 1. Session-based: set when MikroTik redirected here with ?router_id=X
-        $sessionRouterId = session('hotspot_router_id');
-        if ($sessionRouterId) {
-            $hotspotRouter = Router::where('id', $sessionRouterId)
-                ->where('is_active', true)
-                ->first();
-        }
-
-        // 2. IP-based fallback: works when the router's WAN IP is stored in the DB
-        if (! $hotspotRouter) {
-            $hotspotRouter = Router::where('ip_address', $clientIp)
-                ->where('is_active', true)
-                ->first();
-
-            // Keep the session in sync with whichever router we detected by IP
-            if ($hotspotRouter) {
-                session(['hotspot_router_id' => $hotspotRouter->id]);
+        // When hotspot detection is disabled in Network Settings, treat every
+        // user as on the hotspot — Connect button always fires and MikroTik
+        // handles the actual authentication.
+        if (! AppSetting::bool('hotspot_detection_enabled', false)) {
+            $this->isOnHotspot = true;
+        } else {
+            // Prefer the router_id URL parameter that MikroTik includes when it
+            // redirects an unauthenticated device to the login page. Store it in
+            // session so it survives across page loads without the parameter.
+            $routerId = request()->query('router_id');
+            if ($routerId) {
+                session(['hotspot_router_id' => (int) $routerId]);
             }
-        }
 
-        $this->isOnHotspot = (bool) $hotspotRouter;
+            $hotspotRouter = null;
+
+            // 1. Session-based: set when MikroTik redirected here with ?router_id=X
+            $sessionRouterId = session('hotspot_router_id');
+            if ($sessionRouterId) {
+                $hotspotRouter = Router::where('id', $sessionRouterId)
+                    ->where('is_active', true)
+                    ->first();
+            }
+
+            // 2. IP-based fallback: works when the router's WAN IP is in the DB
+            if (! $hotspotRouter) {
+                $hotspotRouter = Router::where('ip_address', $clientIp)
+                    ->where('is_active', true)
+                    ->first();
+
+                if ($hotspotRouter) {
+                    session(['hotspot_router_id' => $hotspotRouter->id]);
+                }
+            }
+
+            $this->isOnHotspot = (bool) $hotspotRouter;
+        }
 
         // Active RADIUS session?
         $hasSession = false;

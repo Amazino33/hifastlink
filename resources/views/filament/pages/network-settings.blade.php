@@ -396,6 +396,41 @@
     </div>
 </div>
 
+{{-- Hotspot Detection --}}
+<div class="s-card">
+    <div class="s-card-title">Hotspot Detection</div>
+    <div class="s-card-desc">
+        When enabled, the customer app checks whether the user's device is physically
+        connected to a HiFastLink router before allowing the Connect button to fire.
+        Disable this if detection is unreliable (dynamic WAN IPs, proxy mismatch) —
+        the button will work for everyone and MikroTik handles the actual auth.
+    </div>
+
+    <div class="s-toggle-row" style="border-top:none;padding-top:0;margin-bottom:20px;">
+        <label class="toggle-switch">
+            <input type="checkbox" wire:model.live="hotspot_detection_enabled">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </label>
+        <div>
+            <div class="s-toggle-label">Enable hotspot detection</div>
+            <div class="s-toggle-desc">Off = Connect button always available. On = blocks users not on a registered router IP.</div>
+        </div>
+        <div style="margin-left:auto">
+            <span class="status-badge {{ $hotspot_detection_enabled ? 'status-on' : 'status-off' }}">
+                <span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block"></span>
+                {{ $hotspot_detection_enabled ? 'Active' : 'Off' }}
+            </span>
+        </div>
+    </div>
+
+    <div class="s-btn-row">
+        <button class="s-btn s-btn-primary" wire:click="saveHotspotDetection" wire:loading.attr="disabled">
+            <span wire:loading.remove wire:target="saveHotspotDetection">Save</span>
+            <span wire:loading wire:target="saveHotspotDetection">Saving...</span>
+        </button>
+    </div>
+</div>
+
 {{-- Save + Apply --}}
 <div class="s-btn-row" style="margin-bottom:20px;">
     <button class="s-btn s-btn-secondary" wire:click="applyGlobally" wire:loading.attr="disabled"

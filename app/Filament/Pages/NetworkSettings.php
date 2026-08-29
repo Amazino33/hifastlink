@@ -41,6 +41,8 @@ class NetworkSettings extends Page
 
     public bool $show_sub_account_passwords = false;
 
+    public bool $hotspot_detection_enabled = false;
+
     public function mount(): void
     {
         $this->global_speed_enabled  = AppSetting::bool('global_speed_enabled', false);
@@ -58,6 +60,7 @@ class NetworkSettings extends Page
         $this->free_wifi_instruction = AppSetting::get('free_wifi_instruction', '');
 
         $this->show_sub_account_passwords = AppSetting::bool('show_sub_account_passwords', false);
+        $this->hotspot_detection_enabled  = AppSetting::bool('hotspot_detection_enabled', false);
     }
 
     public function save(): void
@@ -104,6 +107,12 @@ class NetworkSettings extends Page
     {
         AppSetting::set('show_sub_account_passwords', $this->show_sub_account_passwords ? '1' : '0');
         Notification::make()->title('Sub-account settings saved.')->success()->send();
+    }
+
+    public function saveHotspotDetection(): void
+    {
+        AppSetting::set('hotspot_detection_enabled', $this->hotspot_detection_enabled ? '1' : '0');
+        Notification::make()->title('Hotspot detection setting saved.')->success()->send();
     }
 
     public function saveFreeWifi(): void
