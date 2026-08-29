@@ -724,14 +724,13 @@
 
                 {{-- Connect button --}}
                 @if($connectionState === 'plan-active')
-                    <button class="connect-btn" wire:click="connect" wire:loading.attr="disabled">
+                    <button class="connect-btn" id="app-connect-btn" onclick="appConnect(this)">
                         <span class="connect-btn-icon">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                 <line x1="12" y1="2" x2="12" y2="12"/><path d="M8.5 4.8A8 8 0 1 0 15.5 4.8"/>
                             </svg>
                         </span>
-                        <span class="connect-btn-lbl" wire:loading.remove>Connect</span>
-                        <span class="connect-btn-lbl" wire:loading>···</span>
+                        <span class="connect-btn-lbl">Connect</span>
                     </button>
                 @endif
 
@@ -1078,3 +1077,37 @@
     </nav>
 
 </div>
+
+@script
+<script>
+async function appConnect(btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.querySelector('.connect-btn-lbl').textContent = '···';
+    try {
+        const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const resp = await fetch('/dashboard/connect', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': token,
+            },
+            body: JSON.stringify({}),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (resp.ok && data.redirect_url) {
+            window.location.href = data.redirect_url;
+            return;
+        }
+        btn.disabled = false;
+        btn.querySelector('.connect-btn-lbl').textContent = 'Connect';
+        alert(data.message || 'Could not connect. Please try again.');
+    } catch (err) {
+        btn.disabled = false;
+        btn.querySelector('.connect-btn-lbl').textContent = 'Connect';
+        alert('Network error. Make sure you are connected to WiFi.');
+    }
+}
+</script>
+@endscript
