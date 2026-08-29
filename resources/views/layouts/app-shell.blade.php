@@ -31,6 +31,8 @@
         /* Safe-area padding for notched phones */
         .safe-top    { padding-top: env(safe-area-inset-top, 0px); }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+        /* Prevent Alpine x-cloak flash before JS loads */
+        [x-cloak] { display: none !important; }
     </style>
 </head>
 <body>

@@ -176,7 +176,29 @@ class AppDashboard extends Component
         $router = $user->router;
 
         $plans = (new PlanFilterService())
-            ->getAvailablePlans($router?->nas_identifier, $router?->id);
+            ->getAvailablePlans($router?->nas_identifier, $router?->id)
+            ->filter(fn($p) => ! $p->is_admin_only); // PlanFilterService doesn't strip admin-only plans
+
+        // PlanFilterService returns a base Collection (sortBy strips Eloquent type),
+        // so ->load() won't work. Attach routers manually with a single query instead.
+        $routerIds = $plans->pluck('router_id')->filter()->unique()->values();
+        if ($routerIds->isNotEmpty()) {
+            $routers = Router::whereIn('id', $routerIds)->get()->keyBy('id');
+            $plans->each(fn($plan) => $plan->setRelation('router', $routers->get($plan->router_id)));
+        }
+
+        // Group by duration category; location shown as a badge on each card.
+        // Order: Daily → Weekly → Monthly → Family → Long-term
+        $groupOrder   = ['Daily', 'Weekly', 'Monthly', 'Family', 'Long-term'];
+        $groupedPlans = collect($plans->all())
+            ->groupBy(function ($plan) {
+                if ($plan->is_family)          return 'Family';
+                if ($plan->validity_days <= 1)  return 'Daily';
+                if ($plan->validity_days <= 7)  return 'Weekly';
+                if ($plan->validity_days <= 31) return 'Monthly';
+                return 'Long-term';
+            })
+            ->sortKeysUsing(fn($a, $b) => array_search($a, ['Daily','Weekly','Monthly','Family','Long-term']) <=> array_search($b, ['Daily','Weekly','Monthly','Family','Long-term']));
 
         $activeSession   = null;
         $sessionDownload = null;
@@ -228,8 +250,10 @@ class AppDashboard extends Component
             ->limit(5)
             ->get();
 
+        $userRouterId = $user->router_id;
+
         return view('livewire.app-dashboard', compact(
-            'user', 'plans', 'activeSession',
+            'user', 'plans', 'groupedPlans', 'userRouterId', 'activeSession',
             'sessionDownload', 'sessionUpload', 'uptime',
             'dataUsedPct', 'dataRemaining', 'expiryHuman',
             'recentTransactions'
