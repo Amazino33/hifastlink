@@ -17,7 +17,15 @@ use Illuminate\Support\Facades\Route;
 // PUBLIC PAGES
 // ============================================================
 
-Route::get('/', fn () => view('welcome'))->name('home');
+Route::get('/', function () {
+    // App subdomain → send to the customer app (login first if needed)
+    if (str_starts_with(request()->getHost(), 'app.')) {
+        return auth()->check()
+            ? redirect()->route('app.home')
+            : redirect()->route('login');
+    }
+    return view('welcome');
+})->name('home');
 Route::get('/about-us', fn () => view('about'))->name('about');
 
 Route::get('/pricing', [PageController::class, 'pricing'])->name('pricing');
