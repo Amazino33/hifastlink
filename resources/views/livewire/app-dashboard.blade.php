@@ -142,10 +142,12 @@
 /* Pulse rings */
 .pr {
     position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
     border-radius: 50%;
     border: 1.5px solid rgba(10,132,255,.5);
     width: 88px; height: 88px;
     animation: pr-expand 2.6s ease-out infinite;
+    animation-fill-mode: backwards;
     pointer-events: none; z-index: 1;
 }
 .pr:nth-child(2) { animation-delay: .88s; }
@@ -157,10 +159,12 @@
 
 .pr-green {
     position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
     border-radius: 50%;
     border: 1.5px solid rgba(50,215,75,.5);
     width: 78px; height: 78px;
     animation: pr-expand 2.6s ease-out infinite;
+    animation-fill-mode: backwards;
     pointer-events: none; z-index: 1;
 }
 .pr-green:nth-child(2) { animation-delay: .88s; }
