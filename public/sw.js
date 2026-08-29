@@ -1,5 +1,5 @@
-const CACHE = 'hfl-pwa-v1';
-const PRECACHE = ['/connect-app', '/manifest.json', '/images/pwa-icon.svg'];
+const CACHE = 'hfl-pwa-v2';
+const PRECACHE = ['/home', '/manifest.json', '/images/pwa-icon.svg'];
 
 self.addEventListener('install', ev => {
     ev.waitUntil(
