@@ -123,6 +123,9 @@ for app in "${APPS[@]}"; do
         echo "    symlink created"
     fi
 
+    step "[$name] Publishing Livewire assets"
+    php artisan vendor:publish --tag=livewire:assets --force
+
     step "[$name] Rebuilding caches"
     php artisan config:clear
     php artisan route:clear
