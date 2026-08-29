@@ -117,6 +117,9 @@ Route::get('/payment/callback', [PaymentController::class, 'handleGatewayCallbac
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
+    // ── App dashboard (mobile VPN-style, serves app.hifastlink.com) ──────
+    Route::get('/home', \App\Livewire\AppDashboard::class)->name('app.home');
+
     // ── Dashboard ─────────────────────────────────────────────
     Route::get('/dashboard', \App\Http\Livewire\UserDashboard::class)
         ->middleware(\App\Http\Middleware\CheckHotspotMac::class)
