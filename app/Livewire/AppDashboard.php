@@ -495,7 +495,6 @@ class AppDashboard extends Component
         // Session history (only loaded when that panel is open)
         $sessionHistory = ($this->sessionMode && $user->username)
             ? RadAcct::where('username', $user->username)
-                ->whereNotNull('acctstoptime')
                 ->latest('acctstarttime')
                 ->paginate(10, ['*'], 'sess')
             : null;

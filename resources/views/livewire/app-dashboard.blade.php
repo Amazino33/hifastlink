@@ -1203,22 +1203,56 @@
 
                 {{-- Hot Deals --}}
                 @if($featuredPlans->isNotEmpty())
-                    <div class="section-header"><h3>🔥 Hot Deals</h3></div>
                     <div class="plan-group" style="margin-bottom:4px;">
-                        <div class="plan-cards">
+                        <div class="plan-group-header">
+                            <div class="plan-group-icon" style="background:rgba(255,107,53,.15);color:#ff6b35;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c-1 3-4 5-4 9a4 4 0 0 0 8 0c0-4-3-6-4-9z"/><path d="M12 15c-1 1.5-2 2.5-2 4a2 2 0 0 0 4 0c0-1.5-1-2.5-2-4z"/></svg>
+                            </div>
+                            <span class="plan-group-title">Hot Deals</span>
+                            <span class="plan-group-count">{{ $featuredPlans->count() }}</span>
+                        </div>
+                        <div class="plans-list">
                             @foreach($featuredPlans as $fp)
+                                @php
+                                    $fpIsOther = $fp->router_id && $fp->router_id !== $userRouterId;
+                                    $fpLoc = $fp->router_id
+                                        ? ($fp->router?->brand_name ?? $fp->router?->name ?? 'Specific location')
+                                        : 'Any hotspot';
+                                @endphp
                                 <div class="plan-card plan-card-featured">
-                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                                        <span class="hot-badge">Hot Deal</span>
-                                        @if($fp->router)
-                                            <span style="font-size:10px;color:var(--muted);">{{ $fp->router->name }}</span>
-                                        @endif
+                                    <div class="plan-card-top">
+                                        <div class="plan-icon" style="background:rgba(255,107,53,.15);color:#ff6b35;">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                                                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>
+                                            </svg>
+                                        </div>
+                                        <div class="plan-info">
+                                            <span class="hot-badge" style="margin-bottom:4px;display:inline-block;">🔥 Hot Deal</span>
+                                            <div class="plan-name">{{ $fp->name }}</div>
+                                            <div class="plan-meta">
+                                                {{ $fp->data_limit_human }} &middot; {{ $fp->validity_days }}d
+                                                @if($fp->speed_limit_download) &middot; {{ $fp->speed_limit_download }}k↓ @endif
+                                            </div>
+                                            <span class="plan-loc-badge {{ $fpIsOther ? 'loc-other' : 'loc-any' }}">
+                                                @if($fpIsOther)
+                                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                                    {{ $fpLoc }} only
+                                                @else
+                                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/></svg>
+                                                    {{ $fpLoc }}
+                                                @endif
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div class="plan-name">{{ $fp->name }}</div>
-                                    <div class="plan-meta">{{ $fp->data_limit_human }} · {{ $fp->validity_days }}d</div>
-                                    <div class="plan-price">₦{{ number_format($fp->price, 0) }}</div>
-                                    <a href="{{ route('pay', ['plan' => $fp->id]) }}"
-                                       class="plan-btn">Buy Now</a>
+                                    <div class="plan-price-wrap">
+                                        <span class="plan-price">₦{{ number_format($fp->price, 0) }}</span>
+                                        <form method="POST" action="{{ route('pay') }}">
+                                            @csrf
+                                            <input type="hidden" name="plan_id" value="{{ $fp->id }}">
+                                            <button type="submit" class="btn-buy {{ $fpIsOther ? 'dimmed' : '' }}">Buy</button>
+                                        </form>
+                                    </div>
                                 </div>
                             @endforeach
                         </div>
@@ -1376,7 +1410,7 @@
                     </div>
 
                     <div class="txn-list">
-                        @forelse($sessionHistory as $sess)
+                        @forelse($sessionHistory ?? [] as $sess)
                             @php
                                 $started = \Carbon\Carbon::parse($sess->acctstarttime);
                                 $secs    = (int) $sess->acctsessiontime;
@@ -1407,7 +1441,7 @@
                         @endforelse
                     </div>
 
-                    @if($sessionHistory->hasPages())
+                    @if($sessionHistory && $sessionHistory->hasPages())
                         <div class="txn-pages">
                             <button wire:click="previousPage('sess')" @if($sessionHistory->onFirstPage()) disabled @endif class="txn-page-btn">← Prev</button>
                             <span class="txn-page-info">{{ $sessionHistory->currentPage() }} / {{ $sessionHistory->lastPage() }}</span>
