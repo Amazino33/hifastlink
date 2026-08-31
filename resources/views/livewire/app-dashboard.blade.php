@@ -1463,7 +1463,7 @@
                 {{-- ── TRANSACTION HISTORY ── --}}
                 <div>
                     <div class="edit-profile-hdr">
-                        <button type="button" wire:click="exitHistory" class="edit-back-btn">
+                        <button type="button" x-on:click="$wire.exitHistory()" class="edit-back-btn">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                             Back
                         </button>
@@ -1496,9 +1496,9 @@
 
                     @if($allTransactions->hasPages())
                         <div class="txn-pages">
-                            <button wire:click="previousPage" @if($allTransactions->onFirstPage()) disabled @endif class="txn-page-btn">← Prev</button>
+                            <button x-on:click="$wire.previousPage()" @if($allTransactions->onFirstPage()) disabled @endif class="txn-page-btn">← Prev</button>
                             <span class="txn-page-info">{{ $allTransactions->currentPage() }} / {{ $allTransactions->lastPage() }}</span>
-                            <button wire:click="nextPage" @if(!$allTransactions->hasMorePages()) disabled @endif class="txn-page-btn">Next →</button>
+                            <button x-on:click="$wire.nextPage()" @if(!$allTransactions->hasMorePages()) disabled @endif class="txn-page-btn">Next →</button>
                         </div>
                     @endif
                 </div>
@@ -1506,7 +1506,7 @@
                 {{-- ── RADIUS SESSION HISTORY ── --}}
                 <div>
                     <div class="edit-profile-hdr">
-                        <button type="button" wire:click="exitSessions" class="edit-back-btn">
+                        <button type="button" x-on:click="$wire.exitSessions()" class="edit-back-btn">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                             Back
                         </button>
@@ -1547,9 +1547,9 @@
 
                     @if($sessionHistory && $sessionHistory->hasPages())
                         <div class="txn-pages">
-                            <button wire:click="previousPage('sess')" @if($sessionHistory->onFirstPage()) disabled @endif class="txn-page-btn">← Prev</button>
+                            <button x-on:click="$wire.previousPage('sess')" @if($sessionHistory->onFirstPage()) disabled @endif class="txn-page-btn">← Prev</button>
                             <span class="txn-page-info">{{ $sessionHistory->currentPage() }} / {{ $sessionHistory->lastPage() }}</span>
-                            <button wire:click="nextPage('sess')" @if(!$sessionHistory->hasMorePages()) disabled @endif class="txn-page-btn">Next →</button>
+                            <button x-on:click="$wire.nextPage('sess')" @if(!$sessionHistory->hasMorePages()) disabled @endif class="txn-page-btn">Next →</button>
                         </div>
                     @endif
                 </div>
@@ -1558,7 +1558,7 @@
                 {{-- ── SUB-ACCOUNTS ── --}}
                 <div>
                     <div class="edit-profile-hdr">
-                        <button type="button" wire:click="exitSubAccounts" class="edit-back-btn">
+                        <button type="button" x-on:click="$wire.exitSubAccounts()" class="edit-back-btn">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                             Back
                         </button>
@@ -1580,8 +1580,7 @@
                                             <span style="font-size:11px;color:{{ $sub['online'] ? 'var(--green)' : 'var(--muted)' }}">{{ $sub['online'] ? 'Online' : 'Offline' }}</span>
                                         </div>
                                         <button type="button"
-                                            wire:click="deleteSubAccount({{ $sub['id'] }})"
-                                            wire:confirm="Remove {{ $sub['name'] ?: $sub['username'] }}? They will be disconnected."
+                                            x-on:click="if(confirm('Remove {{ $sub['name'] ?: $sub['username'] }}? They will be disconnected.')) $wire.deleteSubAccount({{ $sub['id'] }})"
                                             class="sub-del-btn">
                                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                                         </button>
@@ -1605,9 +1604,8 @@
                                 class="sub-add-input"
                                 placeholder="New member name (e.g. Mum)">
                             @error('subUserName') <span class="prof-error" style="padding:2px 0 4px">{{ $message }}</span> @enderror
-                            <button type="button" wire:click="createSubAccount" class="sub-add-btn">
-                                <span wire:loading.remove wire:target="createSubAccount">+ Add</span>
-                                <span wire:loading wire:target="createSubAccount">Adding…</span>
+                            <button type="button" x-on:click="$wire.createSubAccount()" class="sub-add-btn">
+                                + Add
                             </button>
                         </div>
                         <p style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5">
@@ -1634,7 +1632,7 @@
                             <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
                         </button>
 
-                        <button type="button" wire:click="enterHistory" class="account-row" style="width:100%;text-align:left;">
+                        <button type="button" x-on:click="$wire.enterHistory()" class="account-row" style="width:100%;text-align:left;">
                             <div class="account-row-icon">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                             </div>
@@ -1642,7 +1640,7 @@
                             <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
                         </button>
 
-                        <button type="button" wire:click="enterSessions" class="account-row" style="width:100%;text-align:left;">
+                        <button type="button" x-on:click="$wire.enterSessions()" class="account-row" style="width:100%;text-align:left;">
                             <div class="account-row-icon">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                             </div>
@@ -1651,7 +1649,7 @@
                         </button>
 
                         @if($user->is_family_admin)
-                        <button type="button" wire:click="enterSubAccounts" class="account-row" style="width:100%;text-align:left;">
+                        <button type="button" x-on:click="$wire.enterSubAccounts()" class="account-row" style="width:100%;text-align:left;">
                             <div class="account-row-icon">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                             </div>
@@ -1724,9 +1722,8 @@
                         </div>
                     </div>
 
-                    <button type="button" wire:click="saveProfile" class="prof-save-btn">
-                        <span wire:loading.remove wire:target="saveProfile">Save Changes</span>
-                        <span wire:loading wire:target="saveProfile">Saving…</span>
+                    <button type="button" x-on:click="$wire.saveProfile()" class="prof-save-btn">
+                        Save Changes
                     </button>
 
                     {{-- Change Password (collapsible) --}}
@@ -1753,9 +1750,8 @@
                                     <input type="password" wire:model="newPasswordConfirmation" class="prof-input" placeholder="Repeat new password">
                                 </div>
                             </div>
-                            <button type="button" wire:click="changePassword" class="prof-save-btn prof-pw-btn">
-                                <span wire:loading.remove wire:target="changePassword">Update Password</span>
-                                <span wire:loading wire:target="changePassword">Updating…</span>
+                            <button type="button" x-on:click="$wire.changePassword()" class="prof-save-btn prof-pw-btn">
+                                Update Password
                             </button>
                         </div>
                     </div>

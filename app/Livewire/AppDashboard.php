@@ -285,7 +285,7 @@ class AppDashboard extends Component
         $this->resetPage();
     }
 
-    public function enterHistory(): void  { $this->resetModes(); $this->historyMode = true; Log::info('AppDashboard: enterHistory called'); }
+    public function enterHistory(): void  { $this->resetModes(); $this->historyMode = true; }
     public function exitHistory(): void   { $this->resetModes(); }
     public function enterSessions(): void { $this->resetModes(); $this->sessionMode = true; }
     public function exitSessions(): void  { $this->resetModes(); }
