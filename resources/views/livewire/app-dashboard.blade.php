@@ -745,6 +745,76 @@
 .txn-page-btn:disabled { opacity: 0.3; cursor: default; }
 .txn-page-info { font-size: 13px; color: var(--muted); }
 
+/* ── Hot Deals badge ── */
+.hot-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: linear-gradient(135deg, #ff6b35, #ff453a);
+    color: #fff; font-size: 9.5px; font-weight: 800;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    border-radius: 6px; padding: 2px 7px;
+}
+.plan-card-featured { border-color: rgba(255,107,53,0.35) !important; }
+
+/* ── Router stats card ── */
+.router-card {
+    background: linear-gradient(135deg, rgba(10,132,255,0.1), rgba(10,132,255,0.04));
+    border: 1px solid rgba(10,132,255,0.25);
+    border-radius: 18px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+}
+.router-card-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.router-card-title { font-size: 13px; font-weight: 700; color: var(--accent); }
+.router-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.router-stat { background: var(--glass-2); border-radius: 12px; padding: 10px 12px; }
+.router-stat-val { font-size: 16px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.router-stat-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.4px; }
+
+/* ── Sub-accounts ── */
+.sub-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.sub-item:last-of-type { border-bottom: none; }
+.sub-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--glass-2); border: 1px solid var(--border-2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: var(--accent);
+    flex-shrink: 0;
+}
+.sub-info { flex: 1; min-width: 0; }
+.sub-name { font-size: 14px; font-weight: 500; color: var(--text); }
+.sub-creds { font-size: 11px; color: var(--muted); margin-top: 1px; font-family: 'JetBrains Mono', monospace; }
+.sub-online { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.sub-offline { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.sub-del-btn {
+    background: rgba(255,69,58,.12); color: var(--red);
+    border: none; border-radius: 8px; padding: 5px 10px;
+    font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+    flex-shrink: 0;
+}
+.sub-add-row {
+    display: flex; gap: 8px; align-items: center;
+    padding-top: 14px;
+}
+.sub-add-input {
+    flex: 1; background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.18);
+    border-radius: 12px; padding: 9px 12px;
+    font-size: 14px; color: var(--text); outline: none;
+    font-family: inherit;
+}
+.sub-add-input:focus { border-color: var(--accent); }
+.sub-add-input::placeholder { color: var(--muted); }
+.sub-add-btn {
+    background: var(--accent); color: #fff;
+    border: none; border-radius: 12px; padding: 10px 16px;
+    font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+    white-space: nowrap;
+}
+.sub-limit { font-size: 11.5px; color: var(--muted); text-align: center; padding: 8px 0 4px; }
+
 /* ── Plan queue (Up Next) ── */
 .queue-item {
     background: var(--glass-2);
@@ -1092,10 +1162,68 @@
                         @endforeach
                     </div>
                 @endif
+
+                {{-- Router ownership / Earnings --}}
+                @if($ownedRouter && $routerStats)
+                    <div class="section-header"><h3>My Router</h3></div>
+                    <div class="router-card">
+                        <div class="router-card-hdr">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 14v-4"/><path d="M12 14V4"/><path d="M18 14v-6"/></svg>
+                            <span class="router-card-title">{{ $ownedRouter->name }}</span>
+                        </div>
+                        <div class="router-stats">
+                            <div class="router-stat">
+                                <div class="router-stat-val">{{ $routerStats['activeCount'] }}</div>
+                                <div class="router-stat-lbl">Active Users</div>
+                            </div>
+                            <div class="router-stat">
+                                <div class="router-stat-val">{{ Number::fileSize($routerStats['todayBytes']) }}</div>
+                                <div class="router-stat-lbl">Today's Data</div>
+                            </div>
+                            <div class="router-stat">
+                                <div class="router-stat-val">{{ Number::fileSize($routerStats['monthBytes']) }}</div>
+                                <div class="router-stat-lbl">This Month</div>
+                            </div>
+                            <div class="router-stat">
+                                <div class="router-stat-val">₦{{ number_format($routerStats['totalEarned'], 0) }}</div>
+                                <div class="router-stat-lbl">Earned</div>
+                            </div>
+                        </div>
+                        @if($routerStats['pendingPay'] > 0)
+                            <div style="margin-top:10px;font-size:12px;color:var(--amber);">
+                                ₦{{ number_format($routerStats['pendingPay'], 0) }} payout pending
+                            </div>
+                        @endif
+                    </div>
+                @endif
             </div>
 
             {{-- ─── PLANS TAB ────────────────────────────── --}}
             <div x-show="tab === 'plans'" style="display:none">
+
+                {{-- Hot Deals --}}
+                @if($featuredPlans->isNotEmpty())
+                    <div class="section-header"><h3>🔥 Hot Deals</h3></div>
+                    <div class="plan-group" style="margin-bottom:4px;">
+                        <div class="plan-cards">
+                            @foreach($featuredPlans as $fp)
+                                <div class="plan-card plan-card-featured">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                                        <span class="hot-badge">Hot Deal</span>
+                                        @if($fp->router)
+                                            <span style="font-size:10px;color:var(--muted);">{{ $fp->router->name }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="plan-name">{{ $fp->name }}</div>
+                                    <div class="plan-meta">{{ $fp->data_limit_human }} · {{ $fp->validity_days }}d</div>
+                                    <div class="plan-price">₦{{ number_format($fp->price, 0) }}</div>
+                                    <a href="{{ route('pay', ['plan' => $fp->id]) }}"
+                                       class="plan-btn">Buy Now</a>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
 
                 @if($groupedPlans->isEmpty())
                     <div style="text-align:center; padding: 56px 0; color: var(--muted); font-size: 13px;">
@@ -1194,7 +1322,7 @@
                  style="display:none">
 
                 @if($historyMode)
-                {{-- ── TRANSACTION HISTORY (Livewire-controlled) ── --}}
+                {{-- ── TRANSACTION HISTORY ── --}}
                 <div>
                     <div class="edit-profile-hdr">
                         <button type="button" wire:click="exitHistory" class="edit-back-btn">
@@ -1236,6 +1364,119 @@
                         </div>
                     @endif
                 </div>
+                @elseif($sessionMode)
+                {{-- ── RADIUS SESSION HISTORY ── --}}
+                <div>
+                    <div class="edit-profile-hdr">
+                        <button type="button" wire:click="exitSessions" class="edit-back-btn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                            Back
+                        </button>
+                        <span class="edit-profile-title">Session History</span>
+                    </div>
+
+                    <div class="txn-list">
+                        @forelse($sessionHistory as $sess)
+                            @php
+                                $started = \Carbon\Carbon::parse($sess->acctstarttime);
+                                $secs    = (int) $sess->acctsessiontime;
+                                $h = floor($secs / 3600); $m = floor(($secs % 3600) / 60);
+                                $dur = $h > 0 ? "{$h}h {$m}m" : ($m > 0 ? "{$m}m" : "<1m");
+                                $dl = \Illuminate\Support\Number::fileSize(($sess->acctoutputoctets ?? 0), precision: 1);
+                                $ul = \Illuminate\Support\Number::fileSize(($sess->acctinputoctets ?? 0), precision: 1);
+                                $isOpen = empty($sess->acctstoptime);
+                            @endphp
+                            <div class="txn-row">
+                                <div class="txn-icon" style="{{ $isOpen ? 'background:rgba(50,215,75,.12);color:var(--green)' : '' }}">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                </div>
+                                <div class="txn-info">
+                                    <div class="txn-title">{{ $started->format('d M Y, g:i a') }}</div>
+                                    <div class="txn-sub">{{ $dur }} &nbsp;·&nbsp; ↓{{ $dl }} &nbsp;↑{{ $ul }}</div>
+                                </div>
+                                <div class="txn-right">
+                                    @if($isOpen)
+                                        <span class="txn-badge success">Active</span>
+                                    @else
+                                        <span class="txn-badge" style="background:rgba(255,255,255,.08);color:var(--muted);">Done</span>
+                                    @endif
+                                </div>
+                            </div>
+                        @empty
+                            <div class="txn-empty">No sessions recorded yet.</div>
+                        @endforelse
+                    </div>
+
+                    @if($sessionHistory->hasPages())
+                        <div class="txn-pages">
+                            <button wire:click="previousPage('sess')" @if($sessionHistory->onFirstPage()) disabled @endif class="txn-page-btn">← Prev</button>
+                            <span class="txn-page-info">{{ $sessionHistory->currentPage() }} / {{ $sessionHistory->lastPage() }}</span>
+                            <button wire:click="nextPage('sess')" @if(!$sessionHistory->hasMorePages()) disabled @endif class="txn-page-btn">Next →</button>
+                        </div>
+                    @endif
+                </div>
+
+                @elseif($subMode)
+                {{-- ── SUB-ACCOUNTS ── --}}
+                <div>
+                    <div class="edit-profile-hdr">
+                        <button type="button" wire:click="exitSubAccounts" class="edit-back-btn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                            Back
+                        </button>
+                        <span class="edit-profile-title">Sub-accounts</span>
+                    </div>
+
+                    @if(isset($subAccounts) && count($subAccounts))
+                        <div style="margin-bottom:12px">
+                            @foreach($subAccounts as $sub)
+                                <div class="sub-item">
+                                    <div class="sub-avatar">{{ strtoupper(substr($sub['name'] ?? $sub['username'], 0, 2)) }}</div>
+                                    <div class="sub-info">
+                                        <div class="sub-name">{{ $sub['name'] ?: $sub['username'] }}</div>
+                                        <div class="sub-creds">{{ $sub['username'] }}</div>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
+                                        <span class="{{ $sub['online'] ? 'sub-online' : 'sub-offline' }}">
+                                            {{ $sub['online'] ? 'Online' : 'Offline' }}
+                                        </span>
+                                        <button type="button"
+                                            wire:click="deleteSubAccount({{ $sub['id'] }})"
+                                            wire:confirm="Remove {{ $sub['name'] ?: $sub['username'] }}? They will be disconnected."
+                                            class="sub-del-btn">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="txn-empty" style="margin-bottom:12px">No sub-accounts yet. Add one below.</div>
+                    @endif
+
+                    @php $familyLimit = auth()->user()->family_limit ?? 3; @endphp
+                    <div class="sub-limit">
+                        {{ isset($subAccounts) ? count($subAccounts) : 0 }} / {{ $familyLimit }} slots used
+                    </div>
+
+                    @if(!isset($subAccounts) || count($subAccounts) < $familyLimit)
+                        <div class="sub-add-row">
+                            <input type="text"
+                                wire:model="subUserName"
+                                class="sub-add-input"
+                                placeholder="New member name (e.g. Mum)">
+                            @error('subUserName') <span class="prof-error" style="padding:2px 0 4px">{{ $message }}</span> @enderror
+                            <button type="button" wire:click="createSubAccount" class="sub-add-btn">
+                                <span wire:loading.remove wire:target="createSubAccount">+ Add</span>
+                                <span wire:loading wire:target="createSubAccount">Adding…</span>
+                            </button>
+                        </div>
+                        <p style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5">
+                            A username &amp; password will be generated. Share it with the family member to connect.
+                        </p>
+                    @endif
+                </div>
+
                 @else
                 {{-- ── VIEW MODE ── --}}
                 <div x-show="!editMode">
@@ -1261,6 +1502,24 @@
                             <span class="account-row-label">Transaction History</span>
                             <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
                         </button>
+
+                        <button type="button" wire:click="enterSessions" class="account-row" style="width:100%;text-align:left;">
+                            <div class="account-row-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </div>
+                            <span class="account-row-label">Session History</span>
+                            <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </button>
+
+                        @if($user->is_family_admin)
+                        <button type="button" wire:click="enterSubAccounts" class="account-row" style="width:100%;text-align:left;">
+                            <div class="account-row-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </div>
+                            <span class="account-row-label">Sub-accounts</span>
+                            <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </button>
+                        @endif
 
                         <a href="{{ route('dashboard') }}" class="account-row">
                             <div class="account-row-icon">

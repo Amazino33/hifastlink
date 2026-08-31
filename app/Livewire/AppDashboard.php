@@ -4,15 +4,18 @@ namespace App\Livewire;
 
 use App\Models\AppSetting;
 use App\Models\PendingSubscription;
+use App\Models\Plan;
 use App\Models\RadAcct;
 use App\Models\Router;
 use App\Models\Transaction;
 use App\Services\PlanFilterService;
 use Carbon\CarbonInterval;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -37,7 +40,10 @@ class AppDashboard extends Component
     public string $newPasswordConfirmation = '';
 
     // Account sub-views
-    public bool $historyMode = false;
+    public bool   $historyMode = false;
+    public bool   $sessionMode = false;
+    public bool   $subMode     = false;
+    public string $subUserName = '';
 
     public function mount(): void
     {
@@ -271,16 +277,98 @@ class AppDashboard extends Component
         $this->dispatch('toast', message: $msg, type: 'success');
     }
 
-    public function enterHistory(): void
+    private function resetModes(): void
     {
-        $this->historyMode = true;
+        $this->historyMode = false;
+        $this->sessionMode = false;
+        $this->subMode     = false;
         $this->resetPage();
     }
 
-    public function exitHistory(): void
+    public function enterHistory(): void  { $this->resetModes(); $this->historyMode = true; }
+    public function exitHistory(): void   { $this->resetModes(); }
+    public function enterSessions(): void { $this->resetModes(); $this->sessionMode = true; }
+    public function exitSessions(): void  { $this->resetModes(); }
+    public function enterSubAccounts(): void { $this->resetModes(); $this->subMode = true; }
+    public function exitSubAccounts(): void  { $this->resetModes(); $this->subUserName = ''; }
+
+    public function createSubAccount(): void
     {
-        $this->historyMode = false;
-        $this->resetPage();
+        $owner = Auth::user();
+
+        if (! $owner->is_family_admin) {
+            $this->dispatch('toast', message: 'You need a Family plan to add sub-accounts.', type: 'error');
+            return;
+        }
+
+        $currentCount = \App\Models\User::where('parent_id', $owner->id)->count();
+        if ($currentCount >= ($owner->family_limit ?? 0)) {
+            $this->dispatch('toast', message: 'Sub-account limit reached for your plan.', type: 'error');
+            return;
+        }
+
+        if (! $owner->plan_expiry || $owner->plan_expiry->isPast()) {
+            $this->dispatch('toast', message: 'You need an active plan to add sub-accounts.', type: 'error');
+            return;
+        }
+
+        $this->validate(['subUserName' => ['nullable', 'string', 'max:60']]);
+
+        $words = [
+            'sun','red','blue','sky','fast','gold','cool','star','fire','ace',
+            'ice','top','max','pro','big','hot','oak','sea','air','bay',
+            'dry','gem','jet','key','low','nut','owl','ray','tan','van',
+        ];
+        $username = '';
+        $attempts = 0;
+        do {
+            $username = $words[array_rand($words)] . str_pad(random_int(0, 999), 3, '0', STR_PAD_LEFT);
+            $attempts++;
+        } while (\App\Models\User::where('username', $username)->exists() && $attempts < 20);
+
+        $password = Str::random(8);
+
+        \App\Models\User::create([
+            'name'            => $this->subUserName ?: $username,
+            'username'        => $username,
+            'radius_password' => $password,
+            'parent_id'       => $owner->id,
+            'router_id'       => $owner->router_id,
+            'email'           => $username . '@sub.local',
+            'password'        => Hash::make($password),
+            'plan_id'         => $owner->plan_id,
+        ]);
+
+        \App\Models\RadCheck::updateOrCreate(
+            ['username' => $username, 'attribute' => 'Cleartext-Password'],
+            ['op' => ':=', 'value' => $password]
+        );
+        \App\Models\RadCheck::updateOrCreate(
+            ['username' => $username, 'attribute' => 'Simultaneous-Use'],
+            ['op' => ':=', 'value' => '2']
+        );
+        \App\Models\RadCheck::where('username', $username)->where('attribute', 'Expiration')->delete();
+
+        $this->subUserName = '';
+        $this->dispatch('toast', message: "Account created — {$username} / {$password}", type: 'success');
+    }
+
+    public function deleteSubAccount(int $subId): void
+    {
+        $owner = Auth::user();
+        $sub   = \App\Models\User::where('id', $subId)->where('parent_id', $owner->id)->first();
+        if (! $sub) return;
+
+        \App\Models\RadCheck::where('username', $sub->username)->delete();
+        \App\Models\RadReply::where('username', $sub->username)->delete();
+
+        DB::table('radacct')
+            ->where('username', $sub->username)
+            ->whereNull('acctstoptime')
+            ->update(['acctstoptime' => now(), 'acctterminatecause' => 'Admin-Reset']);
+
+        $sub->delete();
+        $this->dispatch('toast', message: "Sub-account removed.", type: 'success');
     }
 
     public function saveProfile(): void
@@ -397,6 +485,51 @@ class AppDashboard extends Component
 
         $pendingSubscriptions = $user->pendingSubscriptions()->with('plan')->get();
 
+        // Featured plans (Hot Deals)
+        $featuredPlans = Plan::where('is_featured', true)
+            ->where('is_active', true)
+            ->where('is_admin_only', false)
+            ->orderBy('sort_order')
+            ->get();
+
+        // Session history (only loaded when that panel is open)
+        $sessionHistory = ($this->sessionMode && $user->username)
+            ? RadAcct::where('username', $user->username)
+                ->whereNotNull('acctstoptime')
+                ->latest('acctstarttime')
+                ->paginate(10, ['*'], 'sess')
+            : null;
+
+        // Sub-accounts (family admins only)
+        $subAccounts = $user->is_family_admin
+            ? \App\Models\User::where('parent_id', $user->id)
+                ->select(['id', 'name', 'username', 'radius_password'])
+                ->get()
+                ->map(function ($sub) {
+                    $online = false;
+                    try {
+                        $online = RadAcct::where('username', $sub->username)->whereNull('acctstoptime')->exists();
+                    } catch (\Exception) {}
+                    return ['id' => $sub->id, 'name' => $sub->name, 'username' => $sub->username, 'password' => $sub->radius_password, 'online' => $online];
+                })
+            : collect();
+
+        // Router ownership (earnings)
+        $ownedRouter  = Router::where('owner_id', $user->id)->first();
+        $routerStats  = null;
+        if ($ownedRouter) {
+            try {
+                $activeCount  = $ownedRouter->activeSessions()->distinct('username')->count();
+                $todayBytes   = (int) $ownedRouter->sessions()->whereDate('acctstarttime', today())->sum(DB::raw('COALESCE(acctinputoctets,0)+COALESCE(acctoutputoctets,0)'));
+                $monthBytes   = (int) $ownedRouter->sessions()->where('acctstarttime', '>=', now()->startOfMonth())->sum(DB::raw('COALESCE(acctinputoctets,0)+COALESCE(acctoutputoctets,0)'));
+                $totalEarned  = (float) $ownedRouter->payouts()->where('status', 'paid')->sum('amount');
+                $pendingPay   = (float) $ownedRouter->payouts()->where('status', 'pending')->sum('amount');
+                $routerStats  = compact('activeCount', 'todayBytes', 'monthBytes', 'totalEarned', 'pendingPay');
+            } catch (\Exception $e) {
+                Log::warning('AppDashboard: router stats error — ' . $e->getMessage());
+            }
+        }
+
         $recentTransactions = Transaction::where('user_id', $user->id)
             ->with('plan')
             ->latest()
@@ -416,7 +549,9 @@ class AppDashboard extends Component
             'user', 'plans', 'groupedPlans', 'userRouterId', 'activeSession',
             'sessionDownload', 'sessionUpload', 'uptime',
             'dataUsedPct', 'dataRemaining', 'expiryHuman',
-            'recentTransactions', 'allTransactions', 'pendingSubscriptions'
+            'recentTransactions', 'allTransactions', 'pendingSubscriptions',
+            'featuredPlans', 'sessionHistory', 'subAccounts',
+            'ownedRouter', 'routerStats'
         ))->layout('layouts.app-shell');
     }
 }
