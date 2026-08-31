@@ -896,6 +896,7 @@
         tab: 'home',
         editMode: false,
         pwOpen: false,
+        hotspotWarning: false,
         toast: null,
         showToast(msg, type) { this.toast = { msg, type }; setTimeout(() => this.toast = null, 3400); }
     }"
@@ -1007,7 +1008,10 @@
 
                 {{-- Connect button --}}
                 @if($connectionState === 'plan-active')
-                    <button class="connect-btn" id="app-connect-btn" wire:click="connect">
+                    <button class="connect-btn" id="app-connect-btn"
+                        data-hotspot="{{ $isOnHotspot ? '1' : '0' }}"
+                        data-url="{{ $connectUrl }}"
+                        @click="$el.dataset.hotspot === '1' ? (window.location.href = $el.dataset.url) : (hotspotWarning = true)">
                         <span class="connect-btn-icon">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                 <line x1="12" y1="2" x2="12" y2="12"/><path d="M8.5 4.8A8 8 0 1 0 15.5 4.8"/>
@@ -1772,25 +1776,23 @@
 
     </div>{{-- end main-area --}}
 
-    {{-- ══ HOTSPOT WARNING MODAL ════════════════════════════ --}}
-    @if($showWarning)
-        <div class="overlay" wire:click.self="dismissWarning">
-            <div class="modal-sheet">
-                <div class="modal-icon">
-                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/>
-                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>
-                    </svg>
-                </div>
-                <div class="modal-title">Not on HiFastLink WiFi</div>
-                <div class="modal-body">
-                    Connect to a HiFastLink WiFi network first, then tap Connect to get online.<br><br>
-                    Look for networks like <strong style="color:var(--text)">HiFastLink</strong> or <strong style="color:var(--text)">BasmelCare</strong>.
-                </div>
-                <button class="btn-modal-ok" wire:click="dismissWarning">Got it</button>
+    {{-- ══ HOTSPOT WARNING MODAL (Alpine-driven, no Livewire needed) ══ --}}
+    <div class="overlay" x-show="hotspotWarning" @click.self="hotspotWarning = false" x-cloak>
+        <div class="modal-sheet">
+            <div class="modal-icon">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>
+                </svg>
             </div>
+            <div class="modal-title">Not on HiFastLink WiFi</div>
+            <div class="modal-body">
+                Connect to a HiFastLink WiFi network first, then tap Connect to get online.<br><br>
+                Look for networks like <strong style="color:var(--text)">HiFastLink</strong> or <strong style="color:var(--text)">BasmelCare</strong>.
+            </div>
+            <button class="btn-modal-ok" @click="hotspotWarning = false">Got it</button>
         </div>
-    @endif
+    </div>
 
     {{-- ══ MOBILE BOTTOM TAB BAR ══════════════════════════ --}}
     <nav class="tab-bar">
