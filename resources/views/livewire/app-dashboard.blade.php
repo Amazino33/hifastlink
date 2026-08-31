@@ -161,29 +161,30 @@
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%,-50%);
     border-radius: 50%;
-    border: 1.5px solid rgba(50,215,75,.5);
-    width: 78px; height: 78px;
-    animation: pr-expand 2.6s ease-out infinite;
+    border: 1.5px solid rgba(50,215,75,.45);
+    width: 110px; height: 110px;
+    animation: pr-expand 2.8s ease-out infinite;
     animation-fill-mode: backwards;
     pointer-events: none; z-index: 1;
 }
-.pr-green:nth-child(2) { animation-delay: .88s; }
-.pr-green:nth-child(3) { animation-delay: 1.76s; }
+.pr-green:nth-child(2) { animation-delay: .93s; }
+.pr-green:nth-child(3) { animation-delay: 1.86s; }
 
-/* Connected center */
+/* Connected center — flat glass orb */
 .conn-center {
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%,-50%);
-    width: 78px; height: 78px; border-radius: 50%;
-    background: radial-gradient(circle at 38% 28%, #7fffa6 0%, #1fcc46 55%, #0d8c2e 100%);
+    width: 110px; height: 110px; border-radius: 50%;
+    background: radial-gradient(circle at 45% 38%, rgba(140,255,170,.22) 0%, rgba(50,215,75,.13) 60%, rgba(20,180,50,.08) 100%);
+    border: 1.5px solid rgba(50,215,75,.5);
     box-shadow:
-        0 0 0 4px rgba(50,215,75,.18),
-        0 0 32px rgba(50,215,75,.6),
-        0 8px 20px rgba(0,0,0,.5),
-        inset 0 2px 0 rgba(255,255,255,.3);
+        0 0 0 10px rgba(50,215,75,.06),
+        0 0 42px rgba(50,215,75,.55),
+        0 0 80px rgba(50,215,75,.18),
+        0 8px 24px rgba(0,0,0,.45);
     display: flex; align-items: center; justify-content: center; z-index: 3;
 }
-.conn-center svg { width: 30px; height: 30px; color: #fff; filter: drop-shadow(0 1px 3px rgba(0,0,0,.4)); }
+.conn-center svg { width: 46px; height: 46px; color: var(--green); stroke-width: 2.5; filter: drop-shadow(0 0 10px rgba(50,215,75,.9)); }
 
 /* ─── Status badge ───────────────────────────── */
 .status-row { display: flex; flex-direction: column; align-items: center; gap: 5px; }
@@ -195,7 +196,7 @@
 }
 .badge-noplan { background: var(--amber-dim);  color: var(--amber); border: 1px solid rgba(255,159,10,.22); }
 .badge-active  { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(10,132,255,.22); }
-.badge-conn    { background: var(--green-dim);  color: var(--green);  border: 1px solid rgba(50,215,75,.22); }
+.badge-conn    { background: rgba(50,215,75,.12); color: var(--green);  border: 1px solid rgba(50,215,75,.35); font-size: 12px; padding: 6px 20px; }
 .badge-dot {
     width: 6px; height: 6px; border-radius: 50%;
     animation: dot-blink 2s ease-in-out infinite;
