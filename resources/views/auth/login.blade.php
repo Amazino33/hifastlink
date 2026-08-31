@@ -208,11 +208,11 @@
 
             <div class="group">
                 <label for="reg_phone" class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">
-                    <i class="fa-solid fa-phone mr-2 text-primary"></i>Phone <span class="text-gray-400 font-normal normal-case">(optional)</span>
+                    <i class="fa-solid fa-phone mr-2 text-primary"></i>Phone Number
                 </label>
                 <div class="relative">
                     <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa-solid fa-mobile-screen"></i></div>
-                    <input id="reg_phone" type="tel" name="phone" value="{{ old('phone') }}"
+                    <input id="reg_phone" type="tel" name="phone" value="{{ old('phone') }}" required
                         placeholder="Enter your phone number"
                         class="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300 @error('phone') border-red-500 ring-4 ring-red-100 @enderror">
                 </div>
