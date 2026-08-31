@@ -610,7 +610,7 @@
     display: flex;
     align-items: center;
     padding: 14px 20px;
-    border-bottom: 1px solid var(--border-l);
+    border-bottom: 1px solid var(--border);
     gap: 12px;
 }
 .edit-back-btn {
@@ -629,7 +629,7 @@
 .edit-profile-title {
     font-size: 15px;
     font-weight: 600;
-    color: var(--txt);
+    color: var(--text);
 }
 .prof-form {
     padding: 16px 20px;
@@ -641,24 +641,24 @@
 .prof-label {
     font-size: 11px;
     font-weight: 600;
-    color: var(--txt-3);
+    color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.6px;
 }
 .prof-input {
-    background: var(--surf-2);
-    border: 1px solid var(--border-m);
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.18);
     border-radius: 12px;
     padding: 11px 14px;
     font-size: 15px;
-    color: var(--txt);
+    color: var(--text);
     outline: none;
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, box-shadow 0.15s;
     font-family: inherit;
     width: 100%;
 }
-.prof-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-d); }
-.prof-input::placeholder { color: var(--txt-3); }
+.prof-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.prof-input::placeholder { color: var(--muted); }
 .prof-error { font-size: 12px; color: var(--red); margin-top: 2px; }
 .prof-save-btn {
     display: block;
@@ -676,7 +676,7 @@
     transition: opacity 0.15s;
 }
 .prof-save-btn:active { opacity: 0.8; }
-.prof-pw-section { border-top: 1px solid var(--border-l); margin-top: 4px; }
+.prof-pw-section { border-top: 1px solid var(--border); margin-top: 4px; }
 .prof-pw-toggle {
     display: flex;
     align-items: center;
@@ -685,7 +685,7 @@
     background: none;
     border: none;
     padding: 16px 20px;
-    color: var(--txt);
+    color: var(--text);
     font-size: 15px;
     font-weight: 500;
     cursor: pointer;
@@ -693,9 +693,9 @@
 }
 .prof-pw-toggle svg { transition: transform 0.2s; }
 .prof-pw-btn {
-    background: var(--surf-2);
-    color: var(--txt);
-    border: 1px solid var(--border-m);
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+    border: 1.5px solid rgba(255,255,255,0.13);
     margin-top: 4px;
 }
 </style>
