@@ -9,8 +9,10 @@ use App\Models\Transaction;
 use App\Services\PlanFilterService;
 use Carbon\CarbonInterval;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class AppDashboard extends Component
@@ -23,9 +25,22 @@ class AppDashboard extends Component
     public string  $voucherCode      = '';
     public bool    $voucherLoading   = false;
 
+    // Profile editing
+    public string $profileName             = '';
+    public string $profilePhone            = '';
+    public string $profileEmail            = '';
+    public string $currentPassword         = '';
+    public string $newPassword             = '';
+    public string $newPasswordConfirmation = '';
+
     public function mount(): void
     {
         $this->syncState();
+
+        $u = Auth::user();
+        $this->profileName  = $u->name  ?? '';
+        $this->profilePhone = $u->phone ?? '';
+        $this->profileEmail = $u->email ?? '';
     }
 
     /** Called by wire:poll every 15 s */
@@ -200,6 +215,44 @@ class AppDashboard extends Component
         $this->voucherCode = '';
         $this->syncState();
         $this->dispatch('toast', message: 'Plan activated! Tap Connect to get online.', type: 'success');
+    }
+
+    public function saveProfile(): void
+    {
+        $user = Auth::user();
+        $this->validate([
+            'profileName'  => ['required', 'string', 'max:255'],
+            'profilePhone' => ['required', 'string', 'max:20'],
+            'profileEmail' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+        ]);
+        $user->name  = $this->profileName;
+        $user->phone = $this->profilePhone;
+        if ($this->profileEmail) {
+            $user->email = $this->profileEmail;
+        }
+        $user->save();
+        $this->dispatch('toast', message: 'Profile updated.', type: 'success');
+        $this->dispatch('profile-saved');
+    }
+
+    public function changePassword(): void
+    {
+        $user = Auth::user();
+        $this->validate([
+            'currentPassword' => ['required'],
+            'newPassword'     => ['required', 'min:4', 'confirmed'],
+        ]);
+        if (! Hash::check($this->currentPassword, $user->password)) {
+            $this->addError('currentPassword', 'Incorrect current password.');
+            return;
+        }
+        $user->password = Hash::make($this->newPassword);
+        $user->save();
+        $this->currentPassword         = '';
+        $this->newPassword             = '';
+        $this->newPasswordConfirmation = '';
+        $this->dispatch('toast', message: 'Password changed successfully.', type: 'success');
+        $this->dispatch('profile-saved');
     }
 
     public function render()

@@ -604,6 +604,100 @@
     /* Toast position for desktop */
     .toast-wrap { left: calc(var(--sidebar-w) + 24px); transform: none; max-width: 380px; }
 }
+
+/* ── Profile edit form ── */
+.edit-profile-hdr {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-l);
+    gap: 12px;
+}
+.edit-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+}
+.edit-profile-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--txt);
+}
+.prof-form {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.prof-field { display: flex; flex-direction: column; gap: 5px; }
+.prof-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--txt-3);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+.prof-input {
+    background: var(--surf-2);
+    border: 1px solid var(--border-m);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 15px;
+    color: var(--txt);
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+    width: 100%;
+}
+.prof-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-d); }
+.prof-input::placeholder { color: var(--txt-3); }
+.prof-error { font-size: 12px; color: var(--red); margin-top: 2px; }
+.prof-save-btn {
+    display: block;
+    width: calc(100% - 40px);
+    margin: 2px 20px 20px;
+    padding: 13px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.15s;
+}
+.prof-save-btn:active { opacity: 0.8; }
+.prof-pw-section { border-top: 1px solid var(--border-l); margin-top: 4px; }
+.prof-pw-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 16px 20px;
+    color: var(--txt);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+}
+.prof-pw-toggle svg { transition: transform 0.2s; }
+.prof-pw-btn {
+    background: var(--surf-2);
+    color: var(--txt);
+    border: 1px solid var(--border-m);
+    margin-top: 4px;
+}
 </style>
 
 {{-- ════════════════════════════════════════════════════════
@@ -988,48 +1082,129 @@
             </div>
 
             {{-- ─── ACCOUNT TAB ──────────────────────────── --}}
-            <div x-show="tab === 'account'" style="display:none">
-                <div class="profile-header">
-                    <div class="profile-avatar-lg">{{ $user->initials }}</div>
-                    <div class="profile-name">{{ $user->display_name }}</div>
-                    <div class="profile-sub">{{ $user->username ?? $user->email ?? 'No username' }}</div>
-                </div>
+            <div x-show="tab === 'account'"
+                 x-data="{ editMode: false, pwOpen: false }"
+                 @profile-saved.window="editMode = false; pwOpen = false"
+                 style="display:none">
 
-                <div class="account-rows">
-                    <a href="{{ route('profile.edit') }}" class="account-row">
-                        <div class="account-row-icon">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                        </div>
-                        <span class="account-row-label">Edit Profile</span>
-                        <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
-                    </a>
+                {{-- ── VIEW MODE ── --}}
+                <div x-show="!editMode">
+                    <div class="profile-header">
+                        <div class="profile-avatar-lg">{{ $user->initials }}</div>
+                        <div class="profile-name">{{ $user->display_name }}</div>
+                        <div class="profile-sub">{{ $user->username ?? $user->email ?? 'No username' }}</div>
+                    </div>
 
-                    <a href="{{ route('dashboard') }}" class="account-row">
-                        <div class="account-row-icon">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                        </div>
-                        <span class="account-row-label">Full Dashboard</span>
-                        <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
-                    </a>
-
-                    <a href="{{ route('request-custom-plans') }}" class="account-row">
-                        <div class="account-row-icon">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                        </div>
-                        <span class="account-row-label">Custom Plan</span>
-                        <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
-                    </a>
-
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit" class="account-row" style="width:100%; text-align:left; color: var(--red);">
-                            <div class="account-row-icon" style="background: rgba(255,69,58,.1); color: var(--red);">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <div class="account-rows">
+                        <button type="button" @click="editMode = true" class="account-row" style="width:100%;text-align:left;">
+                            <div class="account-row-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                             </div>
-                            <span class="account-row-label" style="color: var(--red);">Sign Out</span>
+                            <span class="account-row-label">Edit Profile</span>
+                            <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
                         </button>
-                    </form>
+
+                        <a href="{{ route('dashboard') }}" class="account-row">
+                            <div class="account-row-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                            </div>
+                            <span class="account-row-label">Full Dashboard</span>
+                            <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </a>
+
+                        <a href="{{ route('request-custom-plans') }}" class="account-row">
+                            <div class="account-row-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                            </div>
+                            <span class="account-row-label">Custom Plan</span>
+                            <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </a>
+
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="account-row" style="width:100%;text-align:left;">
+                                <div class="account-row-icon" style="background:rgba(255,69,58,.1);color:var(--red);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                </div>
+                                <span class="account-row-label" style="color:var(--red);">Sign Out</span>
+                            </button>
+                        </form>
+                    </div>
                 </div>
+
+                {{-- ── EDIT MODE ── --}}
+                <div x-show="editMode" x-cloak>
+
+                    {{-- Back header --}}
+                    <div class="edit-profile-hdr">
+                        <button type="button" @click="editMode = false; pwOpen = false" class="edit-back-btn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                            Back
+                        </button>
+                        <span class="edit-profile-title">Edit Profile</span>
+                    </div>
+
+                    {{-- Avatar --}}
+                    <div class="profile-header" style="padding-bottom:4px">
+                        <div class="profile-avatar-lg">{{ $user->initials }}</div>
+                    </div>
+
+                    {{-- Name / Phone / Email --}}
+                    <div class="prof-form">
+                        <div class="prof-field">
+                            <label class="prof-label">Full Name</label>
+                            <input type="text" wire:model="profileName" class="prof-input" placeholder="Your name">
+                            @error('profileName') <span class="prof-error">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="prof-field">
+                            <label class="prof-label">Phone Number</label>
+                            <input type="tel" wire:model="profilePhone" class="prof-input" placeholder="e.g. 07012345678">
+                            @error('profilePhone') <span class="prof-error">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="prof-field">
+                            <label class="prof-label">Email</label>
+                            <input type="email" wire:model="profileEmail" class="prof-input" placeholder="email@example.com">
+                            @error('profileEmail') <span class="prof-error">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <button type="button" wire:click="saveProfile" class="prof-save-btn">
+                        <span wire:loading.remove wire:target="saveProfile">Save Changes</span>
+                        <span wire:loading wire:target="saveProfile">Saving…</span>
+                    </button>
+
+                    {{-- Change Password (collapsible) --}}
+                    <div class="prof-pw-section">
+                        <button type="button" @click="pwOpen = !pwOpen" class="prof-pw-toggle">
+                            <span>Change Password</span>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :style="pwOpen ? 'transform:rotate(180deg)' : ''"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+
+                        <div x-show="pwOpen" x-cloak>
+                            <div class="prof-form" style="padding-top:4px">
+                                <div class="prof-field">
+                                    <label class="prof-label">Current Password</label>
+                                    <input type="password" wire:model="currentPassword" class="prof-input" placeholder="Current password">
+                                    @error('currentPassword') <span class="prof-error">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="prof-field">
+                                    <label class="prof-label">New Password</label>
+                                    <input type="password" wire:model="newPassword" class="prof-input" placeholder="Min 4 characters">
+                                    @error('newPassword') <span class="prof-error">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="prof-field">
+                                    <label class="prof-label">Confirm New Password</label>
+                                    <input type="password" wire:model="newPasswordConfirmation" class="prof-input" placeholder="Repeat new password">
+                                </div>
+                            </div>
+                            <button type="button" wire:click="changePassword" class="prof-save-btn prof-pw-btn">
+                                <span wire:loading.remove wire:target="changePassword">Update Password</span>
+                                <span wire:loading wire:target="changePassword">Updating…</span>
+                            </button>
+                        </div>
+                    </div>
+
+                </div>{{-- end edit mode --}}
             </div>
 
         </div>{{-- end tab-content --}}
