@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\AppSetting;
+use App\Models\PendingSubscription;
 use App\Models\RadAcct;
 use App\Models\Router;
 use App\Models\Transaction;
@@ -222,6 +223,51 @@ class AppDashboard extends Component
         $this->dispatch('toast', message: 'Plan activated! Tap Connect to get online.', type: 'success');
     }
 
+    public function forceActivate(int $subscriptionId): void
+    {
+        $user         = Auth::user();
+        $subscription = $user->pendingSubscriptions()->find($subscriptionId);
+        if (! $subscription) return;
+
+        $rolloverBytes = $user->getRemainingDataAttribute();
+        $plan          = $subscription->plan;
+
+        if ($plan->limit_unit === 'Unlimited') {
+            $planBytes = null;
+        } else {
+            $pval      = (int) $plan->data_limit;
+            $planBytes = $pval > 1048576
+                ? $pval
+                : ($plan->limit_unit === 'GB' ? (int) ($pval * 1073741824) : (int) ($pval * 1048576));
+        }
+
+        $newLimit = is_null($planBytes) ? null : ($planBytes + ($rolloverBytes ?? 0));
+
+        $update = [
+            'plan_id'      => $plan->id,
+            'data_limit'   => $newLimit,
+            'data_used'    => 0,
+            'plan_expiry'  => now()->addDays($plan->validity_days),
+            'family_limit' => $plan->family_limit,
+        ];
+
+        if ($plan->is_family) {
+            $update['is_family_admin'] = true;
+            $update['parent_id']       = null;
+            \App\Models\User::where('parent_id', $user->id)->update(['parent_id' => null]);
+        } else {
+            $update['is_family_admin'] = false;
+            $update['family_limit']    = null;
+        }
+
+        $user->update($update);
+        $subscription->delete();
+        $user->save(); // triggers RADIUS observer
+
+        $this->syncState();
+        $this->dispatch('toast', message: 'Plan activated! ' . Number::fileSize($rolloverBytes ?? 0) . ' rolled over.', type: 'success');
+    }
+
     public function enterHistory(): void
     {
         $this->historyMode = true;
@@ -346,6 +392,8 @@ class AppDashboard extends Component
                 : ceil($diff) . ' day' . (ceil($diff) === 1.0 ? '' : 's') . ' left';
         }
 
+        $pendingSubscriptions = $user->pendingSubscriptions()->with('plan')->get();
+
         $recentTransactions = Transaction::where('user_id', $user->id)
             ->with('plan')
             ->latest()
@@ -365,7 +413,7 @@ class AppDashboard extends Component
             'user', 'plans', 'groupedPlans', 'userRouterId', 'activeSession',
             'sessionDownload', 'sessionUpload', 'uptime',
             'dataUsedPct', 'dataRemaining', 'expiryHuman',
-            'recentTransactions', 'allTransactions'
+            'recentTransactions', 'allTransactions', 'pendingSubscriptions'
         ))->layout('layouts.app-shell');
     }
 }

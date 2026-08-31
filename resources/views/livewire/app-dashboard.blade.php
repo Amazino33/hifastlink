@@ -744,6 +744,43 @@
 }
 .txn-page-btn:disabled { opacity: 0.3; cursor: default; }
 .txn-page-info { font-size: 13px; color: var(--muted); }
+
+/* ── Plan queue (Up Next) ── */
+.queue-item {
+    background: var(--glass-2);
+    border: 1px solid var(--border-2);
+    border-radius: 16px;
+    padding: 13px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.queue-pos {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--glass-2);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    flex-shrink: 0;
+}
+.queue-info { flex: 1; min-width: 0; }
+.queue-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.queue-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.queue-start-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 7px 13px;
+    font-size: 12px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+}
+.queue-start-btn:active { opacity: 0.8; }
 </style>
 
 {{-- ════════════════════════════════════════════════════════
@@ -1009,6 +1046,31 @@
                         <div class="session-row"><span class="key">Download</span><span class="val">{{ $sessionDownload ?? '—' }}</span></div>
                         <div class="session-row"><span class="key">Upload</span><span class="val">{{ $sessionUpload ?? '—' }}</span></div>
                         <div class="session-row"><span class="key">Duration</span><span class="val">{{ $uptime ?? '—' }}</span></div>
+                    </div>
+                @endif
+
+                {{-- Plan queue: Up Next --}}
+                @if($pendingSubscriptions->isNotEmpty())
+                    <div class="section-header"><h3>Up Next</h3></div>
+                    <div style="padding: 0 20px 4px;">
+                        @foreach($pendingSubscriptions as $sub)
+                            <div class="queue-item">
+                                <div class="queue-pos">{{ $loop->iteration }}</div>
+                                <div class="queue-info">
+                                    <div class="queue-name">{{ $sub->plan->name }}</div>
+                                    <div class="queue-meta">{{ $sub->plan->data_limit_human }} &middot; {{ $sub->plan->validity_days }} day{{ $sub->plan->validity_days == 1 ? '' : 's' }}</div>
+                                </div>
+                                @if($loop->first)
+                                    <button class="queue-start-btn"
+                                        wire:click="forceActivate({{ $sub->id }})"
+                                        wire:confirm="Start this plan now? Your current plan will stop."
+                                        wire:loading.attr="disabled"
+                                        wire:target="forceActivate">
+                                        Start Now
+                                    </button>
+                                @endif
+                            </div>
+                        @endforeach
                     </div>
                 @endif
 
