@@ -14,9 +14,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class AppDashboard extends Component
 {
+    use WithPagination;
     // 'no-plan' | 'plan-active' | 'connected'
     public string  $connectionState  = 'no-plan';
     public bool    $isOnHotspot      = false;
@@ -32,6 +34,9 @@ class AppDashboard extends Component
     public string $currentPassword         = '';
     public string $newPassword             = '';
     public string $newPasswordConfirmation = '';
+
+    // Account sub-views
+    public bool $historyMode = false;
 
     public function mount(): void
     {
@@ -217,6 +222,18 @@ class AppDashboard extends Component
         $this->dispatch('toast', message: 'Plan activated! Tap Connect to get online.', type: 'success');
     }
 
+    public function enterHistory(): void
+    {
+        $this->historyMode = true;
+        $this->resetPage();
+    }
+
+    public function exitHistory(): void
+    {
+        $this->historyMode = false;
+        $this->resetPage();
+    }
+
     public function saveProfile(): void
     {
         $user = Auth::user();
@@ -335,13 +352,20 @@ class AppDashboard extends Component
             ->limit(5)
             ->get();
 
+        $allTransactions = $this->historyMode
+            ? Transaction::where('user_id', $user->id)
+                ->with('plan')
+                ->latest()
+                ->paginate(12)
+            : null;
+
         $userRouterId = $user->router_id;
 
         return view('livewire.app-dashboard', compact(
             'user', 'plans', 'groupedPlans', 'userRouterId', 'activeSession',
             'sessionDownload', 'sessionUpload', 'uptime',
             'dataUsedPct', 'dataRemaining', 'expiryHuman',
-            'recentTransactions'
+            'recentTransactions', 'allTransactions'
         ))->layout('layouts.app-shell');
     }
 }

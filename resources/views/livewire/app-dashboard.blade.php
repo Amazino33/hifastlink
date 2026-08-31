@@ -698,6 +698,52 @@
     border: 1.5px solid rgba(255,255,255,0.13);
     margin-top: 4px;
 }
+
+/* ── Transaction history ── */
+.txn-list { padding: 4px 20px 8px; display: flex; flex-direction: column; }
+.txn-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+.txn-row:last-child { border-bottom: none; }
+.txn-icon {
+    width: 38px; height: 38px;
+    border-radius: 11px;
+    background: var(--glass-2);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    color: var(--accent);
+}
+.txn-info { flex: 1; min-width: 0; }
+.txn-title { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.txn-sub   { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.txn-right { text-align: right; flex-shrink: 0; }
+.txn-amount { font-size: 14px; font-weight: 600; color: var(--text); }
+.txn-badge { display: inline-block; margin-top: 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; border-radius: 5px; padding: 1px 6px; }
+.txn-badge.success { background: var(--green-dim);  color: var(--green); }
+.txn-badge.pending { background: var(--amber-dim);  color: var(--amber); }
+.txn-badge.failed  { background: rgba(255,69,58,.14); color: var(--red); }
+.txn-empty { text-align: center; padding: 50px 20px; color: var(--muted); font-size: 14px; }
+.txn-pages {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px 20px;
+    border-top: 1px solid var(--border);
+}
+.txn-page-btn {
+    background: var(--glass-2);
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    padding: 8px 18px;
+    color: var(--text);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; font-family: inherit;
+    transition: opacity 0.15s;
+}
+.txn-page-btn:disabled { opacity: 0.3; cursor: default; }
+.txn-page-info { font-size: 13px; color: var(--muted); }
 </style>
 
 {{-- ════════════════════════════════════════════════════════
@@ -1087,6 +1133,50 @@
                  @profile-saved.window="editMode = false; pwOpen = false"
                  style="display:none">
 
+                @if($historyMode)
+                {{-- ── TRANSACTION HISTORY (Livewire-controlled) ── --}}
+                <div>
+                    <div class="edit-profile-hdr">
+                        <button type="button" wire:click="exitHistory" class="edit-back-btn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                            Back
+                        </button>
+                        <span class="edit-profile-title">Transactions</span>
+                    </div>
+
+                    <div class="txn-list">
+                        @forelse($allTransactions as $txn)
+                            <div class="txn-row">
+                                <div class="txn-icon">
+                                    @if($txn->gateway === 'voucher')
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                                    @else
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                    @endif
+                                </div>
+                                <div class="txn-info">
+                                    <div class="txn-title">{{ $txn->plan?->name ?? ucwords(str_replace('-', ' ', $txn->gateway ?? 'Payment')) }}</div>
+                                    <div class="txn-sub">{{ ($txn->paid_at ?? $txn->created_at)?->format('d M Y, g:i a') }}</div>
+                                </div>
+                                <div class="txn-right">
+                                    <div class="txn-amount">₦{{ number_format($txn->amount) }}</div>
+                                    <span class="txn-badge {{ $txn->status }}">{{ $txn->status }}</span>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="txn-empty">No transactions yet.</div>
+                        @endforelse
+                    </div>
+
+                    @if($allTransactions->hasPages())
+                        <div class="txn-pages">
+                            <button wire:click="previousPage" @if($allTransactions->onFirstPage()) disabled @endif class="txn-page-btn">← Prev</button>
+                            <span class="txn-page-info">{{ $allTransactions->currentPage() }} / {{ $allTransactions->lastPage() }}</span>
+                            <button wire:click="nextPage" @if(!$allTransactions->hasMorePages()) disabled @endif class="txn-page-btn">Next →</button>
+                        </div>
+                    @endif
+                </div>
+                @else
                 {{-- ── VIEW MODE ── --}}
                 <div x-show="!editMode">
                     <div class="profile-header">
@@ -1101,6 +1191,14 @@
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                             </div>
                             <span class="account-row-label">Edit Profile</span>
+                            <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </button>
+
+                        <button type="button" wire:click="enterHistory" class="account-row" style="width:100%;text-align:left;">
+                            <div class="account-row-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            </div>
+                            <span class="account-row-label">Transaction History</span>
                             <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
                         </button>
 
@@ -1205,6 +1303,7 @@
                     </div>
 
                 </div>{{-- end edit mode --}}
+                @endif{{-- end historyMode/else --}}
             </div>
 
         </div>{{-- end tab-content --}}
