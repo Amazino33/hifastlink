@@ -73,6 +73,12 @@
             padding: 18px 20px 14px;
             border-bottom: 1px solid var(--border-l);
             flex-shrink: 0;
+            justify-content: center;
+        }
+
+        @media (min-width: 480px) {
+            .auth-hdr { justify-content: flex-start; max-width: 460px; margin: 0 auto; width: 100%; }
+            .auth-foot { max-width: 460px; margin: 0 auto; width: 100%; }
         }
         .auth-hdr-logo {
             width: 38px; height: 38px;
@@ -97,6 +103,14 @@
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             padding: 20px 20px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .auth-wrap {
+            width: 100%;
+            max-width: 420px;
         }
 
         .auth-foot {
