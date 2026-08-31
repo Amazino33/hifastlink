@@ -1007,7 +1007,7 @@
 
                 {{-- Connect button --}}
                 @if($connectionState === 'plan-active')
-                    <button class="connect-btn" id="app-connect-btn" onclick="appConnect(this)">
+                    <button class="connect-btn" id="app-connect-btn" wire:click="connect">
                         <span class="connect-btn-icon">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                 <line x1="12" y1="2" x2="12" y2="12"/><path d="M8.5 4.8A8 8 0 1 0 15.5 4.8"/>
