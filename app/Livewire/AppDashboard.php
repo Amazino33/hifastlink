@@ -265,7 +265,10 @@ class AppDashboard extends Component
         $user->save(); // triggers RADIUS observer
 
         $this->syncState();
-        $this->dispatch('toast', message: 'Plan activated! ' . Number::fileSize($rolloverBytes ?? 0) . ' rolled over.', type: 'success');
+        $msg = ($rolloverBytes > 0)
+            ? 'Plan activated! ' . Number::fileSize($rolloverBytes) . ' rolled over.'
+            : 'Plan activated! Tap Connect to get online.';
+        $this->dispatch('toast', message: $msg, type: 'success');
     }
 
     public function enterHistory(): void

@@ -1052,26 +1052,24 @@
                 {{-- Plan queue: Up Next --}}
                 @if($pendingSubscriptions->isNotEmpty())
                     <div class="section-header"><h3>Up Next</h3></div>
-                    <div style="padding: 0 20px 4px;">
-                        @foreach($pendingSubscriptions as $sub)
-                            <div class="queue-item">
-                                <div class="queue-pos">{{ $loop->iteration }}</div>
-                                <div class="queue-info">
-                                    <div class="queue-name">{{ $sub->plan->name }}</div>
-                                    <div class="queue-meta">{{ $sub->plan->data_limit_human }} &middot; {{ $sub->plan->validity_days }} day{{ $sub->plan->validity_days == 1 ? '' : 's' }}</div>
-                                </div>
-                                @if($loop->first)
-                                    <button class="queue-start-btn"
-                                        wire:click="forceActivate({{ $sub->id }})"
-                                        wire:confirm="Start this plan now? Your current plan will stop."
-                                        wire:loading.attr="disabled"
-                                        wire:target="forceActivate">
-                                        Start Now
-                                    </button>
-                                @endif
+                    @foreach($pendingSubscriptions as $sub)
+                        <div class="queue-item">
+                            <div class="queue-pos">{{ $loop->iteration }}</div>
+                            <div class="queue-info">
+                                <div class="queue-name">{{ $sub->plan->name }}</div>
+                                <div class="queue-meta">{{ $sub->plan->data_limit_human }} &middot; {{ $sub->plan->validity_days }} day{{ $sub->plan->validity_days == 1 ? '' : 's' }}</div>
                             </div>
-                        @endforeach
-                    </div>
+                            @if($loop->first)
+                                <button class="queue-start-btn"
+                                    wire:click="forceActivate({{ $sub->id }})"
+                                    wire:confirm="Start this plan now? Your current plan will stop."
+                                    wire:loading.attr="disabled"
+                                    wire:target="forceActivate">
+                                    Start Now
+                                </button>
+                            @endif
+                        </div>
+                    @endforeach
                 @endif
 
                 {{-- Recent activity --}}
