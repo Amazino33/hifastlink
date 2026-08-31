@@ -818,6 +818,30 @@
 }
 .sub-limit { font-size: 11.5px; color: var(--muted); text-align: center; padding: 8px 0 4px; }
 
+/* ── Devices tab ── */
+.device-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 13px 14px;
+    display: flex; align-items: center; gap: 12px;
+}
+.device-card-dim { opacity: .7; }
+.device-icon {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    background: var(--accent-dim); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+}
+.device-info { flex: 1; min-width: 0; }
+.device-mac { font-size: 12.5px; font-weight: 700; color: var(--text); letter-spacing: .5px; font-family: 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.device-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.device-data { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.device-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--green); flex-shrink: 0;
+    box-shadow: 0 0 6px var(--green);
+}
+
 /* ── Plan queue (Up Next) ── */
 .queue-item {
     background: var(--glass-2);
@@ -1339,17 +1363,94 @@
 
             {{-- ─── DEVICES TAB ──────────────────────────── --}}
             <div x-show="tab === 'devices'" style="display:none">
-                <div class="section-header"><h3>My Devices</h3></div>
-                <div style="text-align:center; padding: 56px 0; color: var(--muted); font-size: 13px;">
-                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="opacity:.3; margin: 0 auto 14px; display: block;">
-                        <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
-                    </svg>
-                    Device management coming soon.
-                    <br>
-                    <a href="{{ route('dashboard') }}" style="color: var(--accent); font-size: 12px; margin-top: 10px; display: inline-block;">
-                        View full dashboard →
-                    </a>
+
+                {{-- Active sessions --}}
+                <div class="section-header">
+                    <h3>Connected Devices</h3>
+                    @if($activeDevices->isNotEmpty())
+                        <span style="font-size:11px;color:var(--green);font-weight:600;">{{ $activeDevices->count() }} online</span>
+                    @endif
                 </div>
+
+                @if($activeDevices->isEmpty())
+                    <div style="text-align:center; padding: 40px 0 28px; color: var(--muted); font-size: 13px;">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.3; margin: 0 auto 12px; display:block;">
+                            <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                        No devices connected right now.
+                    </div>
+                @else
+                    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px;">
+                        @foreach($activeDevices as $dev)
+                            @php
+                                $mac = strtoupper($dev->callingstationid ?? '');
+                                $ip  = $dev->framedipaddress ?? '—';
+                                $dl  = \Illuminate\Support\Number::fileSize((int)($dev->acctoutputoctets ?? 0), precision:1);
+                                $ul  = \Illuminate\Support\Number::fileSize((int)($dev->acctinputoctets  ?? 0), precision:1);
+                                $secs = is_numeric($dev->acctsessiontime) ? (int)$dev->acctsessiontime : 0;
+                                $h = floor($secs/3600); $m = floor(($secs%3600)/60);
+                                $uptime = $h > 0 ? "{$h}h {$m}m" : ($m > 0 ? "{$m}m" : 'Just connected');
+                                // Guess device type from MAC OUI or RADIUS NAS
+                                $nasId = $dev->calledstationid ?? '';
+                            @endphp
+                            <div class="device-card">
+                                <div class="device-icon">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+                                    </svg>
+                                </div>
+                                <div class="device-info">
+                                    <div class="device-mac">{{ $mac ?: 'Unknown device' }}</div>
+                                    <div class="device-meta">{{ $ip }} &nbsp;·&nbsp; {{ $uptime }}</div>
+                                    <div class="device-data">↓ {{ $dl }} &nbsp; ↑ {{ $ul }}</div>
+                                </div>
+                                <span class="device-dot"></span>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
+                {{-- Recent unique devices (past 30 days) --}}
+                @php
+                    try {
+                        $recentMacs = \App\Models\RadAcct::where('username', $user->username ?? '')
+                            ->whereNotNull('acctstoptime')
+                            ->where('acctstarttime', '>=', now()->subDays(30))
+                            ->whereNotIn('callingstationid', $activeDevices->pluck('callingstationid')->filter()->toArray())
+                            ->select('callingstationid', \Illuminate\Support\Facades\DB::raw('MAX(acctstarttime) as last_seen'), \Illuminate\Support\Facades\DB::raw('SUM(COALESCE(acctoutputoctets,0)+COALESCE(acctinputoctets,0)) as total_bytes'))
+                            ->groupBy('callingstationid')
+                            ->orderByDesc('last_seen')
+                            ->limit(10)
+                            ->get();
+                    } catch (\Exception $e) {
+                        $recentMacs = collect();
+                    }
+                @endphp
+
+                @if($recentMacs->isNotEmpty())
+                    <div class="section-header" style="margin-top:8px;"><h3>Recently Seen</h3></div>
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        @foreach($recentMacs as $rm)
+                            @php
+                                $rmMac  = strtoupper($rm->callingstationid ?? '');
+                                $rmDl   = \Illuminate\Support\Number::fileSize((int)($rm->total_bytes ?? 0), precision:1);
+                                $rmSeen = \Carbon\Carbon::parse($rm->last_seen)->diffForHumans();
+                            @endphp
+                            <div class="device-card device-card-dim">
+                                <div class="device-icon" style="opacity:.5;">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+                                    </svg>
+                                </div>
+                                <div class="device-info">
+                                    <div class="device-mac">{{ $rmMac ?: 'Unknown device' }}</div>
+                                    <div class="device-meta">Last seen {{ $rmSeen }} &nbsp;·&nbsp; {{ $rmDl }}</div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
             </div>
 
             {{-- ─── ACCOUNT TAB ──────────────────────────── --}}
