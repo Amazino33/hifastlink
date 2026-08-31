@@ -880,6 +880,12 @@
 .queue-start-btn:active { opacity: 0.8; }
 </style>
 
+<script>
+    if (window.location.pathname === '/home') {
+        history.replaceState(null, '', '/');
+    }
+</script>
+
 {{-- ════════════════════════════════════════════════════════
      APP ROOT
 ════════════════════════════════════════════════════════ --}}
