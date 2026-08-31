@@ -111,7 +111,7 @@
     width: 210px; height: 210px;
     flex-shrink: 0;
 }
-.viz-wrap svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.viz-wrap > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 
 /* Connect button */
 .connect-btn {
