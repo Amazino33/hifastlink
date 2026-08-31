@@ -229,7 +229,10 @@ class AuthenticatedSessionController extends Controller
                 }
             }
 
-            // Authenticated but no captive portal params — go to dashboard
+            // Authenticated but no captive portal params — send app subdomain to PWA
+            if (str_starts_with(request()->getHost(), 'app.')) {
+                return redirect()->route('app.home');
+            }
             return redirect()->route('dashboard');
         }
 
@@ -317,7 +320,10 @@ class AuthenticatedSessionController extends Controller
             FreeTrialService::apply(Auth::user(), $request->input('router'));
         }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $default = str_starts_with(request()->getHost(), 'app.')
+            ? route('app.home', absolute: false)
+            : route('dashboard', absolute: false);
+        return redirect()->intended($default);
     }
 
     // ─────────────────────────────────────────────────────────────────
