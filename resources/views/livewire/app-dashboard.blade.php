@@ -753,7 +753,10 @@
     letter-spacing: 0.5px; text-transform: uppercase;
     border-radius: 6px; padding: 2px 7px;
 }
-.plan-card-featured { border-color: rgba(255,107,53,0.35) !important; }
+.plan-card-featured {
+    background: linear-gradient(135deg, rgba(255,107,53,.09) 0%, rgba(255,107,53,.03) 100%);
+    border-color: rgba(255,107,53,0.35) !important;
+}
 
 /* ── Router stats card ── */
 .router-card {
@@ -1471,9 +1474,10 @@
                                         <div class="sub-creds">{{ $sub['username'] }}</div>
                                     </div>
                                     <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
-                                        <span class="{{ $sub['online'] ? 'sub-online' : 'sub-offline' }}">
-                                            {{ $sub['online'] ? 'Online' : 'Offline' }}
-                                        </span>
+                                        <div style="display:flex;align-items:center;gap:4px;">
+                                            <span class="{{ $sub['online'] ? 'sub-online' : 'sub-offline' }}"></span>
+                                            <span style="font-size:11px;color:{{ $sub['online'] ? 'var(--green)' : 'var(--muted)' }}">{{ $sub['online'] ? 'Online' : 'Offline' }}</span>
+                                        </div>
                                         <button type="button"
                                             wire:click="deleteSubAccount({{ $sub['id'] }})"
                                             wire:confirm="Remove {{ $sub['name'] ?: $sub['username'] }}? They will be disconnected."
