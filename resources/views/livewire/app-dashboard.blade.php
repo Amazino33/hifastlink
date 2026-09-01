@@ -1138,7 +1138,7 @@
                     <label class="voucher-label">Redeem Voucher / Invoice Code</label>
                     <div class="voucher-row">
                         <input type="text" class="voucher-input" placeholder="Enter code"
-                            wire:model="voucherCode" wire:keydown.enter="redeemVoucher"
+                            wire:model="voucherCode" @keydown.enter="$wire.redeemVoucher()"
                             autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="20">
                         <button class="btn-redeem" @click="$wire.redeemVoucher()" wire:loading.attr="disabled">
                             <span wire:loading.remove wire:target="redeemVoucher">Apply</span>
@@ -1171,8 +1171,7 @@
                             </div>
                             @if($loop->first)
                                 <button class="queue-start-btn"
-                                    @click="$wire.forceActivate({{ $sub->id }})"
-                                    wire:confirm="Start this plan now? Your current plan will stop."
+                                    @click="window.confirm('Start this plan now? Your current plan will stop.') && $wire.forceActivate({{ $sub->id }})"
                                     wire:loading.attr="disabled"
                                     wire:target="forceActivate">
                                     Start Now
