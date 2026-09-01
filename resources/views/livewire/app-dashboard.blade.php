@@ -894,6 +894,7 @@
     class="app-root"
     x-data="{
         tab: 'home',
+        acctPanel: 'main',
         editMode: false,
         pwOpen: false,
         hotspotWarning: false,
@@ -1138,7 +1139,7 @@
                     <label class="voucher-label">Redeem Voucher / Invoice Code</label>
                     <div class="voucher-row">
                         <input type="text" class="voucher-input" placeholder="Enter code"
-                            wire:model="voucherCode" @keydown.enter="$wire.redeemVoucher()"
+                            x-model="$wire.voucherCode" @keydown.enter="$wire.redeemVoucher()"
                             autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="20">
                         <button class="btn-redeem" @click="$wire.redeemVoucher()" wire:loading.attr="disabled">
                             <span wire:loading.remove wire:target="redeemVoucher">Apply</span>
@@ -1470,11 +1471,10 @@
                  @profile-saved.window="editMode = false; pwOpen = false"
                  style="display:none">
 
-                @if($historyMode)
                 {{-- ── TRANSACTION HISTORY ── --}}
-                <div>
+                <div x-show="acctPanel === 'history'" style="display:none">
                     <div class="edit-profile-hdr">
-                        <button type="button" @click="$wire.exitHistory()" class="edit-back-btn">
+                        <button type="button" @click="acctPanel = 'main'" class="edit-back-btn">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                             Back
                         </button>
@@ -1513,11 +1513,11 @@
                         </div>
                     @endif
                 </div>
-                @elseif($sessionMode)
+
                 {{-- ── RADIUS SESSION HISTORY ── --}}
-                <div>
+                <div x-show="acctPanel === 'sessions'" style="display:none">
                     <div class="edit-profile-hdr">
-                        <button type="button" @click="$wire.exitSessions()" class="edit-back-btn">
+                        <button type="button" @click="acctPanel = 'main'" class="edit-back-btn">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                             Back
                         </button>
@@ -1565,11 +1565,11 @@
                     @endif
                 </div>
 
-                @elseif($subMode)
+                @if($user->is_family_admin)
                 {{-- ── SUB-ACCOUNTS ── --}}
-                <div>
+                <div x-show="acctPanel === 'subaccounts'" style="display:none">
                     <div class="edit-profile-hdr">
-                        <button type="button" @click="$wire.exitSubAccounts()" class="edit-back-btn">
+                        <button type="button" @click="acctPanel = 'main'" class="edit-back-btn">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                             Back
                         </button>
@@ -1611,7 +1611,7 @@
                     @if(!isset($subAccounts) || count($subAccounts) < $familyLimit)
                         <div class="sub-add-row">
                             <input type="text"
-                                wire:model="subUserName"
+                                x-model="$wire.subUserName"
                                 class="sub-add-input"
                                 placeholder="New member name (e.g. Mum)">
                             @error('subUserName') <span class="prof-error" style="padding:2px 0 4px">{{ $message }}</span> @enderror
@@ -1625,7 +1625,9 @@
                     @endif
                 </div>
 
-                @else
+                @endif{{-- is_family_admin --}}
+
+                <div x-show="acctPanel === 'main'">
                 {{-- ── VIEW MODE ── --}}
                 <div x-show="!editMode">
                     <div class="profile-header">
@@ -1643,7 +1645,7 @@
                             <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
                         </button>
 
-                        <button type="button" @click="$wire.enterHistory()" class="account-row" style="width:100%;text-align:left;">
+                        <button type="button" @click="acctPanel = 'history'" class="account-row" style="width:100%;text-align:left;">
                             <div class="account-row-icon">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                             </div>
@@ -1651,7 +1653,7 @@
                             <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
                         </button>
 
-                        <button type="button" @click="$wire.enterSessions()" class="account-row" style="width:100%;text-align:left;">
+                        <button type="button" @click="acctPanel = 'sessions'" class="account-row" style="width:100%;text-align:left;">
                             <div class="account-row-icon">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                             </div>
@@ -1660,7 +1662,7 @@
                         </button>
 
                         @if($user->is_family_admin)
-                        <button type="button" @click="$wire.enterSubAccounts()" class="account-row" style="width:100%;text-align:left;">
+                        <button type="button" @click="acctPanel = 'subaccounts'" class="account-row" style="width:100%;text-align:left;">
                             <div class="account-row-icon">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                             </div>
@@ -1718,17 +1720,17 @@
                     <div class="prof-form">
                         <div class="prof-field">
                             <label class="prof-label">Full Name</label>
-                            <input type="text" wire:model="profileName" class="prof-input" placeholder="Your name">
+                            <input type="text" x-model="$wire.profileName" class="prof-input" placeholder="Your name">
                             @error('profileName') <span class="prof-error">{{ $message }}</span> @enderror
                         </div>
                         <div class="prof-field">
                             <label class="prof-label">Phone Number</label>
-                            <input type="tel" wire:model="profilePhone" class="prof-input" placeholder="e.g. 07012345678">
+                            <input type="tel" x-model="$wire.profilePhone" class="prof-input" placeholder="e.g. 07012345678">
                             @error('profilePhone') <span class="prof-error">{{ $message }}</span> @enderror
                         </div>
                         <div class="prof-field">
                             <label class="prof-label">Email</label>
-                            <input type="email" wire:model="profileEmail" class="prof-input" placeholder="email@example.com">
+                            <input type="email" x-model="$wire.profileEmail" class="prof-input" placeholder="email@example.com">
                             @error('profileEmail') <span class="prof-error">{{ $message }}</span> @enderror
                         </div>
                     </div>
@@ -1748,17 +1750,17 @@
                             <div class="prof-form" style="padding-top:4px">
                                 <div class="prof-field">
                                     <label class="prof-label">Current Password</label>
-                                    <input type="password" wire:model="currentPassword" class="prof-input" placeholder="Current password">
+                                    <input type="password" x-model="$wire.currentPassword" class="prof-input" placeholder="Current password">
                                     @error('currentPassword') <span class="prof-error">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="prof-field">
                                     <label class="prof-label">New Password</label>
-                                    <input type="password" wire:model="newPassword" class="prof-input" placeholder="Min 4 characters">
+                                    <input type="password" x-model="$wire.newPassword" class="prof-input" placeholder="Min 4 characters">
                                     @error('newPassword') <span class="prof-error">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="prof-field">
                                     <label class="prof-label">Confirm New Password</label>
-                                    <input type="password" wire:model="newPasswordConfirmation" class="prof-input" placeholder="Repeat new password">
+                                    <input type="password" x-model="$wire.newPasswordConfirmation" class="prof-input" placeholder="Repeat new password">
                                 </div>
                             </div>
                             <button type="button" @click="$wire.changePassword()" class="prof-save-btn prof-pw-btn">
@@ -1768,7 +1770,7 @@
                     </div>
 
                 </div>{{-- end edit mode --}}
-                @endif{{-- end historyMode/else --}}
+                </div>{{-- end acctPanel=main --}}
             </div>
 
         </div>{{-- end tab-content --}}

@@ -45,6 +45,7 @@ class PaymentController extends Controller
         }
 
         $reference = 'PaystackRef_' . Str::random(12);
+        $fromApp = str_starts_with(request()->getHost(), 'app.');
         $payload = [
             'email' => $paystackEmail,
             'amount' => $amount,
@@ -53,6 +54,7 @@ class PaymentController extends Controller
             'metadata' => [
                 'plan_id' => $plan->id,
                 'user_id' => $user->id,
+                'from_app' => $fromApp,
             ],
         ];
 
@@ -94,27 +96,30 @@ class PaymentController extends Controller
     public function handleGatewayCallback(Request $request)
     {
         $reference = request()->query('reference');
+        $afterRoute = 'dashboard'; // updated to 'app.home' once metadata is parsed
 
         if (! $reference) {
-            return redirect()->route('dashboard')->with('error', 'Missing payment reference.');
+            return redirect()->route($afterRoute)->with('error', 'Missing payment reference.');
         }
 
         $response = Http::withToken(env('PAYSTACK_SECRET_KEY'))
             ->get(rtrim(env('PAYSTACK_PAYMENT_URL', 'https://api.paystack.co'), '/') . '/transaction/verify/' . urlencode($reference));
 
         if (! $response->successful()) {
-            return redirect()->route('dashboard')->with('error', 'Unable to verify payment (network error).');
+            return redirect()->route($afterRoute)->with('error', 'Unable to verify payment (network error).');
         }
 
         $paymentDetails = $response->json();
 
         if (! isset($paymentDetails['status']) || ! $paymentDetails['status'] || ($paymentDetails['data']['status'] ?? '') !== 'success') {
-            return redirect()->route('dashboard')->with('error', 'Payment verification failed.');
+            return redirect()->route($afterRoute)->with('error', 'Payment verification failed.');
         }
 
         $data = $paymentDetails['data'] ?? [];
         $metadata = $data['metadata'] ?? [];
         $planId = $metadata['plan_id'] ?? null;
+        $fromApp = (bool) ($metadata['from_app'] ?? false);
+        $afterRoute = $fromApp ? 'app.home' : 'dashboard';
 
         $user = Auth::user();
 
@@ -139,18 +144,18 @@ class PaymentController extends Controller
         }
 
         if (! $user) {
-            return redirect()->route('dashboard')->with('error', 'User not found for this payment.');
+            return redirect()->route($afterRoute)->with('error', 'User not found for this payment.');
         }
 
         $plan = Plan::find($planId);
         if (! $plan) {
-            return redirect()->route('dashboard')->with('error', 'Plan not found for this payment.');
+            return redirect()->route($afterRoute)->with('error', 'Plan not found for this payment.');
         }
 
         // Idempotency: Paystack sometimes fires the callback twice. If this reference was
         // already processed (transaction row exists), skip re-activation and return success.
         if (\App\Models\Transaction::where('reference', $data['reference'])->exists()) {
-            return redirect()->route('dashboard')->with('success', 'Your payment was already processed.');
+            return redirect()->route($afterRoute)->with('success', 'Your payment was already processed.');
         }
 
         // Resolve router from the user's current connection
@@ -210,7 +215,7 @@ class PaymentController extends Controller
                 // ignore cache failures
             }
 
-            return redirect()->route('dashboard')->with('success', "Plan queued! It will start when your current plan expires.");
+            return redirect()->route($afterRoute)->with('success', "Plan queued! It will start when your current plan expires.");
         } else {
             // Activate immediately with rollover
             $subscriptionService = new \App\Services\SubscriptionService();
@@ -296,7 +301,7 @@ class PaymentController extends Controller
                 return $bridge;
             }
 
-            return redirect()->route('dashboard')->with('success', "Payment successful — you are now subscribed to {$plan->name}{$rolloverMessage}");
+            return redirect()->route($afterRoute)->with('success', "Payment successful — you are now subscribed to {$plan->name}{$rolloverMessage}");
         }
     }
 

@@ -492,8 +492,8 @@ class AppDashboard extends Component
             ->orderBy('sort_order')
             ->get();
 
-        // Session history (only loaded when that panel is open)
-        $sessionHistory = ($this->sessionMode && $user->username)
+        // Session history — always loaded so Alpine can show/hide the panel without a wire: call
+        $sessionHistory = $user->username
             ? RadAcct::where('username', $user->username)
                 ->latest('acctstarttime')
                 ->paginate(10, ['*'], 'sess')
@@ -548,12 +548,10 @@ class AppDashboard extends Component
             ->limit(5)
             ->get();
 
-        $allTransactions = $this->historyMode
-            ? Transaction::where('user_id', $user->id)
-                ->with('plan')
-                ->latest()
-                ->paginate(12)
-            : null;
+        $allTransactions = Transaction::where('user_id', $user->id)
+            ->with('plan')
+            ->latest()
+            ->paginate(12);
 
         $userRouterId = $user->router_id;
 
