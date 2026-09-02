@@ -18,7 +18,9 @@ use Illuminate\Support\Facades\Route;
 // catch-all Route::get('/') below (Laravel matches in order)
 // ============================================================
 
-Route::domain('app.' . parse_url(config('app.url'), PHP_URL_HOST))
+// Strip any existing 'app.' prefix so this works whether APP_URL is
+// 'https://hifastlink.com' (main clone) or 'https://app.hifastlink.com' (app clone)
+Route::domain('app.' . preg_replace('/^app\./', '', parse_url(config('app.url'), PHP_URL_HOST)))
     ->middleware(['auth', 'verified'])
     ->group(function () {
         Route::get('/', \App\Livewire\AppDashboard::class)->name('app.home');
