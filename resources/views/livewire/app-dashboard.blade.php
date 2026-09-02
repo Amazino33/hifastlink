@@ -1734,13 +1734,6 @@
                         </button>
                         @endif
 
-                        <a href="{{ route('dashboard') }}" class="account-row">
-                            <div class="account-row-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                            </div>
-                            <span class="account-row-label">Full Dashboard</span>
-                            <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
-                        </a>
 
                         <a href="{{ route('request-custom-plans') }}" class="account-row">
                             <div class="account-row-icon">
