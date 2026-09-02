@@ -934,7 +934,7 @@
 <div
     class="app-root"
     x-data="{
-        tab: 'home',
+        tab: (new URLSearchParams(location.search).get('tab') || 'home'),
         acctPanel: 'main',
         editMode: false,
         pwOpen: false,

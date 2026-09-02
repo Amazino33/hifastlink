@@ -36,8 +36,9 @@ Route::get('/', function () {
 })->name('home');
 Route::get('/about-us', fn () => view('about'))->name('about');
 
-Route::get('/pricing', [PageController::class, 'pricing'])->name('pricing');
-Route::get('/services', [PageController::class, 'services'])->name('services');
+// Pricing and services → send visitors to the customer app where they can actually subscribe
+Route::get('/pricing',  fn () => redirect(route('app.home') . '?tab=plans'))->name('pricing');
+Route::get('/services', fn () => redirect(route('app.home') . '?tab=plans'))->name('services');
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
 Route::post('/contact', [PageController::class, 'submitContact'])->name('contact.submit');
 Route::get('/coverage', [PageController::class, 'coverage'])->name('coverage');
