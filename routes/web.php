@@ -14,6 +14,18 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 // ============================================================
+// APP SUBDOMAIN — must be registered FIRST so it wins over the
+// catch-all Route::get('/') below (Laravel matches in order)
+// ============================================================
+
+Route::domain('app.' . parse_url(config('app.url'), PHP_URL_HOST))
+    ->middleware(['auth', 'verified'])
+    ->group(function () {
+        Route::get('/', \App\Livewire\AppDashboard::class)->name('app.home');
+        Route::redirect('/home', '/');
+    });
+
+// ============================================================
 // PUBLIC PAGES
 // ============================================================
 
@@ -112,18 +124,6 @@ Route::get('/captive-bridge', function () {
 // ============================================================
 
 Route::get('/payment/callback', [PaymentController::class, 'handleGatewayCallback'])->name('payment.callback');
-
-// ============================================================
-// APP SUBDOMAIN (app.hifastlink.com) — domain-scoped so '/' is clean
-// ============================================================
-
-Route::domain('app.' . parse_url(config('app.url'), PHP_URL_HOST))
-    ->middleware(['auth', 'verified'])
-    ->group(function () {
-        Route::get('/', \App\Livewire\AppDashboard::class)->name('app.home');
-        // Backward-compat: old links to /home still work
-        Route::redirect('/home', '/');
-    });
 
 // ============================================================
 // AUTHENTICATED ROUTES
