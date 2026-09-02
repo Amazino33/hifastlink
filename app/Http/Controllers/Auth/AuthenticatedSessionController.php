@@ -322,7 +322,8 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
         if (! $user->isAdmin()) {
-            // Regular customers always go to the customer PWA, regardless of which domain they logged in from
+            // Keep app users permanently logged in (acts like a mobile app)
+            Auth::login($user, remember: true);
             return redirect()->intended(route('app.home'));
         }
         return redirect()->intended(route('dashboard', absolute: false));

@@ -64,7 +64,7 @@ class SocialAuthController extends Controller
             event(new Registered($user));
         }
 
-        Auth::login($user);
+        Auth::login($user, remember: true);
 
         if (session('oauth_bonus') === 'free_trial') {
             FreeTrialService::apply($user, session('oauth_router'));
