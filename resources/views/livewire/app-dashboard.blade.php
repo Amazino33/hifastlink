@@ -943,7 +943,8 @@
         showToast(msg, type) { this.toast = { msg, type }; setTimeout(() => this.toast = null, 3400); }
     }"
     x-on:toast.window="showToast($event.detail.message, $event.detail.type ?? 'info')"
-    wire:poll.15000ms="pollConnection"
+    x-init="document.addEventListener('visibilitychange', () => { if (!document.hidden) $wire.pollConnection() })"
+    wire:poll.5000ms="pollConnection"
 >
 
     {{-- ══ TOAST ════════════════════════════════════════════ --}}
