@@ -18,12 +18,6 @@ use Illuminate\Support\Facades\Route;
 // ============================================================
 
 Route::get('/', function () {
-    // App subdomain → send to the customer app (login first if needed)
-    if (str_starts_with(request()->getHost(), 'app.')) {
-        return auth()->check()
-            ? redirect()->route('app.home')
-            : redirect()->route('login');
-    }
     return view('welcome');
 })->name('home');
 Route::get('/about-us', fn () => view('about'))->name('about');
@@ -120,13 +114,27 @@ Route::get('/captive-bridge', function () {
 Route::get('/payment/callback', [PaymentController::class, 'handleGatewayCallback'])->name('payment.callback');
 
 // ============================================================
+// APP SUBDOMAIN (app.hifastlink.com) — domain-scoped so '/' is clean
+// ============================================================
+
+Route::domain('app.' . parse_url(config('app.url'), PHP_URL_HOST))
+    ->middleware(['auth', 'verified'])
+    ->group(function () {
+        Route::get('/', \App\Livewire\AppDashboard::class)->name('app.home');
+        // Backward-compat: old links to /home still work
+        Route::redirect('/home', '/');
+    });
+
+// ============================================================
 // AUTHENTICATED ROUTES
 // ============================================================
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    // ── App dashboard (mobile VPN-style, serves app.hifastlink.com) ──────
-    Route::get('/home', \App\Livewire\AppDashboard::class)->name('app.home');
+    // /home on main domain: redirect non-admins to the app subdomain
+    Route::get('/home', function () {
+        return redirect(route('app.home'));
+    });
 
     // ── Dashboard ─────────────────────────────────────────────
     Route::get('/dashboard', \App\Http\Livewire\UserDashboard::class)

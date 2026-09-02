@@ -320,10 +320,12 @@ class AuthenticatedSessionController extends Controller
             FreeTrialService::apply(Auth::user(), $request->input('router'));
         }
 
-        $default = str_starts_with(request()->getHost(), 'app.')
-            ? route('app.home', absolute: false)
-            : route('dashboard', absolute: false);
-        return redirect()->intended($default);
+        $user = Auth::user();
+        if (! $user->isAdmin()) {
+            // Regular customers always go to the customer PWA, regardless of which domain they logged in from
+            return redirect()->intended(route('app.home'));
+        }
+        return redirect()->intended(route('dashboard', absolute: false));
     }
 
     // ─────────────────────────────────────────────────────────────────

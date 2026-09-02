@@ -56,7 +56,8 @@ class SocialAuthController extends Controller
                 'google_id'         => $googleUser->getId(),
                 'password'          => Hash::make(Str::random(32)),
                 'radius_password'   => $radiusPassword,
-                'data_limit'        => 1000000000,
+                'data_limit'        => 1073741824, // 1 GB in bytes
+                'plan_expiry'       => now()->addDays(30), // trial so PlanSyncService writes RADIUS credentials
                 'connection_status' => 'active',
             ]);
 
@@ -70,7 +71,12 @@ class SocialAuthController extends Controller
             session()->forget(['oauth_bonus', 'oauth_router']);
         }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Admins → main dashboard; regular users → the customer PWA
+        if ($user->isAdmin()) {
+            return redirect()->intended(route('dashboard', absolute: false));
+        }
+
+        return redirect()->intended(route('app.home'));
     }
 
     private function generateUsername(string $email): string

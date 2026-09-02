@@ -401,6 +401,30 @@
 .account-row-label { flex: 1; font-size: 14px; font-weight: 500; }
 .account-row-arrow { color: var(--muted); }
 
+/* ─── WiFi credentials card ─────────────────── */
+.wifi-cred-card {
+    margin: 0 0 16px;
+    background: linear-gradient(135deg, rgba(10,132,255,.10) 0%, rgba(10,132,255,.04) 100%);
+    border: 1px solid rgba(10,132,255,.22);
+    border-radius: 18px;
+    padding: 14px 16px;
+}
+.wifi-cred-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 14px;
+}
+.wifi-cred-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 0;
+}
+.wifi-cred-row + .wifi-cred-row { border-top: 1px solid rgba(255,255,255,.06); }
+.wifi-cred-label { font-size: 11px; color: var(--muted); width: 70px; flex-shrink: 0; }
+.wifi-cred-val   { flex: 1; font-size: 13px; font-weight: 600; letter-spacing: .03em; font-family: 'JetBrains Mono', 'Fira Code', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wifi-cred-btn   { flex-shrink: 0; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); border-radius: 8px; padding: 5px 8px; color: var(--muted); cursor: pointer; display: flex; align-items: center; font-size: 11px; font-weight: 600; gap: 4px; transition: background .15s, color .15s; }
+.wifi-cred-btn:hover { background: rgba(255,255,255,.13); color: var(--text); }
+.wifi-copied { color: var(--green); font-size: 11px; font-weight: 700; flex-shrink: 0; }
+
 /* ─── Warning modal ──────────────────────────── */
 .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,.7);
@@ -1635,6 +1659,45 @@
                         <div class="profile-name">{{ $user->display_name }}</div>
                         <div class="profile-sub">{{ $user->username ?? $user->email ?? 'No username' }}</div>
                     </div>
+
+                    {{-- ── WiFi credentials card ── --}}
+                    @if($user->username && $user->radius_password)
+                    <div class="wifi-cred-card" x-data="{ credVisible: false, copied: false }">
+                        <div class="wifi-cred-title">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                            WiFi Login
+                        </div>
+                        <div class="wifi-cred-row">
+                            <span class="wifi-cred-label">Username</span>
+                            <span class="wifi-cred-val">{{ $user->username }}</span>
+                            <button class="wifi-cred-btn" x-show="copied !== 'user'"
+                                @click="navigator.clipboard.writeText(@js($user->username)).then(() => { copied = 'user'; setTimeout(() => copied = false, 1800) })">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                Copy
+                            </button>
+                            <span class="wifi-copied" x-show="copied === 'user'" x-cloak>Copied!</span>
+                        </div>
+                        <div class="wifi-cred-row">
+                            <span class="wifi-cred-label">Password</span>
+                            <span class="wifi-cred-val" x-text="credVisible ? @js($user->radius_password) : '••••••••'"></span>
+                            <button class="wifi-cred-btn" @click="credVisible = !credVisible">
+                                <template x-if="!credVisible">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                </template>
+                                <template x-if="credVisible">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                                </template>
+                                <span x-text="credVisible ? 'Hide' : 'Show'"></span>
+                            </button>
+                            <button class="wifi-cred-btn" x-show="copied !== 'pw'"
+                                @click="navigator.clipboard.writeText(@js($user->radius_password)).then(() => { copied = 'pw'; setTimeout(() => copied = false, 1800) })">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                Copy
+                            </button>
+                            <span class="wifi-copied" x-show="copied === 'pw'" x-cloak>Copied!</span>
+                        </div>
+                    </div>
+                    @endif
 
                     <div class="account-rows">
                         <button type="button" @click="editMode = true" class="account-row" style="width:100%;text-align:left;">
