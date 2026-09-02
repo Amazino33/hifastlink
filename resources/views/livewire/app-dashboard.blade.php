@@ -866,6 +866,23 @@
     background: var(--green); flex-shrink: 0;
     box-shadow: 0 0 6px var(--green);
 }
+.device-disc-btn {
+    flex-shrink: 0; background: rgba(255,69,58,.10); border: 1px solid rgba(255,69,58,.22);
+    border-radius: 10px; padding: 7px; color: var(--red); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+}
+.device-disc-btn:hover { background: rgba(255,69,58,.22); }
+
+/* ── Disconnect button (home conn-card) ── */
+.disconnect-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; margin-top: 14px; padding: 11px;
+    background: rgba(255,69,58,.10); border: 1px solid rgba(255,69,58,.22);
+    border-radius: 14px; color: var(--red); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background .15s;
+}
+.disconnect-btn:hover { background: rgba(255,69,58,.22); }
 
 /* ── Plan queue (Up Next) ── */
 .queue-item {
@@ -1129,6 +1146,17 @@
                         <span class="stat-lbl">Expiry</span>
                     </div>
                 </div>
+            @endif
+
+            {{-- Disconnect button (connected state only) --}}
+            @if($connectionState === 'connected')
+                <button class="disconnect-btn"
+                    @click="window.confirm('Disconnect from WiFi?') && $wire.disconnectSession()"
+                    wire:loading.attr="disabled" wire:target="disconnectSession">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <span wire:loading.remove wire:target="disconnectSession">Disconnect</span>
+                    <span wire:loading wire:target="disconnectSession">···</span>
+                </button>
             @endif
 
         </div>{{-- end conn-card --}}
@@ -1441,7 +1469,12 @@
                                     <div class="device-meta">{{ $ip }} &nbsp;·&nbsp; {{ $uptime }}</div>
                                     <div class="device-data">↓ {{ $dl }} &nbsp; ↑ {{ $ul }}</div>
                                 </div>
-                                <span class="device-dot"></span>
+                                <button class="device-disc-btn"
+                                    @click="window.confirm('Disconnect this device?') && $wire.disconnectSession('{{ $dev->radacctid }}')"
+                                    wire:loading.attr="disabled" wire:target="disconnectSession"
+                                    title="Disconnect">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
                             </div>
                         @endforeach
                     </div>

@@ -353,6 +353,27 @@ class AppDashboard extends Component
         $this->dispatch('toast', message: "Account created — {$username} / {$password}", type: 'success');
     }
 
+    public function disconnectSession(?string $sessionId = null): void
+    {
+        $user = Auth::user();
+        if (! $user->username) return;
+
+        $query = DB::table('radacct')
+            ->where('username', $user->username)
+            ->whereNull('acctstoptime');
+
+        if ($sessionId) {
+            $query->where('radacctid', $sessionId);
+        }
+
+        $query->update([
+            'acctstoptime'        => now(),
+            'acctterminatecause'  => 'User-Request',
+        ]);
+
+        $this->dispatch('toast', message: 'Disconnected successfully.', type: 'success');
+    }
+
     public function deleteSubAccount(int $subId): void
     {
         $owner = Auth::user();
