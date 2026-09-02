@@ -35,15 +35,23 @@ class NetworkController extends Controller
             'acctterminatecause' => 'User-Request',
         ];
 
-        // ── Step 1: Close ALL open radacct sessions for this user (no MAC filter).
-        //
-        // MAC format in callingstationid ("AA:BB:CC:DD:EE:FF") often differs from the
-        // value stored in the app session ("aa-bb-cc-dd-ee-ff"), so a MAC-based WHERE
-        // silently matches zero rows and leaves acctstoptime NULL.
-        $affected = DB::table('radacct')
+        // ── Step 1: Close open radacct sessions for this user.
+        // If a MAC was provided (per-device disconnect), filter to just that device.
+        // Otherwise close all active sessions (whole-account disconnect).
+        $radacctQuery = DB::table('radacct')
             ->whereRaw('LOWER(username) = ?', [strtolower($username)])
-            ->whereNull('acctstoptime')
-            ->update($updateData);
+            ->whereNull('acctstoptime');
+
+        if ($mac) {
+            // Normalise both sides: strip separators, uppercase, compare hex
+            $macHex = strtoupper(preg_replace('/[^A-Fa-f0-9]/', '', $mac));
+            $radacctQuery->whereRaw(
+                "UPPER(REPLACE(REPLACE(callingstationid,':',''),'-','')) = ?",
+                [$macHex]
+            );
+        }
+
+        $affected = $radacctQuery->update($updateData);
 
         Log::info('NetworkController: radacct rows closed', [
             'user'     => $username,
@@ -95,6 +103,10 @@ class NetworkController extends Controller
         $logoutUrl = ($parsed['scheme'] ?? 'http') . '://' . ($parsed['host'] ?? 'login.wifi') . '/logout';
 
         if (! $request->wantsJson()) {
+            // App subdomain: stay in the app after disconnect
+            if (str_starts_with($request->getHost(), 'app.') || str_starts_with($request->header('referer', ''), 'https://app.')) {
+                return redirect(route('app.home'))->with('success', 'Disconnected successfully.');
+            }
             return redirect($logoutUrl);
         }
 
