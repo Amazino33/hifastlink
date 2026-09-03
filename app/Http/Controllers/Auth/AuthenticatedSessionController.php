@@ -25,6 +25,15 @@ class AuthenticatedSessionController extends Controller
 
         $mac = request()->get('mac');
 
+        // All login activity lives on the app subdomain. If someone lands here via the
+        // main domain (e.g. MikroTik still configured with the old URL), bounce them over
+        // so the whole session stays on app.hifastlink.com.
+        if (! str_starts_with(request()->getHost(), 'app.')) {
+            $appHost = 'app.' . preg_replace('/^app\./', '', parse_url(config('app.url'), PHP_URL_HOST));
+            $qs = request()->getQueryString();
+            return redirect()->away('https://' . $appHost . '/login' . ($qs ? '?' . $qs : ''));
+        }
+
         // Check if we should skip auto-login due to recent voucher failure
         if (session()->get('skip_auto_login')) {
             session()->forget('skip_auto_login');
@@ -72,7 +81,7 @@ class AuthenticatedSessionController extends Controller
                             'username' => $user->username,
                             'password' => $password,
                             'link_login' => $linkLogin,
-                            'link_orig' => route('captive.connected'),
+                            'link_orig' => route('app.home'),
                             'mac' => $mac,
                             'ip' => request()->get('ip'),
                             'router' => request()->get('router'),
@@ -177,7 +186,7 @@ class AuthenticatedSessionController extends Controller
                         'username' => $storedCode,
                         'password' => $storedCode,
                         'link_login' => $linkLogin,
-                        'link_orig' => route('captive.connected'),
+                        'link_orig' => route('app.home'),
                         'mac' => $mac,
                         'ip' => request()->get('ip'),
                         'router' => request()->get('router'),
@@ -220,7 +229,7 @@ class AuthenticatedSessionController extends Controller
                             'username' => $user->username,
                             'password' => $password,
                             'link_login' => $linkLogin,
-                            'link_orig' => route('captive.connected'),
+                            'link_orig' => route('app.home'),
                             'mac' => $mac,
                             'ip' => request()->get('ip'),
                             'router' => request()->get('router'),

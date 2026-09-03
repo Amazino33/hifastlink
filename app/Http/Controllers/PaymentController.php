@@ -330,7 +330,7 @@ class PaymentController extends Controller
             'username'   => $user->username,
             'password'   => $password,
             'link_login' => $linkLogin,
-            'link_orig'  => route('dashboard'),
+            'link_orig'  => route('app.home'),
             'mac'        => $mac,
             'ip'         => $ip,
             'router'     => $router,

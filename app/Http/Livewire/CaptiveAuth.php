@@ -98,7 +98,7 @@ class CaptiveAuth extends Component
         Log::info('CaptiveAuth: MAC auto-login (voucher)', ['mac' => $this->mac, 'voucher' => $voucherCode]);
         $device->update(['last_seen' => now(), 'is_connected' => true]);
         session(['bridge_completed' => true]);
-        $this->bridgeToRouter($radUsername, $rad->value, $this->linkLogin, route('captive.connected'));
+        $this->bridgeToRouter($radUsername, $rad->value, $this->linkLogin, route('app.home'));
     }
 
     // ── Single-field connect ─────────────────────────────────────────────────
@@ -219,7 +219,7 @@ class CaptiveAuth extends Component
             }
 
             session(['bridge_completed' => true]);
-            $this->bridgeToRouter($radUsername, $radPassword, $this->linkLogin, route('captive.connected'));
+            $this->bridgeToRouter($radUsername, $radPassword, $this->linkLogin, route('app.home'));
             return true;
 
         } catch (\Throwable $e) {
@@ -339,7 +339,7 @@ class CaptiveAuth extends Component
         }
 
         session(['bridge_completed' => true]);
-        $this->bridgeToRouter($radUsername, $radPassword, $this->linkLogin, route('captive.connected'));
+        $this->bridgeToRouter($radUsername, $radPassword, $this->linkLogin, route('app.home'));
     }
 
     // ── Post-lookup bridge ───────────────────────────────────────────────────
@@ -375,7 +375,7 @@ class CaptiveAuth extends Component
         }
 
         session(['bridge_completed' => true]);
-        $this->bridgeToRouter($user->username, $radPassword, $this->linkLogin, route('captive.connected'));
+        $this->bridgeToRouter($user->username, $radPassword, $this->linkLogin, route('app.home'));
     }
 
     private function bridgeToRouter(string $username, string $password, string $linkLogin, string $linkOrig): void

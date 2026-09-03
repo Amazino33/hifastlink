@@ -127,7 +127,7 @@ class AppDashboard extends Component
 
         // Build the MikroTik captive portal auto-login URL
         $gateway  = env('MIKROTIK_DNS_NAME', 'login.wifi');
-        $dest     = rtrim(config('app.url'), '/') . '/home';
+        $dest     = route('app.home');
 
         $this->connectUrl = sprintf(
             'http://%s/login?username=%s&password=%s&dst=%s',

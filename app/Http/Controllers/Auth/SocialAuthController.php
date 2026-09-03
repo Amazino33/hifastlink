@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\FreeTrialService;
+use App\Services\PlanSyncService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -40,14 +41,24 @@ class SocialAuthController extends Controller
 
         if ($user) {
             // Link the Google account if this is the first time signing in via Google
+            $dirty = false;
             if (! $user->google_id) {
                 $user->google_id = $googleUser->getId();
+                $dirty = true;
+            }
+            // Existing users created before Google OAuth might have no radius_password.
+            // Generate one now so they can connect to the hotspot.
+            if (! $user->radius_password) {
+                $user->radius_password = Str::random(16);
+                $dirty = true;
+            }
+            if ($dirty) {
                 $user->save();
             }
+            // Push credentials to radcheck immediately so FreeRADIUS can authenticate them.
+            PlanSyncService::syncUserPlan($user);
         } else {
             // New user — auto-generate a username from the email local part
-            $radiusPassword = Str::random(16);
-
             $user = User::create([
                 'name'              => $googleUser->getName(),
                 'username'          => $this->generateUsername($email),
@@ -55,13 +66,15 @@ class SocialAuthController extends Controller
                 'email_verified_at' => now(), // Google already verified the email
                 'google_id'         => $googleUser->getId(),
                 'password'          => Hash::make(Str::random(32)),
-                'radius_password'   => $radiusPassword,
+                'radius_password'   => Str::random(16),
                 'data_limit'        => 1073741824, // 1 GB in bytes
-                'plan_expiry'       => now()->addDays(30), // trial so PlanSyncService writes RADIUS credentials
+                'plan_expiry'       => now()->addDays(30), // gives PlanSyncService a future expiry to work with
                 'connection_status' => 'active',
             ]);
 
             event(new Registered($user));
+            // Write credentials to radcheck immediately — don't wait for the scheduler.
+            PlanSyncService::syncUserPlan($user);
         }
 
         Auth::login($user, remember: true);
