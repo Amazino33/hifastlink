@@ -14,7 +14,8 @@
         @csrf
         @method('put')
 
-        {{-- Current Password --}}
+        {{-- Current Password — hidden for Google / OAuth users who have no known password --}}
+        @if(! auth()->user()->google_id)
         <div>
             <x-input-label for="update_password_current_password" :value="__('Current Password')" />
             <div class="relative">
@@ -25,6 +26,7 @@
             </div>
             <x-input-error :messages="$errors->updatePassword->get('current_password')" class="mt-2" />
         </div>
+        @endif
 
         {{-- New Password --}}
         <div>

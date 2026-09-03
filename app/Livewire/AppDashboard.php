@@ -413,16 +413,29 @@ class AppDashboard extends Component
     public function changePassword(): void
     {
         $user = Auth::user();
-        $this->validate([
-            'currentPassword' => ['required'],
-            'newPassword'     => ['required', 'min:4', 'confirmed'],
-        ]);
-        if (! Hash::check($this->currentPassword, $user->password)) {
+
+        // Google OAuth users authenticated via Google, not a password — skip the
+        // current-password check so they can set one for the first time.
+        $isOAuthUser = (bool) $user->google_id;
+
+        $rules = ['newPassword' => ['required', 'min:4', 'confirmed']];
+        if (! $isOAuthUser) {
+            $rules['currentPassword'] = ['required'];
+        }
+        $this->validate($rules);
+
+        if (! $isOAuthUser && ! Hash::check($this->currentPassword, $user->password)) {
             $this->addError('currentPassword', 'Incorrect current password.');
             return;
         }
-        $user->password = Hash::make($this->newPassword);
+
+        $user->password        = Hash::make($this->newPassword);
+        $user->radius_password = $this->newPassword; // keep WiFi credentials in sync
         $user->save();
+
+        // Push the new password to radcheck immediately so FreeRADIUS picks it up.
+        \App\Services\PlanSyncService::syncUserPlan($user);
+
         $this->currentPassword         = '';
         $this->newPassword             = '';
         $this->newPasswordConfirmation = '';

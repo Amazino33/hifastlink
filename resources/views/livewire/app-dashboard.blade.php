@@ -1841,11 +1841,13 @@
 
                         <div x-show="pwOpen" x-cloak>
                             <div class="prof-form" style="padding-top:4px">
+                                @if(! auth()->user()->google_id)
                                 <div class="prof-field">
                                     <label class="prof-label">Current Password</label>
                                     <input type="password" x-model="$wire.currentPassword" class="prof-input" placeholder="Current password">
                                     @error('currentPassword') <span class="prof-error">{{ $message }}</span> @enderror
                                 </div>
+                                @endif
                                 <div class="prof-field">
                                     <label class="prof-label">New Password</label>
                                     <input type="password" x-model="$wire.newPassword" class="prof-input" placeholder="Min 4 characters">
