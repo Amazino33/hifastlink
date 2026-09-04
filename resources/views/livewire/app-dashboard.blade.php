@@ -1856,10 +1856,13 @@
                                 <div class="prof-field">
                                     <label class="prof-label">Confirm New Password</label>
                                     <input type="password" x-model="$wire.newPasswordConfirmation" class="prof-input" placeholder="Repeat new password">
+                                    @error('newPasswordConfirmation') <span class="prof-error">{{ $message }}</span> @enderror
                                 </div>
                             </div>
-                            <button type="button" @click="$wire.changePassword()" class="prof-save-btn prof-pw-btn">
-                                Update Password
+                            <button type="button" @click="$wire.changePassword()" class="prof-save-btn prof-pw-btn"
+                                wire:loading.attr="disabled" wire:loading.class="opacity-50" wire:target="changePassword">
+                                <span wire:loading.remove wire:target="changePassword">Update Password</span>
+                                <span wire:loading wire:target="changePassword">Updating…</span>
                             </button>
                         </div>
                     </div>

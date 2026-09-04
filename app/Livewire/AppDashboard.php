@@ -418,7 +418,10 @@ class AppDashboard extends Component
         // current-password check so they can set one for the first time.
         $isOAuthUser = (bool) $user->google_id;
 
-        $rules = ['newPassword' => ['required', 'min:4', 'confirmed']];
+        $rules = [
+            'newPassword'             => ['required', 'min:4'],
+            'newPasswordConfirmation' => ['required', 'same:newPassword'],
+        ];
         if (! $isOAuthUser) {
             $rules['currentPassword'] = ['required'];
         }
