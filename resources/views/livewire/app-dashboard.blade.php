@@ -1194,7 +1194,7 @@
 
                 {{-- Voucher --}}
                 <div class="voucher-card glass-card">
-                    <label class="voucher-label">Redeem Voucher Code</label>
+                    <label class="voucher-label">Redeem Voucher / Receipt Code</label>
                     <div class="voucher-row">
                         <input type="text" class="voucher-input" placeholder="Enter code"
                             x-model="$wire.voucherCode" @keydown.enter="$wire.redeemVoucher()"

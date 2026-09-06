@@ -172,11 +172,9 @@ class AppDashboard extends Component
         $user    = Auth::user();
 
         if (! $voucher) {
-            // Pharmacy/partner receipts authenticate through the captive portal against
-            // the partner's own API — they are not vouchers and cannot be claimed here.
-            $this->addError('voucherCode', \App\Models\Voucher::isVoucherCode($this->voucherCode)
-                ? 'That voucher code was not found. Check it and try again.'
-                : 'That code was not recognised. Receipt and invoice numbers are entered on the WiFi login page, not here.');
+            // Not one of ours — it may be a partner receipt/invoice, which is validated
+            // against the partner's own API rather than the vouchers table.
+            $this->redeemPartnerInvoice($this->voucherCode);
             return;
         }
 
@@ -294,6 +292,97 @@ class AppDashboard extends Component
         $this->voucherCode = '';
         $this->syncState();
         $this->dispatch('toast', message: 'Plan activated! Tap Connect to get online.', type: 'success');
+    }
+
+    /**
+     * Redeem a partner receipt/invoice against the partner's API and extend the
+     * signed-in user's access to the expiry the partner reports.
+     */
+    private function redeemPartnerInvoice(string $invoice): void
+    {
+        $apiUrl = AppSetting::get('basmelcare_api_url', '');
+        $apiKey = AppSetting::get('basmelcare_api_key', '');
+
+        if (! $apiUrl || ! $apiKey) {
+            $this->addError('voucherCode', 'That code was not recognised. Check it and try again.');
+            return;
+        }
+
+        // One receipt, one claim — across all accounts, not just this user's.
+        if (Transaction::where('reference', 'INV-' . $invoice)->exists()) {
+            $this->addError('voucherCode', 'This receipt has already been used.');
+            return;
+        }
+
+        try {
+            $res = (new \GuzzleHttp\Client(['timeout' => 10, 'http_errors' => false]))->post($apiUrl, [
+                'headers' => ['X-API-Key' => $apiKey, 'Accept' => 'application/json'],
+                'json'    => ['invoice_number' => $invoice],
+            ]);
+            $body = json_decode($res->getBody()->getContents(), true);
+        } catch (\Throwable $e) {
+            Log::error('AppDashboard partner invoice error: ' . $e->getMessage(), ['invoice' => $invoice]);
+            $this->addError('voucherCode', 'Could not reach the partner system. Please try again shortly.');
+            return;
+        }
+
+        if (empty($body['valid'])) {
+            $this->addError('voucherCode', $body['message'] ?? 'That code was not recognised. Check it and try again.');
+            return;
+        }
+
+        if (empty($body['expires_at'])) {
+            Log::warning('AppDashboard: partner marked invoice valid but sent no expires_at', ['invoice' => $invoice]);
+            $this->addError('voucherCode', 'This receipt has no validity period set. Please contact support.');
+            return;
+        }
+
+        $expiresAt = \Carbon\Carbon::parse($body['expires_at']);
+        $user      = Auth::user();
+
+        if ($expiresAt->isPast()) {
+            $this->addError('voucherCode', 'This receipt has expired.');
+            return;
+        }
+
+        // Never shorten access the user already paid for.
+        if ($user->plan_expiry && $user->plan_expiry->gte($expiresAt)) {
+            $this->addError('voucherCode', 'Your current plan already runs longer than this receipt, so it has not been used.');
+            return;
+        }
+
+        if ($user->plan_expiry && $user->plan_expiry->isFuture()) {
+            // Extend an active plan, keeping its data allowance and usage intact.
+            $user->plan_expiry = $expiresAt;
+        } else {
+            $user->plan_id         = null;
+            $user->data_limit      = null; // unlimited for the receipt's window
+            $user->data_used       = 0;
+            $user->plan_started_at = now();
+            $user->plan_expiry     = $expiresAt;
+        }
+        $user->save();
+
+        try { \App\Services\PlanSyncService::syncUserPlan($user); } catch (\Throwable) {}
+
+        try {
+            Transaction::create([
+                'user_id'   => $user->id,
+                'plan_id'   => null,
+                'amount'    => 0,
+                'reference' => 'INV-' . $invoice,
+                'status'    => 'success',
+                'gateway'   => 'partner_invoice',
+                'paid_at'   => now(),
+                'router_id' => $user->router_id,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('AppDashboard invoice transaction error: ' . $e->getMessage());
+        }
+
+        $this->voucherCode = '';
+        $this->syncState();
+        $this->dispatch('toast', message: 'Receipt accepted! Access active until ' . $expiresAt->format('d M, H:i') . '.', type: 'success');
     }
 
     public function forceActivate(int $subscriptionId): void
