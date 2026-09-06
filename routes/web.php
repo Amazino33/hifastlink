@@ -25,6 +25,8 @@ Route::domain('app.' . preg_replace('/^app\./', '', parse_url(config('app.url'),
     ->group(function () {
         Route::get('/', \App\Livewire\AppDashboard::class)->name('app.home');
         Route::redirect('/home', '/');
+        // Safety net: /dashboard on the app subdomain should never load the old admin page
+        Route::redirect('/dashboard', '/');
     });
 
 // ============================================================
@@ -108,7 +110,7 @@ Route::get('/captive-bridge', function () {
     $router    = session()->pull('bridge_router');
 
     if (! $username || ! $linkLogin) {
-        return redirect()->route('dashboard');
+        return redirect()->route('app.home');
     }
 
     return view('hotspot.redirect_to_router', [

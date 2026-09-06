@@ -17,25 +17,25 @@ class HotspotController extends Controller
     {
         $user = Auth::user();
         if (! $user) {
-            return redirect()->route('dashboard')->with('error', 'Please sign in.');
+            return redirect()->route('app.home')->with('error', 'Please sign in.');
         }
 
         // Get router identifier from request
         $routerIdentifier = $request->get('router') ?: $request->get('nas_identifier');
         if (!$routerIdentifier) {
-            return redirect()->route('dashboard')->with('error', 'Router not specified.');
+            return redirect()->route('app.home')->with('error', 'Router not specified.');
         }
 
         // Validate router exists
         $router = \App\Models\Router::where('nas_identifier', $routerIdentifier)->first();
         if (!$router) {
-            return redirect()->route('dashboard')->with('error', 'Router not found.');
+            return redirect()->route('app.home')->with('error', 'Router not found.');
         }
 
         // Block early if subscription rules deny hotspot access
         $subscriptionService = new \App\Services\SubscriptionService();
         if (! $subscriptionService->canConnectToHotspot($user)) {
-            return redirect()->route('dashboard')->with('error', 'Please buy a plan.');
+            return redirect()->route('app.home')->with('error', 'Please buy a plan.');
         }
 
         // Admins and staff bypass subscription validation — canConnectToHotspot() already confirmed access
@@ -66,7 +66,7 @@ class HotspotController extends Controller
         }
 
         if (! $validSubscription) {
-            return redirect()->route('dashboard')->with('error', 'Please buy a plan.');
+            return redirect()->route('app.home')->with('error', 'Please buy a plan.');
         }
 
         // Self-repair plan_id if missing
@@ -84,7 +84,7 @@ class HotspotController extends Controller
         $password = $rad ? $rad->value : ($user->radius_password ?? null);
 
         if (! $password) {
-            return redirect()->route('dashboard')->with('error', 'Missing router password. Please contact support.');
+            return redirect()->route('app.home')->with('error', 'Missing router password. Please contact support.');
         }
 
         // ────────────────────────────────────────────────
@@ -145,7 +145,7 @@ class HotspotController extends Controller
     {
         $user = Auth::user();
         if (! $user) {
-            return redirect()->route('dashboard')->with('error', 'Please sign in.');
+            return redirect()->route('app.home')->with('error', 'Please sign in.');
         }
 
         // Clear the connection session markers
@@ -175,7 +175,7 @@ class HotspotController extends Controller
 
         return view('hotspot.disconnect_from_router', [
             'logout_url' => $logoutUrl,
-            'redirect_url' => route('dashboard'),
+            'redirect_url' => route('app.home'),
         ]);
     }
 }

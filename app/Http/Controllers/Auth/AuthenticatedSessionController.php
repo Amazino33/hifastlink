@@ -299,7 +299,7 @@ class AuthenticatedSessionController extends Controller
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
 
-                return redirect()->route('dashboard')->with('error', 'Please buy a plan.');
+                return redirect()->route('app.home')->with('error', 'Please buy a plan.');
             }
 
             $linkLogin = $request->input('link_login');
@@ -309,7 +309,7 @@ class AuthenticatedSessionController extends Controller
             $password = $rad ? $rad->value : ($user->radius_password ?? null);
 
             if (! $password) {
-                return redirect()->route('dashboard')->withErrors(['error' => 'Missing router password. Please contact support.']);
+                return redirect()->route('app.home')->withErrors(['error' => 'Missing router password. Please contact support.']);
             }
 
             session(['bridge_completed' => true]);

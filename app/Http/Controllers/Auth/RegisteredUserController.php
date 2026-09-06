@@ -49,12 +49,8 @@ class RegisteredUserController extends Controller
         if ($request->input('bonus') === 'free_trial') {
             $routerIdentifier = $request->input('router');
             FreeTrialService::apply($user, $routerIdentifier);
-
-            if ($routerIdentifier) {
-                return redirect()->route('dashboard', ['router' => $routerIdentifier]);
-            }
         }
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect()->route('app.home');
     }
 }

@@ -361,7 +361,7 @@ class CaptiveAuth extends Component
         }
 
         if (! $this->linkLogin) {
-            $this->redirect(route('dashboard'));
+            $this->redirect(route('app.home'));
             return;
         }
 
