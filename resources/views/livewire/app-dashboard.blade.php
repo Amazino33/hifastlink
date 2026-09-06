@@ -401,6 +401,8 @@
 .account-row-icon { width: 40px; height: 40px; border-radius: 12px; background: var(--glass-2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--muted); }
 .account-row-label { flex: 1; font-size: 14px; font-weight: 500; }
 .account-row-arrow { color: var(--muted); }
+.account-row-admin { background: rgba(175,82,222,.07); border-color: rgba(175,82,222,.28); }
+.account-row-admin:hover { background: rgba(175,82,222,.13); border-color: rgba(175,82,222,.45); }
 
 /* ─── WiFi credentials card ─────────────────── */
 .wifi-cred-card {
@@ -1788,6 +1790,17 @@
                             </div>
                             <span class="account-row-label">Custom Plan</span>
                             <span class="account-row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        </a>
+                        @endif
+
+                        {{-- Admins only — the Filament panel rejects everyone else --}}
+                        @if($user->isAdmin())
+                        <a href="/admin" class="account-row account-row-admin">
+                            <div class="account-row-icon" style="background:rgba(175,82,222,.14);color:#c77dff;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            </div>
+                            <span class="account-row-label" style="color:#c77dff;font-weight:600;">Admin Panel</span>
+                            <span class="account-row-arrow" style="color:#c77dff;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
                         </a>
                         @endif
 
