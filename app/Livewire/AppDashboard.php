@@ -26,6 +26,8 @@ class AppDashboard extends Component
     // 'no-plan' | 'plan-active' | 'connected'
     public string  $connectionState  = 'no-plan';
     public bool    $isOnHotspot      = false;
+    /** Whether hotspot detection actually ran; when off, isOnHotspot is an assumption, not a finding. */
+    public bool    $hotspotDetection = false;
     public bool    $showWarning      = false;
     public ?string $connectUrl       = null;
     public string  $voucherCode      = '';
@@ -70,7 +72,9 @@ class AppDashboard extends Component
         // When hotspot detection is disabled in Network Settings, treat every
         // user as on the hotspot — Connect button always fires and MikroTik
         // handles the actual authentication.
-        if (! AppSetting::bool('hotspot_detection_enabled', false)) {
+        $this->hotspotDetection = AppSetting::bool('hotspot_detection_enabled', false);
+
+        if (! $this->hotspotDetection) {
             $this->isOnHotspot = true;
         } else {
             // Prefer the router_id URL parameter that MikroTik includes when it

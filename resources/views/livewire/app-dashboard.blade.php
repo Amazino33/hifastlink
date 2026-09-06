@@ -214,7 +214,6 @@
     padding: 9px 14px; border-radius: 12px;
     font-size: 12px; font-weight: 500; width: 100%;
 }
-.hs-ok  { background: var(--green-dim); color: #52e87a; border: 1px solid rgba(50,215,75,.18); }
 .hs-off { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(255,159,10,.18); }
 
 /* ─── Data bar ───────────────────────────────── */
@@ -1096,16 +1095,15 @@
                 @endif
             </div>
 
-            {{-- Hotspot strip --}}
-            <div class="hotspot-strip {{ $isOnHotspot ? 'hs-ok' : 'hs-off' }}">
-                @if($isOnHotspot)
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    On the WiFi network
-                @else
+            {{-- Hotspot strip: only speak when detection actually ran and reports a problem.
+                 With detection off, isOnHotspot is assumed true rather than measured, so
+                 claiming the device is on the WiFi would be asserting something unknown. --}}
+            @if($hotspotDetection && ! $isOnHotspot)
+                <div class="hotspot-strip hs-off">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                    Not on the WiFi network — connect first
-                @endif
-            </div>
+                    We can't see the hotspot — join the WiFi here first
+                </div>
+            @endif
 
             {{-- Data bar --}}
             @if($connectionState !== 'no-plan' && $dataUsedPct > 0)
@@ -1913,7 +1911,7 @@
                     <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>
                 </svg>
             </div>
-            <div class="modal-title">Not on the WiFi network</div>
+            <div class="modal-title">Can't see the hotspot</div>
             <div class="modal-body">
                 Connect to the WiFi network at this location first, then tap Connect to get online.<br><br>
                 Open your device's WiFi settings and join the hotspot here — the network name varies by location.
