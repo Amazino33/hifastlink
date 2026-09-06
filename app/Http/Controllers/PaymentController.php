@@ -127,7 +127,7 @@ class PaymentController extends Controller
         if (! $user && ! empty($metadata['user_id'])) {
             $user = User::find($metadata['user_id']);
             if ($user) {
-                Auth::login($user);
+                Auth::login($user, remember: true);
             }
         }
         if (! $user && ! empty($data['customer']['email'])) {
@@ -139,7 +139,7 @@ class PaymentController extends Controller
                 $user = User::where('phone', $phone)->first();
             }
             if ($user) {
-                Auth::login($user);
+                Auth::login($user, remember: true);
             }
         }
 

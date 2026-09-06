@@ -44,7 +44,7 @@ class RegisteredUserController extends Controller
         // Fires SendEmailVerificationNotification — our User::sendEmailVerificationNotification()
         // is a no-op when email is null, so this is safe to always call.
         event(new Registered($user));
-        Auth::login($user);
+        Auth::login($user, remember: true);
 
         if ($request->input('bonus') === 'free_trial') {
             $routerIdentifier = $request->input('router');

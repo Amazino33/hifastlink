@@ -267,6 +267,13 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
         $request->session()->forget('skip_auto_login');
 
+        // Keep app users permanently signed in (acts like a mobile app). This has to
+        // happen here rather than at the end: the captive-portal branch below returns
+        // early, and that is the path most hotspot users actually take.
+        if (! Auth::user()->isAdmin()) {
+            Auth::login(Auth::user(), remember: true);
+        }
+
         if ($request->filled('mac')) {
             $mac = $request->input('mac');
             $request->session()->put('current_device_mac', $mac);
@@ -329,8 +336,6 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
         if (! $user->isAdmin()) {
-            // Keep app users permanently logged in (acts like a mobile app)
-            Auth::login($user, remember: true);
             return redirect()->intended(route('app.home'));
         }
         return redirect()->intended($user->homeUrl());

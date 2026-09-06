@@ -56,7 +56,7 @@ class RouterAuthController extends Controller
         }
 
         // Log the user into the site
-        Auth::loginUsingId($user->id);
+        Auth::loginUsingId($user->id, remember: true);
 
         // Create temporary password and update RadCheck
         $tempPassword = Str::random(12);

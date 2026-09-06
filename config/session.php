@@ -32,7 +32,10 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    // 30 days. The customer-facing PWA is meant to behave like a mobile app, so
+    // users should not be signed out between visits. The remember-me cookie set at
+    // login is the longer-lived backstop when this does lapse.
+    'lifetime' => (int) env('SESSION_LIFETIME', 43200),
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 
