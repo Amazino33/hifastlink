@@ -1100,10 +1100,10 @@
             <div class="hotspot-strip {{ $isOnHotspot ? 'hs-ok' : 'hs-off' }}">
                 @if($isOnHotspot)
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    On HiFastLink WiFi
+                    On the WiFi network
                 @else
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                    Not on HiFastLink WiFi — connect first
+                    Not on the WiFi network — connect first
                 @endif
             </div>
 
@@ -1187,7 +1187,7 @@
                 @if($connectionState === 'no-plan')
                     <div class="noplan-cta">
                         <h4>Get Connected</h4>
-                        <p>Purchase a data plan below or redeem a voucher code to start browsing on any HiFastLink hotspot.</p>
+                        <p>Purchase a data plan below or redeem a voucher code to start browsing on any of our hotspots.</p>
                     </div>
                 @endif
 
@@ -1913,10 +1913,10 @@
                     <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>
                 </svg>
             </div>
-            <div class="modal-title">Not on HiFastLink WiFi</div>
+            <div class="modal-title">Not on the WiFi network</div>
             <div class="modal-body">
-                Connect to a HiFastLink WiFi network first, then tap Connect to get online.<br><br>
-                Look for networks like <strong style="color:var(--text)">HiFastLink</strong> or <strong style="color:var(--text)">BasmelCare</strong>.
+                Connect to the WiFi network at this location first, then tap Connect to get online.<br><br>
+                Open your device's WiFi settings and join the hotspot here — the network name varies by location.
             </div>
             <button class="btn-modal-ok" @click="hotspotWarning = false">Got it</button>
         </div>

@@ -124,7 +124,7 @@
     {{-- On hotspot, not connected — show action buttons --}}
     <div id="s-hotspot" class="hidden">
         <div class="icon icon-blue">📶</div>
-        <p class="status-title">You're on HiFastLink WiFi</p>
+        <p class="status-title">You're on the WiFi network</p>
         <p class="status-body">Tap below to get online.</p>
         <button id="btn-connect" class="btn" onclick="doConnect()">Connect</button>
         <p class="divider">— or —</p>
@@ -134,8 +134,8 @@
     {{-- Not on any hotspot --}}
     <div id="s-offline" class="hidden">
         <div class="icon icon-gray">📵</div>
-        <p class="status-title">Not on HiFastLink WiFi</p>
-        <p class="status-body">Connect to a HiFastLink network first, then open this app.</p>
+        <p class="status-title">Not on the WiFi network</p>
+        <p class="status-body">Connect to the WiFi network at this location first, then open this app.</p>
         <button class="btn btn-outline" onclick="init()">Try Again</button>
     </div>
 
