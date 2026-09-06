@@ -303,7 +303,7 @@ class AuthenticatedSessionController extends Controller
             }
 
             $linkLogin = $request->input('link_login');
-            $linkOrig = route('dashboard');
+            $linkOrig = route('app.home');
 
             $rad = RadCheck::where('username', $user->username)->where('attribute', 'Cleartext-Password')->first();
             $password = $rad ? $rad->value : ($user->radius_password ?? null);

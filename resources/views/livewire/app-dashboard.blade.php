@@ -205,6 +205,7 @@
 .badge-active  .badge-dot { background: var(--accent); }
 .badge-conn    .badge-dot { background: var(--green); }
 @keyframes dot-blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+@keyframes spin { to { transform: rotate(360deg); } }
 .status-sub { font-size: 12px; color: var(--muted); }
 
 /* ─── Hotspot strip ──────────────────────────── */
@@ -1195,9 +1196,12 @@
                         <input type="text" class="voucher-input" placeholder="Enter code"
                             x-model="$wire.voucherCode" @keydown.enter="$wire.redeemVoucher()"
                             autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="20">
-                        <button class="btn-redeem" @click="$wire.redeemVoucher()" wire:loading.attr="disabled">
+                        <button class="btn-redeem" @click="$wire.redeemVoucher()"
+                            wire:loading.attr="disabled" wire:loading.class="opacity-60" wire:target="redeemVoucher">
                             <span wire:loading.remove wire:target="redeemVoucher">Apply</span>
-                            <span wire:loading wire:target="redeemVoucher">···</span>
+                            <span wire:loading wire:target="redeemVoucher" style="display:inline-flex;align-items:center;gap:4px">
+                                <svg style="animation:spin .8s linear infinite;flex-shrink:0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                            </span>
                         </button>
                     </div>
                     @error('voucherCode')<p class="error-msg">{{ $message }}</p>@enderror
@@ -1676,8 +1680,12 @@
                                 class="sub-add-input"
                                 placeholder="New member name (e.g. Mum)">
                             @error('subUserName') <span class="prof-error" style="padding:2px 0 4px">{{ $message }}</span> @enderror
-                            <button type="button" @click="$wire.createSubAccount()" class="sub-add-btn">
-                                + Add
+                            <button type="button" @click="$wire.createSubAccount()" class="sub-add-btn"
+                                wire:loading.attr="disabled" wire:loading.class="opacity-60" wire:target="createSubAccount">
+                                <span wire:loading.remove wire:target="createSubAccount">+ Add</span>
+                                <span wire:loading wire:target="createSubAccount" style="display:inline-flex;align-items:center">
+                                    <svg style="animation:spin .8s linear infinite" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                </span>
                             </button>
                         </div>
                         <p style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5">
@@ -1828,8 +1836,13 @@
                         </div>
                     </div>
 
-                    <button type="button" @click="$wire.saveProfile()" class="prof-save-btn">
-                        Save Changes
+                    <button type="button" @click="$wire.saveProfile()" class="prof-save-btn"
+                        wire:loading.attr="disabled" wire:loading.class="opacity-60" wire:target="saveProfile">
+                        <span wire:loading.remove wire:target="saveProfile">Save Changes</span>
+                        <span wire:loading wire:target="saveProfile" style="display:inline-flex;align-items:center;gap:6px">
+                            <svg style="animation:spin .8s linear infinite" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                            Saving…
+                        </span>
                     </button>
 
                     {{-- Change Password (collapsible) --}}
