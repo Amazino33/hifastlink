@@ -296,6 +296,9 @@
     box-shadow: 0 4px 16px rgba(10,132,255,.4);
 }
 .btn-redeem:hover { background: #0070e0; }
+/* Spinner wrappers: never set display here — Livewire owns that property on
+   wire:loading elements, and an inline/CSS display keeps them permanently visible. */
+.btn-spin { align-items: center; gap: 6px; }
 .error-msg { font-size: 12px; color: var(--red); margin-top: 6px; }
 
 /* ─── Session card ───────────────────────────── */
@@ -1199,7 +1202,7 @@
                         <button class="btn-redeem" @click="$wire.redeemVoucher()"
                             wire:loading.attr="disabled" wire:loading.class="opacity-60" wire:target="redeemVoucher">
                             <span wire:loading.remove wire:target="redeemVoucher">Apply</span>
-                            <span wire:loading wire:target="redeemVoucher" style="display:inline-flex;align-items:center;gap:4px">
+                            <span wire:loading.inline-flex wire:target="redeemVoucher" class="btn-spin">
                                 <svg style="animation:spin .8s linear infinite;flex-shrink:0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                             </span>
                         </button>
@@ -1683,7 +1686,7 @@
                             <button type="button" @click="$wire.createSubAccount()" class="sub-add-btn"
                                 wire:loading.attr="disabled" wire:loading.class="opacity-60" wire:target="createSubAccount">
                                 <span wire:loading.remove wire:target="createSubAccount">+ Add</span>
-                                <span wire:loading wire:target="createSubAccount" style="display:inline-flex;align-items:center">
+                                <span wire:loading.inline-flex wire:target="createSubAccount" class="btn-spin">
                                     <svg style="animation:spin .8s linear infinite" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                                 </span>
                             </button>
@@ -1853,7 +1856,7 @@
                     <button type="button" @click="$wire.saveProfile()" class="prof-save-btn"
                         wire:loading.attr="disabled" wire:loading.class="opacity-60" wire:target="saveProfile">
                         <span wire:loading.remove wire:target="saveProfile">Save Changes</span>
-                        <span wire:loading wire:target="saveProfile" style="display:inline-flex;align-items:center;gap:6px">
+                        <span wire:loading.inline-flex wire:target="saveProfile" class="btn-spin">
                             <svg style="animation:spin .8s linear infinite" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                             Saving…
                         </span>
