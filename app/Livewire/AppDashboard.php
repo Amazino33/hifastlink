@@ -565,10 +565,20 @@ class AppDashboard extends Component
         }
 
         if ($user->plan_expiry && $user->plan_expiry->isFuture()) {
-            $diff = now()->diffInDays($user->plan_expiry, false);
-            $expiryHuman = ($diff < 1)
-                ? now()->diffInHours($user->plan_expiry) . 'h left'
-                : ceil($diff) . ' day' . (ceil($diff) === 1.0 ? '' : 's') . ' left';
+            // Carbon 3 returns floats from diffIn*, so round down to whole units
+            // before formatting or the UI shows "23.624617028056h left".
+            $minutes = (int) now()->diffInMinutes($user->plan_expiry);
+
+            if ($minutes < 60) {
+                $expiryHuman = max(1, $minutes) . 'm left';
+            } elseif ($minutes < 1440) {
+                $hours = intdiv($minutes, 60);
+                $mins  = $minutes % 60;
+                $expiryHuman = $mins > 0 ? "{$hours}h {$mins}m left" : "{$hours}h left";
+            } else {
+                $days = intdiv($minutes, 1440);
+                $expiryHuman = $days . ' day' . ($days === 1 ? '' : 's') . ' left';
+            }
         }
 
         $pendingSubscriptions = $user->pendingSubscriptions()->with('plan')->get();

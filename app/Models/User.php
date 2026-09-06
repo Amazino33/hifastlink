@@ -361,21 +361,25 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             return 'No Active Plan';
         }
 
-        $diff = now()->diffInMinutes($this->plan_expiry, false);
+        // Carbon 3 returns a float here; cast before formatting so the value
+        // never renders as "37.4523 Minutes".
+        $diff = (int) now()->diffInMinutes($this->plan_expiry, false);
 
         if ($diff < 0) {
             return 'Expired';
         }
 
         if ($diff < 60) {
-            return $diff . ' Minutes';
+            return $diff . ' Minute' . ($diff === 1 ? '' : 's');
         }
 
         if ($diff < 1440) {
-            return ceil($diff / 60) . ' Hours';
+            $hours = (int) ceil($diff / 60);
+            return $hours . ' Hour' . ($hours === 1 ? '' : 's');
         }
 
-        return ceil($diff / 1440) . ' Days';
+        $days = (int) ceil($diff / 1440);
+        return $days . ' Day' . ($days === 1 ? '' : 's');
     }
 
     /**

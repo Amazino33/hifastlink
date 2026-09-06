@@ -182,7 +182,7 @@ class DashboardController extends Controller
             return 0;
         }
         
-        return $now->diffInDays($endDate);
+        return (int) $now->diffInDays($endDate);
     }
     
     private function formatBytes($bytes)
