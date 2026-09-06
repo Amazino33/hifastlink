@@ -28,7 +28,6 @@ use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Grid;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\ToggleColumn;
 use Filament\Widgets\Widget;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
@@ -136,12 +135,6 @@ class PlanResource extends Resource
 
                 Fieldset::make('Availability')
                     ->schema([
-                        Toggle::make('is_active')
-                            ->label('Active')
-                            ->helperText('Inactive plans are hidden everywhere and cannot be bought')
-                            ->default(true)
-                            ->inline(false)
-                            ->columnSpan(1),
                         Toggle::make('is_admin_only')
                             ->label('Admin Only')
                             ->helperText('Hide this plan from regular users — only visible to admins')
@@ -158,21 +151,6 @@ class PlanResource extends Resource
                             ->default('')
                             ->helperText('Leave as "All Routers" to show this plan everywhere')
                             ->nullable()
-                            ->columnSpan(2),
-                    ])->columns(2),
-
-                Fieldset::make('Hot Deals')
-                    ->schema([
-                        Toggle::make('is_featured')
-                            ->label('Feature as Hot Deal')
-                            ->helperText('Shows this plan in the Hot Deals strip at the top of the app. Needs Active on and Admin Only off.')
-                            ->inline(false)
-                            ->columnSpan(1),
-                        TextInput::make('sort_order')
-                            ->label('Sort Order')
-                            ->numeric()
-                            ->default(0)
-                            ->helperText('Lower numbers appear first among Hot Deals')
                             ->columnSpan(1),
                     ])->columns(2),
 
@@ -247,19 +225,6 @@ class PlanResource extends Resource
                     ->label('Name')
                     ->searchable()
                     ->sortable(),
-
-                ToggleColumn::make('is_active')
-                    ->label('Active')
-                    ->sortable(),
-
-                ToggleColumn::make('is_featured')
-                    ->label('Hot Deal')
-                    ->sortable(),
-
-                TextColumn::make('sort_order')
-                    ->label('Order')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('price')
                     ->label('Price')
