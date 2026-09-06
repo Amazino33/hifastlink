@@ -186,10 +186,10 @@ class AppDashboard extends Component
         if ($result === 'limit_reached')    { $this->addError('voucherCode', 'Voucher has reached its usage limit.'); return; }
         if ($result === 'already_redeemed') { $this->addError('voucherCode', 'You already redeemed this voucher.'); return; }
 
-        // Activate plan (simplified — identical to UserDashboard logic)
         $newPlan = $voucher->plan;
+
         if (! $newPlan) {
-            // Custom duration voucher
+            // Custom duration voucher — always activates immediately (no plan_id to queue)
             $user->plan_id         = null;
             $user->data_limit      = $voucher->is_unlimited ? null : ($voucher->data_limit_mb ? $voucher->data_limit_mb * 1048576 : null);
             $user->data_used       = 0;
@@ -197,23 +197,74 @@ class AppDashboard extends Component
             $user->plan_started_at = now();
             $user->save();
             try { \App\Services\PlanSyncService::syncUserPlan($user); } catch (\Throwable) {}
-        } else {
-            $pval     = (int) $newPlan->data_limit;
-            $planBytes = $newPlan->limit_unit === 'Unlimited' ? null : ($pval > 1048576 ? $pval : ($newPlan->limit_unit === 'GB' ? $pval * 1073741824 : $pval * 1048576));
-            $user->plan_id         = $newPlan->id;
-            $user->data_limit      = $planBytes;
-            $user->data_used       = 0;
-            $user->plan_expiry     = now()->addDays($newPlan->validity_days);
-            $user->plan_started_at = now();
-            $user->family_limit    = $newPlan->family_limit ?? 0;
-            $user->save();
+
+            try {
+                \App\Models\Transaction::create([
+                    'user_id'   => $user->id,
+                    'plan_id'   => null,
+                    'amount'    => 0,
+                    'reference' => 'VCH-' . $voucher->code,
+                    'status'    => 'success',
+                    'gateway'   => 'voucher',
+                    'paid_at'   => now(),
+                    'router_id' => $user->router_id,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('AppDashboard voucher transaction error: ' . $e->getMessage());
+            }
+
+            $this->voucherCode = '';
+            $this->syncState();
+            $this->dispatch('toast', message: 'Plan activated! Tap Connect to get online.', type: 'success');
+            return;
         }
+
+        // Plan-based voucher — queue it if the user has an active plan with data remaining
+        $hasActivePlan = $user->plan_expiry
+            && $user->plan_expiry->isFuture()
+            && ($user->remaining_data ?? 1) > 0;
+
+        if ($hasActivePlan) {
+            \App\Models\PendingSubscription::create([
+                'user_id' => $user->id,
+                'plan_id' => $newPlan->id,
+            ]);
+            try {
+                \App\Models\Transaction::create([
+                    'user_id'   => $user->id,
+                    'plan_id'   => $newPlan->id,
+                    'amount'    => $newPlan->price ?? 0,
+                    'reference' => 'VCH-' . $voucher->code,
+                    'status'    => 'success',
+                    'gateway'   => 'voucher',
+                    'paid_at'   => now(),
+                    'router_id' => $user->router_id,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('AppDashboard voucher transaction error: ' . $e->getMessage());
+            }
+            $this->voucherCode = '';
+            $this->syncState();
+            $this->dispatch('toast', message: $newPlan->name . ' queued — starts when your current plan ends.', type: 'success');
+            return;
+        }
+
+        // No active plan — activate immediately
+        $pval      = (int) $newPlan->data_limit;
+        $planBytes = $newPlan->limit_unit === 'Unlimited' ? null : ($pval > 1048576 ? $pval : ($newPlan->limit_unit === 'GB' ? $pval * 1073741824 : $pval * 1048576));
+        $user->plan_id         = $newPlan->id;
+        $user->data_limit      = $planBytes;
+        $user->data_used       = 0;
+        $user->plan_expiry     = now()->addDays($newPlan->validity_days);
+        $user->plan_started_at = now();
+        $user->family_limit    = $newPlan->family_limit ?? 0;
+        $user->save();
 
         try {
             \App\Models\Transaction::create([
                 'user_id'   => $user->id,
-                'plan_id'   => $newPlan?->id,
-                'amount'    => $newPlan?->price ?? 0,
+                'plan_id'   => $newPlan->id,
+                'amount'    => $newPlan->price ?? 0,
                 'reference' => 'VCH-' . $voucher->code,
                 'status'    => 'success',
                 'gateway'   => 'voucher',
