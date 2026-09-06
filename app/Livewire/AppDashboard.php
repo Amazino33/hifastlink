@@ -163,10 +163,22 @@ class AppDashboard extends Component
     {
         $this->voucherCode = strtoupper(trim($this->voucherCode));
 
-        $this->validate(['voucherCode' => 'required|string|exists:vouchers,code']);
+        $this->validate(
+            ['voucherCode' => 'required|string'],
+            ['voucherCode.required' => 'Enter a voucher code.']
+        );
 
         $voucher = \App\Models\Voucher::where('code', $this->voucherCode)->first();
         $user    = Auth::user();
+
+        if (! $voucher) {
+            // Pharmacy/partner receipts authenticate through the captive portal against
+            // the partner's own API — they are not vouchers and cannot be claimed here.
+            $this->addError('voucherCode', \App\Models\Voucher::isVoucherCode($this->voucherCode)
+                ? 'That voucher code was not found. Check it and try again.'
+                : 'That code was not recognised. Receipt and invoice numbers are entered on the WiFi login page, not here.');
+            return;
+        }
 
         // Creator plan check
         if ($voucher->creator) {
