@@ -113,7 +113,7 @@
         <div class="icon icon-green">✓</div>
         <p class="status-title">You're online!</p>
         <p class="status-body">HiFastLink is active on this device.</p>
-        <a href="/dashboard" class="btn btn-green">Go to Dashboard</a>
+        <a href="{{ route('app.home') }}" class="btn btn-green">Open App</a>
         <div id="install-area" class="install-hint hidden">
             <strong>📲 Save for next time</strong>
             <span id="ios-hint">Tap the <b>Share</b> icon then <b>"Add to Home Screen"</b> — connect with one tap next time.</span>

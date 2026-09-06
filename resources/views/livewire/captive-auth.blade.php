@@ -60,7 +60,7 @@
                     Please contact the reception desk
                 </div>
             @else
-                <a href="https://hifastlink.com/dashboard"
+                <a href="https://app.hifastlink.com"
                    target="_blank"
                    class="block w-full py-3 px-4 text-white rounded-xl font-semibold text-sm text-center"
                    style="{{ $btnStyle }}">
@@ -133,7 +133,7 @@
                 Need WiFi access? <span class="font-medium text-gray-600">Visit the reception desk</span>
             @else
                 Don't have an account?
-                <a href="https://hifastlink.com/dashboard" target="_blank"
+                <a href="https://app.hifastlink.com" target="_blank"
                    class="font-medium" style="{{ $iconStyle }}">Subscribe here</a>
             @endif
         </p>
