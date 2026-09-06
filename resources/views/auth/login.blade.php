@@ -579,7 +579,7 @@
                         window.location.href = data.login_url
                             + '?username=' + encodeURIComponent(data.username)
                             + '&password=' + encodeURIComponent(data.password)
-                            + '&dst='      + encodeURIComponent(data.dashboard_url || '{{ route('dashboard') }}');
+                            + '&dst='      + encodeURIComponent(data.dashboard_url || '{{ route('app.home') }}');
                         return;
                     }
                     notice.textContent = data.message || 'Could not connect automatically.';

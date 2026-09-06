@@ -84,9 +84,9 @@ class SocialAuthController extends Controller
             session()->forget(['oauth_bonus', 'oauth_router']);
         }
 
-        // Admins → main dashboard; regular users → the customer PWA
+        // Admins → Filament panel; regular users → the customer PWA
         if ($user->isAdmin()) {
-            return redirect()->intended(route('dashboard', absolute: false));
+            return redirect()->intended($user->homeUrl());
         }
 
         return redirect()->intended(route('app.home'));

@@ -30,8 +30,8 @@ class ForceActivateFamilyTest extends TestCase
         // Authenticate as the user and invoke the Livewire method directly
         $this->actingAs($user);
 
-        $component = new \App\Http\Livewire\UserDashboard();
-        $component->forceActivate($pending->id);
+        \Livewire\Livewire::test(\App\Livewire\AppDashboard::class)
+            ->call('forceActivate', $pending->id);
 
         $user->refresh();
         $child->refresh();

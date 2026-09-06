@@ -90,7 +90,7 @@
         <h1>You're Connected!</h1>
         <p>You now have internet access.<br>This window will close in <strong id="count">3</strong>...</p>
 
-        <a href="{{ route('dashboard') }}" class="account-link">Go to your account</a>
+        <a href="{{ route('app.home') }}" class="account-link">Go to your account</a>
 
         {{-- Install prompt — shown only if not already a standalone PWA --}}
         <div class="install-card" id="install-card" style="display:none">

@@ -238,11 +238,9 @@ class AuthenticatedSessionController extends Controller
                 }
             }
 
-            // Authenticated but no captive portal params — send app subdomain to PWA
-            if (str_starts_with(request()->getHost(), 'app.')) {
-                return redirect()->route('app.home');
-            }
-            return redirect()->route('dashboard');
+            // Authenticated but no captive portal params — admins to the panel,
+            // everyone else to the PWA.
+            return redirect()->to($user->homeUrl());
         }
 
         // ── Layer 3: Unknown — show appropriate form based on context ───
@@ -335,7 +333,7 @@ class AuthenticatedSessionController extends Controller
             Auth::login($user, remember: true);
             return redirect()->intended(route('app.home'));
         }
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended($user->homeUrl());
     }
 
     // ─────────────────────────────────────────────────────────────────

@@ -41,25 +41,25 @@ class RequestCustomPlansAccessTest extends TestCase
             ->assertStatus(403);
     }
 
-    public function test_nav_link_hidden_for_family_master_and_visible_for_affiliate()
+    public function test_custom_plan_link_hidden_for_non_affiliate_and_visible_for_affiliate()
     {
         $master = User::factory()->create(['is_family_admin' => true, 'parent_id' => null]);
         $this->actingAs($master)
-            ->get(route('dashboard'))
+            ->get(route('app.home'))
             ->assertStatus(200)
-            ->assertDontSee('Request Custom Plan');
+            ->assertDontSee('Custom Plan');
 
         $user = User::factory()->create(['is_family_admin' => false, 'parent_id' => null]);
         \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'affiliate']);
         $user->assignRole('affiliate');
 
         $this->actingAs($user)
-            ->get(route('dashboard'))
+            ->get(route('app.home'))
             ->assertStatus(200)
-            ->assertSee('Request Custom Plan');
+            ->assertSee('Custom Plan');
     }
 
-    public function test_affiliate_can_view_request_custom_plans_and_sees_nav_link()
+    public function test_affiliate_can_view_request_custom_plans_and_sees_link()
     {
         $user = User::factory()->create(['is_family_admin' => false, 'parent_id' => null]);
         \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'affiliate']);
@@ -71,8 +71,8 @@ class RequestCustomPlansAccessTest extends TestCase
             ->assertSee('Request Custom Data Plans');
 
         $this->actingAs($user)
-            ->get(route('dashboard'))
+            ->get(route('app.home'))
             ->assertStatus(200)
-            ->assertSee('Request Custom Plan');
+            ->assertSee('Custom Plan');
     }
 }

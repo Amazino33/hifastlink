@@ -136,13 +136,13 @@ test('user with no radius credentials shows support error', function () {
         ->assertSet('error', 'Account not set up for hotspot access. Please contact support.');
 });
 
-test('user login without linkLogin redirects to dashboard', function () {
+test('user login without linkLogin redirects to the app', function () {
     $user = captiveUser();
 
     Livewire::test(CaptiveAuth::class)
         ->set('identifier', $user->email)
         ->call('connect')
-        ->assertRedirect(route('dashboard'));
+        ->assertRedirect(route('app.home'));
 });
 
 test('device is upserted on successful user login', function () {

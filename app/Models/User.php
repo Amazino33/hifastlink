@@ -509,6 +509,15 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             || (!empty($this->is_admin) && $this->is_admin);
     }
 
+    /**
+     * Where this user belongs after authenticating: admins land in the Filament
+     * panel, everyone else in the customer PWA on the app subdomain.
+     */
+    public function homeUrl(): string
+    {
+        return $this->isAdmin() ? '/admin' : route('app.home');
+    }
+
     public function isFreePass(): bool
     {
         return $this->hasRole(['staff', 'free_pass']);

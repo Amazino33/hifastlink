@@ -206,7 +206,7 @@ class PhoneOtpLogin extends Component
         Auth::login($user, remember: true);
         request()->session()->regenerate();
 
-        $this->redirectIntended(route('dashboard'));
+        $this->redirectIntended(route('app.home'));
     }
 
     private function generateUsername(string $last10): string

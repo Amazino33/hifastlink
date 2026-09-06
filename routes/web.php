@@ -142,10 +142,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // ── Dashboard ─────────────────────────────────────────────
-    Route::get('/dashboard', \App\Http\Livewire\UserDashboard::class)
-        ->middleware(\App\Http\Middleware\CheckHotspotMac::class)
-        ->name('dashboard');
+    // The old UserDashboard page is gone — the PWA on the app subdomain replaces it.
+    // Old bookmarks and printed QR codes land here, so keep a redirect.
+    Route::get('/dashboard', fn () => redirect()->to(auth()->user()->homeUrl()));
 
+    // Still used by the app's Connect button and live stats polling.
     Route::get('/dashboard/realtime-data', [DashboardController::class, 'getRealtimeData'])->name('dashboard.realtime');
     Route::post('/dashboard/connect', [DashboardController::class, 'connectToRouter'])->name('dashboard.connect');
 

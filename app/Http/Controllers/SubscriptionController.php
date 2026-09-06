@@ -79,7 +79,7 @@ class SubscriptionController extends Controller
         Artisan::call('radius:sync-users');
 
         $rolloverMessage = $rolloverData > 0 ? " with " . Number::fileSize($rolloverData) . " rollover data" : "";
-        return redirect()->route('dashboard')->with('success', "Successfully subscribed to {$plan->name}!{$rolloverMessage}");
+        return redirect()->route('app.home')->with('success', "Successfully subscribed to {$plan->name}!{$rolloverMessage}");
     }
 
     public function wallet()

@@ -94,6 +94,6 @@ class RouterAuthController extends Controller
         // Cleanup token
         Cache::forget("magiclogin:{$token}:uid");
 
-        return redirect()->route('dashboard')->with('success', 'You are logged in to the site and router (temporary).');
+        return redirect()->route('app.home')->with('success', 'You are logged in to the site and router (temporary).');
     }
 }
