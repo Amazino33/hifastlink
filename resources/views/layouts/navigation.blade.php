@@ -7,8 +7,9 @@
                     );
     $isFamilyHead = auth()->check() && \App\Models\Router::where('owner_id', auth()->id())->exists();
 
+    // Public pages only — every visitor can reach these. Anything requiring a
+    // role or a login is rendered behind its own guard further down.
     $navLinks = [
-        ['route' => 'dashboard', 'label' => 'Dashboard',  'icon' => 'fa-gauge-high'],
         ['route' => 'services',  'label' => 'Services',   'icon' => 'fa-server'],
         ['route' => 'pricing',   'label' => 'Pricing',    'icon' => 'fa-tag'],
         ['route' => 'about',     'label' => 'About Us',   'icon' => 'fa-circle-info'],
@@ -45,6 +46,14 @@
                             <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
                         </a>
                     @endforeach
+
+                    @auth
+                        <a href="{{ route('app.home') }}"
+                            class="relative px-5 py-3 text-sm text-white font-semibold rounded-lg transition-all duration-300 hover:text-blue-200 group">
+                            My Account
+                            <span class="absolute inset-0 bg-white/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300"></span>
+                        </a>
+                    @endauth
                 </div>
             </div>
 
@@ -81,11 +90,6 @@
                                 <x-dropdown-link :href="route('profile.edit')" class="flex items-center gap-2 hover:bg-blue-50">
                                     <i class="fa-solid fa-user w-4 text-blue-600"></i>
                                     {{ __('Profile') }}
-                                </x-dropdown-link>
-
-                                <x-dropdown-link href="#" class="flex items-center gap-2 hover:bg-blue-50">
-                                    <i class="fa-solid fa-gear w-4 text-blue-600"></i>
-                                    Settings
                                 </x-dropdown-link>
 
                                 {{-- Family head --}}
@@ -167,6 +171,14 @@
                     {{ $link['label'] }}
                 </a>
             @endforeach
+
+            @auth
+                <a href="{{ route('app.home') }}"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg text-white font-semibold transition-all duration-300 hover:bg-white/20">
+                    <i class="fa-solid fa-gauge-high w-4"></i>
+                    My Account
+                </a>
+            @endauth
 
             @if ($isAdmin)
                 <a href="/admin"
