@@ -1,3 +1,19 @@
+<div
+    class="app-root"
+    x-data="{
+        tab: (new URLSearchParams(location.search).get('tab') || 'home'),
+        acctPanel: 'main',
+        editMode: false,
+        pwOpen: false,
+        hotspotWarning: false,
+        toast: null,
+        showToast(msg, type) { this.toast = { msg, type }; setTimeout(() => this.toast = null, 3400); }
+    }"
+    x-on:toast.window="showToast($event.detail?.message || ($event.detail?.[0] && $event.detail[0].message) || $event.detail, $event.detail?.type || ($event.detail?.[0] && $event.detail[0].type) || 'info')"
+    x-init="document.addEventListener('visibilitychange', () => { if (!document.hidden) $wire.pollConnection() })"
+    wire:poll.5000ms="pollConnection"
+>
+
 <style>
 /* ═══════════════════════════════════════════════════════
    HIFASTLINK APP — design tokens
@@ -933,24 +949,6 @@
     }
 </script>
 
-{{-- ════════════════════════════════════════════════════════
-     APP ROOT
-════════════════════════════════════════════════════════ --}}
-<div
-    class="app-root"
-    x-data="{
-        tab: (new URLSearchParams(location.search).get('tab') || 'home'),
-        acctPanel: 'main',
-        editMode: false,
-        pwOpen: false,
-        hotspotWarning: false,
-        toast: null,
-        showToast(msg, type) { this.toast = { msg, type }; setTimeout(() => this.toast = null, 3400); }
-    }"
-    x-on:toast.window="showToast($event.detail?.message || ($event.detail?.[0] && $event.detail[0].message) || $event.detail, $event.detail?.type || ($event.detail?.[0] && $event.detail[0].type) || 'info')"
-    x-init="document.addEventListener('visibilitychange', () => { if (!document.hidden) $wire.pollConnection() })"
-    wire:poll.5000ms="pollConnection"
->
 
     {{-- ══ TOAST ════════════════════════════════════════════ --}}
     <div class="toast-wrap" x-show="toast" x-transition.opacity style="display:none">
@@ -1197,9 +1195,9 @@
                     <label class="voucher-label">Redeem Voucher / Receipt Code</label>
                     <div class="voucher-row">
                         <input type="text" class="voucher-input" placeholder="Enter code"
-                            x-model="$wire.voucherCode" @keydown.enter="$wire.redeemVoucher()"
+                            wire:model="voucherCode" wire:keydown.enter="redeemVoucher"
                             autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="20">
-                        <button class="btn-redeem" @click="$wire.redeemVoucher()"
+                        <button type="button" class="btn-redeem" wire:click="redeemVoucher"
                             wire:loading.attr="disabled" wire:loading.class="opacity-60" wire:target="redeemVoucher">
                             <span wire:loading.remove wire:target="redeemVoucher">Apply</span>
                             <span wire:loading.inline-flex wire:target="redeemVoucher" class="btn-spin">
@@ -1942,22 +1940,22 @@
                     <div class="prof-form">
                         <div class="prof-field">
                             <label class="prof-label">Full Name</label>
-                            <input type="text" x-model="$wire.profileName" class="prof-input" placeholder="Your name">
+                            <input type="text" wire:model="profileName" class="prof-input" placeholder="Your name">
                             @error('profileName') <span class="prof-error">{{ $message }}</span> @enderror
                         </div>
                         <div class="prof-field">
                             <label class="prof-label">Phone Number</label>
-                            <input type="tel" x-model="$wire.profilePhone" class="prof-input" placeholder="e.g. 07012345678">
+                            <input type="tel" wire:model="profilePhone" class="prof-input" placeholder="e.g. 07012345678">
                             @error('profilePhone') <span class="prof-error">{{ $message }}</span> @enderror
                         </div>
                         <div class="prof-field">
                             <label class="prof-label">Email</label>
-                            <input type="email" x-model="$wire.profileEmail" class="prof-input" placeholder="email@example.com">
+                            <input type="email" wire:model="profileEmail" class="prof-input" placeholder="email@example.com">
                             @error('profileEmail') <span class="prof-error">{{ $message }}</span> @enderror
                         </div>
                     </div>
 
-                    <button type="button" @click="$wire.saveProfile()" class="prof-save-btn"
+                    <button type="button" wire:click="saveProfile" class="prof-save-btn"
                         wire:loading.attr="disabled" wire:loading.class="opacity-60" wire:target="saveProfile">
                         <span wire:loading.remove wire:target="saveProfile">Save Changes</span>
                         <span wire:loading.inline-flex wire:target="saveProfile" class="btn-spin">
@@ -1978,22 +1976,22 @@
                                 @if(! auth()->user()->google_id)
                                 <div class="prof-field">
                                     <label class="prof-label">Current Password</label>
-                                    <input type="password" x-model="$wire.currentPassword" class="prof-input" placeholder="Current password">
+                                    <input type="password" wire:model="currentPassword" class="prof-input" placeholder="Current password">
                                     @error('currentPassword') <span class="prof-error">{{ $message }}</span> @enderror
                                 </div>
                                 @endif
                                 <div class="prof-field">
                                     <label class="prof-label">New Password</label>
-                                    <input type="password" x-model="$wire.newPassword" class="prof-input" placeholder="Min 4 characters">
+                                    <input type="password" wire:model="newPassword" class="prof-input" placeholder="Min 4 characters">
                                     @error('newPassword') <span class="prof-error">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="prof-field">
                                     <label class="prof-label">Confirm New Password</label>
-                                    <input type="password" x-model="$wire.newPasswordConfirmation" class="prof-input" placeholder="Repeat new password">
+                                    <input type="password" wire:model="newPasswordConfirmation" class="prof-input" placeholder="Repeat new password">
                                     @error('newPasswordConfirmation') <span class="prof-error">{{ $message }}</span> @enderror
                                 </div>
                             </div>
-                            <button type="button" @click="$wire.changePassword()" class="prof-save-btn prof-pw-btn"
+                            <button type="button" wire:click="changePassword" class="prof-save-btn prof-pw-btn"
                                 wire:loading.attr="disabled" wire:loading.class="opacity-50" wire:target="changePassword">
                                 <span wire:loading.remove wire:target="changePassword">Update Password</span>
                                 <span wire:loading wire:target="changePassword">Updating…</span>
