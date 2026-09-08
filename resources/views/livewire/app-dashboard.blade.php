@@ -820,49 +820,332 @@
 .router-stat-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.4px; }
 
 /* ── Sub-accounts ── */
-.sub-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 0; border-bottom: 1px solid var(--border);
+.sub-panel-wrap {
+    padding: 0 20px calc(var(--tab-h) + 40px);
 }
-.sub-item:last-of-type { border-bottom: none; }
+.sub-limit-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 2px 14px;
+    font-size: 13px;
+}
+.sub-limit-title {
+    font-weight: 700;
+    color: var(--text);
+    font-size: 14px;
+}
+.sub-limit-count {
+    color: var(--muted);
+    font-size: 12px;
+    background: var(--glass-2);
+    padding: 3px 9px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    font-weight: 500;
+}
+.sub-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: border-color .15s;
+}
+.sub-card:hover {
+    border-color: var(--border-2);
+}
+.sub-card-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
 .sub-avatar {
-    width: 34px; height: 34px; border-radius: 50%;
-    background: var(--glass-2); border: 1px solid var(--border-2);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; color: var(--accent);
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(10,132,255,.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
     flex-shrink: 0;
 }
-.sub-info { flex: 1; min-width: 0; }
-.sub-name { font-size: 14px; font-weight: 500; color: var(--text); }
-.sub-creds { font-size: 11px; color: var(--muted); margin-top: 1px; font-family: 'JetBrains Mono', monospace; }
-.sub-online { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
-.sub-offline { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.sub-meta {
+    flex: 1;
+    min-width: 0;
+}
+.sub-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.sub-name {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sub-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(10,132,255,.15);
+    color: var(--accent);
+}
+.sub-username-text {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    font-family: 'JetBrains Mono', monospace;
+}
+.sub-status-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+.sub-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 500;
+}
+.sub-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.sub-dot-online {
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+}
+.sub-dot-offline {
+    background: var(--muted);
+}
 .sub-del-btn {
-    background: rgba(255,69,58,.12); color: var(--red);
-    border: none; border-radius: 8px; padding: 5px 10px;
-    font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(255,69,58,.12);
+    color: var(--red);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
     flex-shrink: 0;
 }
-.sub-add-row {
-    display: flex; gap: 8px; align-items: center;
-    padding-top: 14px;
+.sub-del-btn:hover {
+    background: rgba(255,69,58,.22);
 }
-.sub-add-input {
-    flex: 1; background: rgba(255,255,255,0.06);
-    border: 1.5px solid rgba(255,255,255,0.18);
-    border-radius: 12px; padding: 9px 12px;
-    font-size: 14px; color: var(--text); outline: none;
+.sub-del-btn:active {
+    transform: scale(0.95);
+}
+.sub-cred-strip {
+    background: rgba(0,0,0,.25);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.sub-cred-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.sub-cred-lbl {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    font-weight: 600;
+}
+.sub-cred-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: .5px;
+}
+.sub-cred-masked {
+    color: var(--muted);
+    letter-spacing: 3px;
+    font-size: 12px;
+}
+.sub-eye-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    transition: color .15s;
+}
+.sub-eye-btn:hover {
+    color: var(--text);
+}
+.sub-copy-btn {
+    background: rgba(255,255,255,.07);
+    border: 1px solid var(--border-2);
+    border-radius: 7px;
+    padding: 5px 10px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--accent);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    transition: background .15s, color .15s;
+    font-family: inherit;
+    flex-shrink: 0;
+}
+.sub-copy-btn:hover {
+    background: rgba(255,255,255,.12);
+}
+
+/* Tab selector */
+.sub-tabs-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    background: rgba(255,255,255,.05);
+    padding: 4px;
+    border-radius: 13px;
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+}
+.sub-tab-pill {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: all .15s;
     font-family: inherit;
 }
-.sub-add-input:focus { border-color: var(--accent); }
-.sub-add-input::placeholder { color: var(--muted); }
-.sub-add-btn {
-    background: var(--accent); color: #fff;
-    border: none; border-radius: 12px; padding: 10px 16px;
-    font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
-    white-space: nowrap;
+.sub-tab-pill.active {
+    background: var(--accent);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 2px 8px var(--accent-glow);
 }
-.sub-limit { font-size: 11.5px; color: var(--muted); text-align: center; padding: 8px 0 4px; }
+
+/* Sub-account form */
+.sub-form-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.sub-form-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 0;
+}
+.sub-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.sub-field-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+.sub-input {
+    width: 100%;
+    background: rgba(255,255,255,.06);
+    border: 1.5px solid rgba(255,255,255,.15);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+.sub-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.sub-input::placeholder {
+    color: var(--muted);
+}
+.sub-inputs-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+@media (max-width: 480px) {
+    .sub-inputs-row {
+        grid-template-columns: 1fr;
+    }
+}
+.sub-submit-btn {
+    width: 100%;
+    padding: 13px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: opacity .15s, transform .1s;
+    font-family: inherit;
+    margin-top: 4px;
+}
+.sub-submit-btn:hover {
+    opacity: .95;
+}
+.sub-submit-btn:active {
+    transform: scale(0.99);
+}
+.sub-submit-btn.green {
+    background: var(--green);
+}
 
 /* ── Devices tab ── */
 .device-card {
@@ -1642,163 +1925,165 @@
                         <span class="edit-profile-title">Sub-accounts</span>
                     </div>
 
-                    @php $familyLimit = auth()->user()->family_limit ?: 3; @endphp
-                    <div class="sub-limit" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;padding:4px 2px;">
-                        <span style="font-weight:600;color:var(--text);">Family Members</span>
-                        <span style="color:var(--muted);font-size:12px;">{{ isset($subAccounts) ? count($subAccounts) : 0 }} / {{ $familyLimit }} slots used</span>
-                    </div>
+                    <div class="sub-panel-wrap">
+                        @php $familyLimit = auth()->user()->family_limit ?: 3; @endphp
+                        <div class="sub-limit-bar">
+                            <span class="sub-limit-title">Family Members</span>
+                            <span class="sub-limit-count">{{ isset($subAccounts) ? count($subAccounts) : 0 }} / {{ $familyLimit }} used</span>
+                        </div>
 
-                    @if(isset($subAccounts) && count($subAccounts))
-                        <div style="margin-bottom:16px;display:flex;flex-direction:column;gap:10px;">
-                            @foreach($subAccounts as $sub)
-                                <div class="sub-item" style="background:var(--glass);border:1px solid var(--border);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px;">
-                                    <div style="display:flex;align-items:center;gap:10px;width:100%;">
-                                        <div class="sub-avatar">{{ strtoupper(substr($sub['name'] ?? $sub['username'], 0, 2)) }}</div>
-                                        <div class="sub-info" style="flex:1;min-width:0;">
-                                            <div style="display:flex;align-items:center;gap:6px;">
-                                                <div class="sub-name">{{ $sub['name'] ?: $sub['username'] }}</div>
-                                                @if($sub['is_linked'])
-                                                    <span style="font-size:10px;background:rgba(0,122,255,.15);color:#007aff;padding:2px 6px;border-radius:6px;font-weight:600;">Linked</span>
-                                                @endif
+                        @if(isset($subAccounts) && count($subAccounts))
+                            <div style="margin-bottom:18px;">
+                                @foreach($subAccounts as $sub)
+                                    <div class="sub-card">
+                                        <div class="sub-card-top">
+                                            <div class="sub-avatar">{{ strtoupper(substr($sub['name'] ?? $sub['username'], 0, 2)) }}</div>
+                                            <div class="sub-meta">
+                                                <div class="sub-name-row">
+                                                    <span class="sub-name">{{ $sub['name'] ?: $sub['username'] }}</span>
+                                                    @if($sub['is_linked'])
+                                                        <span class="sub-badge">Linked</span>
+                                                    @endif
+                                                </div>
+                                                <div class="sub-username-text">
+                                                    <span style="color:var(--muted);font-weight:normal;">User:</span> {{ $sub['username'] }}
+                                                </div>
                                             </div>
-                                            <div class="sub-creds" style="color:var(--text);font-size:12px;font-weight:600;margin-top:2px;">
-                                                <span style="color:var(--muted);font-size:11px;font-weight:normal;">User:</span> {{ $sub['username'] }}
+                                            <div class="sub-status-box">
+                                                <div class="sub-status-indicator">
+                                                    <span class="sub-dot {{ $sub['online'] ? 'sub-dot-online' : 'sub-dot-offline' }}"></span>
+                                                    <span style="color:{{ $sub['online'] ? 'var(--green)' : 'var(--muted)' }}">{{ $sub['online'] ? 'Online' : 'Offline' }}</span>
+                                                </div>
+                                                <button type="button"
+                                                    wire:click="deleteSubAccount({{ $sub['id'] }})"
+                                                    wire:confirm="Remove {{ $sub['name'] ?: $sub['username'] }}? They will be disconnected from the plan."
+                                                    class="sub-del-btn"
+                                                    title="Remove member">
+                                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                                                </button>
                                             </div>
                                         </div>
-                                        <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
-                                            <div style="display:flex;align-items:center;gap:4px;">
-                                                <span class="{{ $sub['online'] ? 'sub-online' : 'sub-offline' }}"></span>
-                                                <span style="font-size:11px;color:{{ $sub['online'] ? 'var(--green)' : 'var(--muted)' }}">{{ $sub['online'] ? 'Online' : 'Offline' }}</span>
+
+                                        @if(!empty($sub['password']))
+                                        {{-- Credentials strip --}}
+                                        <div class="sub-cred-strip" x-data="{ copied: false, reveal: false }">
+                                            <div class="sub-cred-left">
+                                                <span class="sub-cred-lbl">Pass:</span>
+                                                <span x-show="reveal" class="sub-cred-val">{{ $sub['password'] }}</span>
+                                                <span x-show="!reveal" class="sub-cred-masked">••••••••</span>
+                                                <button type="button" @click="reveal = !reveal" class="sub-eye-btn" title="Show / Hide">
+                                                    <svg x-show="!reveal" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                                    <svg x-show="reveal" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                                                </button>
                                             </div>
                                             <button type="button"
-                                                wire:click="deleteSubAccount({{ $sub['id'] }})"
-                                                wire:confirm="Remove {{ $sub['name'] ?: $sub['username'] }}? They will be disconnected from the plan."
-                                                class="sub-del-btn"
-                                                title="Remove member">
-                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                                                @click="navigator.clipboard.writeText('Username: {{ $sub['username'] }}\nPassword: {{ $sub['password'] }}'); copied = true; setTimeout(() => copied = false, 2000)"
+                                                class="sub-copy-btn">
+                                                <span x-show="!copied">Copy</span>
+                                                <span x-show="copied" style="color:var(--green)">Copied!</span>
                                             </button>
                                         </div>
+                                        @endif
                                     </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <div class="txn-empty" style="margin-bottom:18px">No sub-accounts yet. Add or link one below.</div>
+                        @endif
 
-                                    @if(!empty($sub['password']))
-                                    {{-- Credentials banner --}}
-                                    <div style="background:var(--glass-2);border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12px;"
-                                         x-data="{ copied: false, reveal: false }">
-                                        <div style="display:flex;align-items:center;gap:8px;overflow:hidden;">
-                                            <span style="color:var(--muted);font-size:11px;font-family:inherit;">Pass:</span>
-                                            <span x-show="reveal" style="color:var(--text);font-weight:600;">{{ $sub['password'] }}</span>
-                                            <span x-show="!reveal" style="color:var(--muted);letter-spacing:2px;">••••••••</span>
-                                            <button type="button" @click="reveal = !reveal" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:2px;display:flex;align-items:center;">
-                                                <svg x-show="!reveal" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                                <svg x-show="reveal" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                                            </button>
-                                        </div>
-                                        <button type="button"
-                                            @click="navigator.clipboard.writeText('Username: {{ $sub['username'] }}\nPassword: {{ $sub['password'] }}'); copied = true; setTimeout(() => copied = false, 2000)"
-                                            style="background:rgba(255,255,255,0.08);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--accent);cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;font-family:inherit;">
-                                            <span x-show="!copied">Copy</span>
-                                            <span x-show="copied" style="color:var(--green)">Copied!</span>
-                                        </button>
+                        @if(!isset($subAccounts) || count($subAccounts) < $familyLimit)
+                            {{-- Mode tabs --}}
+                            <div class="sub-tabs-bar">
+                                <button type="button"
+                                    @click="subTab = 'create'"
+                                    class="sub-tab-pill"
+                                    :class="subTab === 'create' ? 'active' : ''">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    <span>Create New</span>
+                                </button>
+                                <button type="button"
+                                    @click="subTab = 'link'"
+                                    class="sub-tab-pill"
+                                    :class="subTab === 'link' ? 'active' : ''">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    <span>Link Existing</span>
+                                </button>
+                            </div>
+
+                            {{-- Create Tab --}}
+                            <div x-show="subTab === 'create'" class="sub-form-card">
+                                <div class="sub-field-group">
+                                    <label class="sub-field-label">Member Name</label>
+                                    <input type="text"
+                                        wire:model="subUserName"
+                                        class="sub-input"
+                                        placeholder="e.g. Mum, Brother, Roommate">
+                                    @error('subUserName') <span class="prof-error">{{ $message }}</span> @enderror
+                                </div>
+
+                                <div class="sub-inputs-row">
+                                    <div class="sub-field-group">
+                                        <label class="sub-field-label">Username (Optional)</label>
+                                        <input type="text"
+                                            wire:model="subAccountUsername"
+                                            class="sub-input"
+                                            placeholder="Auto-generated if blank">
+                                        @error('subAccountUsername') <span class="prof-error">{{ $message }}</span> @enderror
                                     </div>
-                                    @endif
+                                    <div class="sub-field-group">
+                                        <label class="sub-field-label">Password (Optional)</label>
+                                        <input type="text"
+                                            wire:model="subAccountPassword"
+                                            class="sub-input"
+                                            placeholder="Auto-generated if blank">
+                                        @error('subAccountPassword') <span class="prof-error">{{ $message }}</span> @enderror
+                                    </div>
                                 </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="txn-empty" style="margin-bottom:16px">No sub-accounts yet. Add or link one below.</div>
-                    @endif
 
-                    @if(!isset($subAccounts) || count($subAccounts) < $familyLimit)
-                        {{-- Mode tabs --}}
-                        <div style="display:flex;gap:6px;background:rgba(255,255,255,0.05);padding:4px;border-radius:12px;margin-bottom:14px;border:1px solid var(--border);">
-                            <button type="button"
-                                @click="subTab = 'create'"
-                                :style="subTab === 'create' ? 'background:var(--accent);color:#fff;font-weight:600;' : 'background:transparent;color:var(--muted);'"
-                                style="flex:1;padding:8px 12px;border:none;border-radius:8px;font-size:12.5px;cursor:pointer;transition:all .15s;font-family:inherit;">
-                                + Create New
-                            </button>
-                            <button type="button"
-                                @click="subTab = 'link'"
-                                :style="subTab === 'link' ? 'background:var(--accent);color:#fff;font-weight:600;' : 'background:transparent;color:var(--muted);'"
-                                style="flex:1;padding:8px 12px;border:none;border-radius:8px;font-size:12.5px;cursor:pointer;transition:all .15s;font-family:inherit;">
-                                🔗 Link Existing
-                            </button>
-                        </div>
+                                <p class="sub-form-desc">
+                                    Credentials will be auto-generated if left blank. Share them with your family member so they can connect.
+                                </p>
 
-                        {{-- Create Tab --}}
-                        <div x-show="subTab === 'create'" style="display:flex;flex-direction:column;gap:10px;">
-                            <div>
-                                <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px;">Member Name</label>
-                                <input type="text"
-                                    wire:model="subUserName"
-                                    class="sub-add-input"
-                                    style="width:100%;"
-                                    placeholder="e.g. Mum, Brother, Roommate">
-                                @error('subUserName') <span class="prof-error" style="padding:2px 0 4px">{{ $message }}</span> @enderror
+                                <button type="button" wire:click="createSubAccount" class="sub-submit-btn"
+                                    wire:loading.attr="disabled" wire:loading.class="opacity-60" wire:target="createSubAccount">
+                                    <span wire:loading.remove wire:target="createSubAccount">+ Create Sub-account</span>
+                                    <span wire:loading.inline-flex wire:target="createSubAccount" class="btn-spin" style="display:none;align-items:center;justify-content:center;gap:6px;">
+                                        <svg style="animation:spin .8s linear infinite" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                        <span>Creating...</span>
+                                    </span>
+                                </button>
                             </div>
 
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                                <div>
-                                    <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px;">Username (Optional)</label>
+                            {{-- Link Tab --}}
+                            <div x-show="subTab === 'link'" style="display:none" class="sub-form-card">
+                                <p class="sub-form-desc">
+                                    Link an existing registered user by entering their username. They will immediately share your active data plan and quota.
+                                </p>
+                                <div class="sub-field-group">
+                                    <label class="sub-field-label">Existing Username</label>
                                     <input type="text"
-                                        wire:model="subAccountUsername"
-                                        class="sub-add-input"
-                                        style="width:100%;font-size:13px;"
-                                        placeholder="Auto-generated if blank">
-                                    @error('subAccountUsername') <span class="prof-error" style="padding:2px 0 4px">{{ $message }}</span> @enderror
+                                        wire:model="subExistingUsername"
+                                        class="sub-input"
+                                        placeholder="Enter existing username (e.g. john123)">
+                                    @error('subExistingUsername') <span class="prof-error">{{ $message }}</span> @enderror
                                 </div>
-                                <div>
-                                    <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px;">Password (Optional)</label>
-                                    <input type="text"
-                                        wire:model="subAccountPassword"
-                                        class="sub-add-input"
-                                        style="width:100%;font-size:13px;"
-                                        placeholder="Auto-generated if blank">
-                                    @error('subAccountPassword') <span class="prof-error" style="padding:2px 0 4px">{{ $message }}</span> @enderror
-                                </div>
+
+                                <button type="button" wire:click="linkExistingAccount" class="sub-submit-btn green"
+                                    wire:loading.attr="disabled" wire:loading.class="opacity-60" wire:target="linkExistingAccount">
+                                    <span wire:loading.remove wire:target="linkExistingAccount">🔗 Link Existing Account</span>
+                                    <span wire:loading.inline-flex wire:target="linkExistingAccount" class="btn-spin" style="display:none;align-items:center;justify-content:center;gap:6px;">
+                                        <svg style="animation:spin .8s linear infinite" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                        <span>Linking...</span>
+                                    </span>
+                                </button>
                             </div>
-
-                            <button type="button" wire:click="createSubAccount" class="sub-add-btn" style="width:100%;margin-top:4px;"
-                                wire:loading.attr="disabled" wire:loading.class="opacity-60" wire:target="createSubAccount">
-                                <span wire:loading.remove wire:target="createSubAccount">+ Create Sub-account</span>
-                                <span wire:loading.inline-flex wire:target="createSubAccount" class="btn-spin" style="display:none;align-items:center;justify-content:center;gap:6px;">
-                                    <svg style="animation:spin .8s linear infinite" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                                    <span>Creating...</span>
-                                </span>
-                            </button>
-                        </div>
-
-                        {{-- Link Tab --}}
-                        <div x-show="subTab === 'link'" style="display:none;flex-direction:column;gap:10px;">
-                            <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 4px;">
-                                Link an existing registered account by entering their username. They will share your active plan and quota.
-                            </p>
-                            <div>
-                                <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px;">Existing Username</label>
-                                <input type="text"
-                                    wire:model="subExistingUsername"
-                                    class="sub-add-input"
-                                    style="width:100%;"
-                                    placeholder="Enter existing username (e.g. john123)">
-                                @error('subExistingUsername') <span class="prof-error" style="padding:2px 0 4px">{{ $message }}</span> @enderror
+                        @else
+                            <div style="background:rgba(255,69,58,.1);border:1px solid rgba(255,69,58,.2);border-radius:14px;padding:14px;text-align:center;font-size:13px;color:var(--red);">
+                                Maximum limit of {{ $familyLimit }} sub-accounts reached.
                             </div>
-
-                            <button type="button" wire:click="linkExistingAccount" class="sub-add-btn" style="width:100%;margin-top:4px;background:var(--green);"
-                                wire:loading.attr="disabled" wire:loading.class="opacity-60" wire:target="linkExistingAccount">
-                                <span wire:loading.remove wire:target="linkExistingAccount">🔗 Link Existing Account</span>
-                                <span wire:loading.inline-flex wire:target="linkExistingAccount" class="btn-spin" style="display:none;align-items:center;justify-content:center;gap:6px;">
-                                    <svg style="animation:spin .8s linear infinite" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                                    <span>Linking...</span>
-                                </span>
-                            </button>
-                        </div>
-                    @else
-                        <div style="background:rgba(255,69,58,.1);border:1px solid rgba(255,69,58,.2);border-radius:12px;padding:12px;text-align:center;font-size:12px;color:var(--red);">
-                            Maximum limit of {{ $familyLimit }} sub-accounts reached.
-                        </div>
-                    @endif
+                        @endif
+                    </div>{{-- end sub-panel-wrap --}}
                 </div>
-
                 @endif{{-- is_family_admin --}}
 
                 <div x-show="acctPanel === 'main'">
