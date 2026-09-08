@@ -61,12 +61,16 @@ done
 # ── 2. Pull — two separate git clones ────────────────────────────────
 step "Pulling main app"
 cd "$ROOT"
+git checkout -- public/vendor/livewire 2>/dev/null || true
+git clean -fd public/vendor/livewire 2>/dev/null || true
 before_root="$(git rev-parse HEAD)"
 git pull
 after_root="$(git rev-parse HEAD)"
 
 step "Pulling customer app clone (public/app)"
 cd "$APP_CLONE"
+git checkout -- public/vendor/livewire 2>/dev/null || true
+git clean -fd public/vendor/livewire 2>/dev/null || true
 git pull
 
 # Detect if markup changed without a rebuilt public/build in the main pull.
