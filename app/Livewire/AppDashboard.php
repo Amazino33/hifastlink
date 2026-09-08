@@ -42,10 +42,13 @@ class AppDashboard extends Component
     public string $newPasswordConfirmation = '';
 
     // Account sub-views
-    public bool   $historyMode = false;
-    public bool   $sessionMode = false;
-    public bool   $subMode     = false;
-    public string $subUserName = '';
+    public bool   $historyMode         = false;
+    public bool   $sessionMode         = false;
+    public bool   $subMode             = false;
+    public string $subUserName         = '';
+    public string $subAccountUsername  = '';
+    public string $subAccountPassword  = '';
+    public string $subExistingUsername = '';
 
     public function mount(): void
     {
@@ -452,61 +455,134 @@ class AppDashboard extends Component
     {
         $owner = Auth::user();
 
-        if (! $owner->is_family_admin) {
+        if (! $owner->is_family_admin && ! $owner->isAdmin()) {
             $this->dispatch('toast', message: 'You need a Family plan to add sub-accounts.', type: 'error');
             return;
         }
 
+        $familyLimit = $owner->family_limit ?: 3;
         $currentCount = \App\Models\User::where('parent_id', $owner->id)->count();
-        if ($currentCount >= ($owner->family_limit ?? 0)) {
-            $this->dispatch('toast', message: 'Sub-account limit reached for your plan.', type: 'error');
+        if ($currentCount >= $familyLimit) {
+            $this->dispatch('toast', message: "Sub-account limit reached ({$familyLimit} max).", type: 'error');
             return;
         }
 
-        if (! $owner->plan_expiry || $owner->plan_expiry->isPast()) {
+        if (! $owner->isAdmin() && ! $owner->hasUnrestrictedAccess() && (! $owner->plan_expiry || $owner->plan_expiry->isPast())) {
             $this->dispatch('toast', message: 'You need an active plan to add sub-accounts.', type: 'error');
             return;
         }
 
-        $this->validate(['subUserName' => ['nullable', 'string', 'max:60']]);
-
-        $words = [
-            'sun','red','blue','sky','fast','gold','cool','star','fire','ace',
-            'ice','top','max','pro','big','hot','oak','sea','air','bay',
-            'dry','gem','jet','key','low','nut','owl','ray','tan','van',
-        ];
-        $username = '';
-        $attempts = 0;
-        do {
-            $username = $words[array_rand($words)] . str_pad(random_int(0, 999), 3, '0', STR_PAD_LEFT);
-            $attempts++;
-        } while (\App\Models\User::where('username', $username)->exists() && $attempts < 20);
-
-        $password = Str::random(8);
-
-        \App\Models\User::create([
-            'name'            => $this->subUserName ?: $username,
-            'username'        => $username,
-            'radius_password' => $password,
-            'parent_id'       => $owner->id,
-            'router_id'       => $owner->router_id,
-            'email'           => $username . '@sub.local',
-            'password'        => Hash::make($password),
-            'plan_id'         => $owner->plan_id,
+        $this->validate([
+            'subUserName'        => ['nullable', 'string', 'max:60'],
+            'subAccountUsername' => ['nullable', 'string', 'max:60', 'alpha_dash', 'unique:users,username'],
+            'subAccountPassword' => ['nullable', 'string', 'min:4', 'max:64'],
         ]);
 
-        \App\Models\RadCheck::updateOrCreate(
-            ['username' => $username, 'attribute' => 'Cleartext-Password'],
-            ['op' => ':=', 'value' => $password]
-        );
-        \App\Models\RadCheck::updateOrCreate(
-            ['username' => $username, 'attribute' => 'Simultaneous-Use'],
-            ['op' => ':=', 'value' => '2']
-        );
-        \App\Models\RadCheck::where('username', $username)->where('attribute', 'Expiration')->delete();
+        $username = trim($this->subAccountUsername);
+        if (empty($username)) {
+            $words = [
+                'sun','red','blue','sky','fast','gold','cool','star','fire','ace',
+                'ice','top','max','pro','big','hot','oak','sea','air','bay',
+                'dry','gem','jet','key','low','nut','owl','ray','tan','van',
+            ];
+            $attempts = 0;
+            do {
+                $username = $words[array_rand($words)] . str_pad((string) random_int(0, 999), 3, '0', STR_PAD_LEFT);
+                $attempts++;
+            } while (\App\Models\User::where('username', $username)->exists() && $attempts < 20);
+        }
+
+        $password = trim($this->subAccountPassword);
+        if (empty($password)) {
+            $password = Str::random(8);
+        }
+
+        $newSub = \App\Models\User::create([
+            'name'              => $this->subUserName ?: $username,
+            'username'          => $username,
+            'radius_password'   => $password,
+            'parent_id'         => $owner->id,
+            'router_id'         => $owner->router_id,
+            'email'             => $username . '@sub.local',
+            'password'          => Hash::make($password),
+            'plan_id'           => $owner->plan_id,
+            'plan_expiry'       => $owner->plan_expiry,
+            'plan_started_at'   => $owner->plan_started_at,
+            'email_verified_at' => now(),
+            'phone_verified_at' => now(),
+        ]);
+
+        try {
+            \App\Services\PlanSyncService::syncUserPlan($newSub);
+        } catch (\Throwable $e) {
+            Log::warning('AppDashboard createSubAccount: RADIUS sync failed: ' . $e->getMessage());
+        }
 
         $this->subUserName = '';
-        $this->dispatch('toast', message: "Account created — {$username} / {$password}", type: 'success');
+        $this->subAccountUsername = '';
+        $this->subAccountPassword = '';
+        $this->dispatch('toast', message: "Account created: {$username} / {$password}", type: 'success');
+    }
+
+    public function linkExistingAccount(): void
+    {
+        $owner = Auth::user();
+
+        if (! $owner->is_family_admin && ! $owner->isAdmin()) {
+            $this->dispatch('toast', message: 'You need a Family plan to link sub-accounts.', type: 'error');
+            return;
+        }
+
+        $familyLimit = $owner->family_limit ?: 3;
+        $currentCount = \App\Models\User::where('parent_id', $owner->id)->count();
+        if ($currentCount >= $familyLimit) {
+            $this->dispatch('toast', message: "Sub-account limit reached ({$familyLimit} max).", type: 'error');
+            return;
+        }
+
+        if (! $owner->isAdmin() && ! $owner->hasUnrestrictedAccess() && (! $owner->plan_expiry || $owner->plan_expiry->isPast())) {
+            $this->dispatch('toast', message: 'You need an active plan to link sub-accounts.', type: 'error');
+            return;
+        }
+
+        $this->validate([
+            'subExistingUsername' => ['required', 'string', 'exists:users,username'],
+        ], [
+            'subExistingUsername.required' => 'Please enter a username to link.',
+            'subExistingUsername.exists'   => 'No user found with that username.',
+        ]);
+
+        $foundUser = \App\Models\User::where('username', trim($this->subExistingUsername))->first();
+        if (! $foundUser) {
+            $this->dispatch('toast', message: 'User not found.', type: 'error');
+            return;
+        }
+
+        if ($foundUser->id === $owner->id) {
+            $this->dispatch('toast', message: 'You cannot link your own account as a sub-account.', type: 'error');
+            return;
+        }
+
+        if ($foundUser->parent_id) {
+            $this->dispatch('toast', message: 'This user is already part of another family group.', type: 'error');
+            return;
+        }
+
+        $foundUser->parent_id       = $owner->id;
+        $foundUser->plan_id         = $owner->plan_id;
+        $foundUser->plan_expiry     = $owner->plan_expiry;
+        $foundUser->plan_started_at = $owner->plan_started_at;
+        $foundUser->data_used       = 0;
+        $foundUser->save();
+
+        try {
+            \App\Services\PlanSyncService::syncUserPlan($foundUser);
+        } catch (\Throwable $e) {
+            Log::warning('AppDashboard linkExistingAccount: RADIUS sync failed: ' . $e->getMessage());
+        }
+
+        $this->subExistingUsername = '';
+        $this->dispatch('toast', message: "Linked {$foundUser->username} to your family plan.", type: 'success');
     }
 
     public function disconnectSession(?string $sessionId = null): void
@@ -534,18 +610,45 @@ class AppDashboard extends Component
     {
         $owner = Auth::user();
         $sub   = \App\Models\User::where('id', $subId)->where('parent_id', $owner->id)->first();
-        if (! $sub) return;
+        if (! $sub) {
+            $this->dispatch('toast', message: 'Sub-account not found.', type: 'error');
+            return;
+        }
 
-        \App\Models\RadCheck::where('username', $sub->username)->delete();
-        \App\Models\RadReply::where('username', $sub->username)->delete();
+        // Disconnect active sessions in radacct
+        try {
+            DB::table('radacct')
+                ->where('username', $sub->username)
+                ->whereNull('acctstoptime')
+                ->update(['acctstoptime' => now(), 'acctterminatecause' => 'Admin-Reset']);
+        } catch (\Throwable) {}
 
-        DB::table('radacct')
-            ->where('username', $sub->username)
-            ->whereNull('acctstoptime')
-            ->update(['acctstoptime' => now(), 'acctterminatecause' => 'Admin-Reset']);
+        $isDummy = str_ends_with($sub->email ?? '', '@sub.local') || str_ends_with($sub->email ?? '', '@family.local');
 
-        $sub->delete();
-        $this->dispatch('toast', message: "Sub-account removed.", type: 'success');
+        if ($isDummy) {
+            // Delete dummy sub-account and its RADIUS records
+            try {
+                \App\Models\RadCheck::where('username', $sub->username)->delete();
+                \App\Models\RadReply::where('username', $sub->username)->delete();
+            } catch (\Throwable) {}
+
+            $sub->delete();
+            $this->dispatch('toast', message: "Sub-account {$sub->username} removed.", type: 'success');
+        } else {
+            // Existing user linked to this family — unlink, clear plan inheritance
+            $sub->update([
+                'parent_id'       => null,
+                'plan_id'         => null,
+                'plan_expiry'     => null,
+                'plan_started_at' => null,
+            ]);
+
+            try {
+                \App\Services\PlanSyncService::syncUserPlan($sub);
+            } catch (\Throwable) {}
+
+            $this->dispatch('toast', message: "Unlinked {$sub->username} from your family plan.", type: 'success');
+        }
     }
 
     public function saveProfile(): void
@@ -702,17 +805,25 @@ class AppDashboard extends Component
                 ->paginate(10, ['*'], 'sess')
             : null;
 
-        // Sub-accounts (family admins only)
-        $subAccounts = $user->is_family_admin
+        // Sub-accounts (family admins and admins)
+        $subAccounts = ($user->is_family_admin || $user->isAdmin())
             ? \App\Models\User::where('parent_id', $user->id)
-                ->select(['id', 'name', 'username', 'radius_password'])
+                ->select(['id', 'name', 'username', 'radius_password', 'email'])
                 ->get()
                 ->map(function ($sub) {
                     $online = false;
                     try {
                         $online = RadAcct::where('username', $sub->username)->whereNull('acctstoptime')->exists();
                     } catch (\Exception) {}
-                    return ['id' => $sub->id, 'name' => $sub->name, 'username' => $sub->username, 'password' => $sub->radius_password, 'online' => $online];
+                    $isLinked = !str_ends_with($sub->email ?? '', '@sub.local') && !str_ends_with($sub->email ?? '', '@family.local');
+                    return [
+                        'id'        => $sub->id,
+                        'name'      => $sub->name,
+                        'username'  => $sub->username,
+                        'password'  => $sub->radius_password,
+                        'online'    => $online,
+                        'is_linked' => $isLinked,
+                    ];
                 })
             : collect();
 
