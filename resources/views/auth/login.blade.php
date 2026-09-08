@@ -24,6 +24,13 @@
 
 <x-auth-session-status class="mb-5" :status="session('status')" />
 
+@if(session('error'))
+<div class="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-sm flex items-center gap-3">
+    <i class="fa-solid fa-circle-exclamation text-red-500 text-lg flex-shrink-0"></i>
+    <span>{{ session('error') }}</span>
+</div>
+@endif
+
 {{-- Free WiFi banner --}}
 @if($isFreeWifi)
 <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-5 flex items-start gap-3">

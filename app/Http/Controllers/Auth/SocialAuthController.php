@@ -10,6 +10,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -17,20 +18,36 @@ class SocialAuthController extends Controller
 {
     public function redirectToGoogle(): RedirectResponse
     {
+        $driver = Socialite::driver('google')->stateless();
+
+        $stateData = [];
         if (request('bonus')) {
+            $stateData['bonus'] = request('bonus');
+        }
+        if (request('router')) {
+            $stateData['router'] = request('router');
+        }
+
+        if (! empty($stateData)) {
+            $driver->with(['state' => base64_encode(json_encode($stateData))]);
             session(['oauth_bonus' => request('bonus'), 'oauth_router' => request('router')]);
         }
 
-        return Socialite::driver('google')->redirect();
+        return $driver->redirect();
     }
 
     public function handleGoogleCallback(): RedirectResponse
     {
         try {
-            $googleUser = Socialite::driver('google')->user();
+            $googleUser = Socialite::driver('google')->stateless()->user();
         } catch (\Exception $e) {
+            Log::error('Google OAuth sign-in failed: '.$e->getMessage(), [
+                'exception' => $e,
+                'request'   => request()->all(),
+            ]);
+
             return redirect()->route('login')
-                ->with('error', 'Google sign-in failed. Please try again.');
+                ->with('error', 'Google sign-in failed: '.$e->getMessage());
         }
 
         $email = strtolower($googleUser->getEmail());
@@ -78,18 +95,36 @@ class SocialAuthController extends Controller
         }
 
         Auth::login($user, remember: true);
+        request()->session()->regenerate();
 
-        if (session('oauth_bonus') === 'free_trial') {
-            FreeTrialService::apply($user, session('oauth_router'));
+        // Check for bonus & router in session or Google state query param
+        $bonus = session('oauth_bonus');
+        $router = session('oauth_router');
+
+        if (! $bonus && request('state')) {
+            try {
+                $decoded = json_decode(base64_decode(request('state')), true);
+                if (is_array($decoded)) {
+                    $bonus = $decoded['bonus'] ?? null;
+                    $router = $decoded['router'] ?? null;
+                }
+            } catch (\Throwable $t) {
+                // ignore
+            }
+        }
+
+        if ($bonus === 'free_trial') {
+            FreeTrialService::apply($user, $router);
             session()->forget(['oauth_bonus', 'oauth_router']);
         }
 
-        // Admins → Filament panel; regular users → the customer PWA
-        if ($user->isAdmin()) {
-            return redirect()->intended($user->homeUrl());
+        // Avoid infinite redirect loop back to login if url.intended points to auth routes
+        $intended = session()->pull('url.intended');
+        if (! $intended || str_contains($intended, '/login') || str_contains($intended, '/auth/google')) {
+            $intended = $user->isAdmin() ? $user->homeUrl() : route('app.home');
         }
 
-        return redirect()->intended(route('app.home'));
+        return redirect()->to($intended);
     }
 
     private function generateUsername(string $email): string
