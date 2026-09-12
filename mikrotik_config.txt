@@ -7,13 +7,15 @@
 /radius
 add service=hotspot address=142.93.47.189 secret=YourSharedSecret123
 add service=ppp address=142.93.47.189 secret=YourSharedSecret123
+incoming set accept=yes port=3799
 
 ## 2. HOTSPOT PROFILE CONFIGURATION
 # Configure hotspot to use RADIUS
 
 /ip hotspot profile
 set [ find default=yes ] \
-    login-by=http-chap,http-pap,trial \
+    login-by=http-chap,http-pap,mac-cookie,cookie \
+    mac-cookie-timeout=3d \
     use-radius=yes \
     radius-accounting=yes \
     radius-interim-update=1m \
@@ -30,13 +32,15 @@ set [ find default=yes ] \
     use-radius=yes
 
 ## 4. USER PROFILE CONFIGURATION
-# Set default rate limits (can be overridden by RADIUS)
+# Set device allowances, dead-session pruning, and rate limits
 
 /ip hotspot user profile
 set [ find default=yes ] \
     rate-limit=10M/10M \
     session-timeout=1d \
-    shared-users=1 \
+    shared-users=10 \
+    keepalive-timeout=2m \
+    idle-timeout=5m \
     status-autorefresh=1m
 
 ## 5. RADIUS TESTING

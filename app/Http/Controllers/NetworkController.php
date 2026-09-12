@@ -30,59 +30,15 @@ class NetworkController extends Controller
         $rawMac = session('current_device_mac') ?? $request->input('mac');
         $mac    = $rawMac ? strtoupper(str_replace(['-', '.'], ':', $rawMac)) : null;
 
-        $updateData = [
-            'acctstoptime'       => now(),
-            'acctterminatecause' => 'User-Request',
-        ];
+        $routerSessionService = app(\App\Services\RouterSessionService::class);
+        $routerSessionService->forceDisconnectUser($username, $mac, $request->ip());
 
-        // ── Step 1: Close open radacct sessions for this user.
-        // If a MAC was provided (per-device disconnect), filter to just that device.
-        // Otherwise close all active sessions (whole-account disconnect).
-        $radacctQuery = DB::table('radacct')
-            ->whereRaw('LOWER(username) = ?', [strtolower($username)])
-            ->whereNull('acctstoptime');
-
-        if ($mac) {
-            // Normalise both sides: strip separators, uppercase, compare hex
-            $macHex = strtoupper(preg_replace('/[^A-Fa-f0-9]/', '', $mac));
-            $radacctQuery->whereRaw(
-                "UPPER(REPLACE(REPLACE(callingstationid,':',''),'-','')) = ?",
-                [$macHex]
-            );
-        }
-
-        $affected = $radacctQuery->update($updateData);
-
-        Log::info('NetworkController: radacct rows closed', [
-            'user'     => $username,
-            'mac_hint' => $mac,
-            'rows'     => $affected,
-        ]);
-
-        // ── Step 2: Hit the MikroTik REST API to drop the live session on the NAS.
-        try {
-            $this->disconnectFromRouter($username, $mac);
-        } catch (\Throwable $e) {
-            Log::warning('NetworkController: router REST disconnect failed', [
-                'user'  => $username,
-                'mac'   => $mac,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        // ── Step 3: Send a RADIUS Disconnect-Request (RFC 3576) as an additional NAS signal.
-        try {
-            $this->sendRadiusDisconnect($username);
-        } catch (\Throwable $e) {
-            Log::warning('NetworkController: RADIUS disconnect failed', ['user' => $username, 'error' => $e->getMessage()]);
-        }
-
-        // ── Step 4: Mark devices offline and clear session/cookie.
+        // ── Mark devices offline and clear session/cookie ──
         Device::where('user_id', $user->id)
             ->where('is_connected', true)
             ->update(['is_connected' => false, 'last_seen' => now()]);
 
-        session()->forget('current_device_mac');
+        session()->forget(['current_device_mac', 'last_connect_claimed_at', 'last_connect_username']);
         Cookie::queue(Cookie::forget('fastlink_device_token'));
 
         $user->update(['connection_status' => 'disconnected']);
@@ -93,8 +49,7 @@ class NetworkController extends Controller
             Log::warning('NetworkController: radius:sync-devices failed: ' . $e->getMessage());
         }
 
-        // Build the hotspot logout URL and include it in the JSON response
-        // so the browser can navigate to login.wifi/logout to close its captive session.
+        // Build the hotspot logout URL
         $gateway   = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
         if (strpos($gateway, '://') === false) {
             $gateway = 'http://' . $gateway;
@@ -103,11 +58,10 @@ class NetworkController extends Controller
         $logoutUrl = ($parsed['scheme'] ?? 'http') . '://' . ($parsed['host'] ?? 'login.wifi') . '/logout';
 
         if (! $request->wantsJson()) {
-            // App subdomain: stay in the app after disconnect
-            if (str_starts_with($request->getHost(), 'app.') || str_starts_with($request->header('referer', ''), 'https://app.')) {
-                return redirect(route('app.home'))->with('success', 'Disconnected successfully.');
-            }
-            return redirect($logoutUrl);
+            return view('hotspot.disconnect_from_router', [
+                'logout_url'   => $logoutUrl,
+                'redirect_url' => route('app.home'),
+            ]);
         }
 
         return response()->json([

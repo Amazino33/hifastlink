@@ -44,6 +44,9 @@ return [
     'radius' => [
         'bridge_url' => env('RADIUS_BRIDGE_URL', 'http://142.93.47.189/radius_bridge.php'),
         'secret_key' => env('RADIUS_SECRET_KEY', 'SimpleTestKey123'),
+        'server' => env('RADIUS_SERVER', env('RADIUS_DB_HOST', '142.93.47.189')),
+        'secret' => env('RADIUS_SECRET', 'testing123'),
+        'disconnect_port' => (int) env('RADIUS_DISCONNECT_PORT', 3799),
     ],
 
     'wireguard' => [
@@ -61,6 +64,10 @@ return [
         'domain' => env('APP_DOMAIN', 'hifastlink.com'),
         'dns_name' => env('MIKROTIK_DNS_NAME', 'login.wifi'),
         'website_ip' => env('WEBSITE_IP', '194.36.184.49'),
+        'api_host' => env('MIKROTIK_API_HOST', '192.168.88.1'),
+        'api_user' => env('MIKROTIK_API_USER', 'hifastlink'),
+        'api_password' => env('MIKROTIK_API_PASSWORD', ''),
+        'api_port' => (int) env('MIKROTIK_API_PORT', 80),
     ],
 
     'digitalocean' => [

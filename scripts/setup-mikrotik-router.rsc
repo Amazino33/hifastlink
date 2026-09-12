@@ -38,7 +38,8 @@
 # 2. Configure RADIUS Client
 /radius remove [find]
 /radius add address=$ServerIP secret=$RadiusSecret service=hotspot timeout=3000ms comment="HiFastLink RADIUS"
-:put ">> RADIUS Configured"
+/radius incoming set accept=yes port=3799
+:put ">> RADIUS Configured with Incoming Disconnect (PoD) enabled"
 
 # 3. Update Hotspot Server Interface to Bridge
 :if ($isV7) do={
@@ -48,21 +49,21 @@
 }
 :put (">> Hotspot Server Interface set to: " . $BridgeName)
 
-# 4. Configure Hotspot Server Profile with HTTP PAP (Required for URL redirects)
+# 4. Configure Hotspot Server Profile with HTTP PAP & MAC Cookie (Required for URL redirects and seamless reconnects)
 :if ($isV7) do={
-    /ip/hotspot/profile set [find] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+    /ip/hotspot/profile set [find] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap,mac-cookie,cookie mac-cookie-timeout=3d nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
 } else={
-    /ip hotspot profile set [find] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
+    /ip hotspot profile set [find] dns-name=$DNSName html-directory=hotspot use-radius=yes login-by=http-pap,http-chap,mac-cookie,cookie mac-cookie-timeout=3d nas-port-type=wireless-802.11 radius-accounting=yes radius-interim-update=1m
 }
 :put (">> Hotspot DNS Name set to: " . $DNSName . " (Applied to ALL profiles)")
 
-# 5. Configure User Profile (Limits)
+# 5. Configure User Profile (Limits & Dead Session Pruning)
 :if ($isV7) do={
-    /ip/hotspot/user/profile set [find] shared-users=10
+    /ip/hotspot/user/profile set [find] shared-users=10 keepalive-timeout=2m status-autorefresh=1m idle-timeout=5m
 } else={
-    /ip hotspot user profile set [find] shared-users=10
+    /ip hotspot user profile set [find] shared-users=10 keepalive-timeout=2m status-autorefresh=1m idle-timeout=5m
 }
-:put ">> User Profile Updated (10 Devices Allowed)"
+:put ">> User Profile Updated (10 Devices Allowed, 2m keepalive)"
 
 # 6. Walled Garden - DNS Based Rules
 :if ($isV7) do={

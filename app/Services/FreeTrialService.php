@@ -9,7 +9,7 @@ use App\Models\User;
 
 class FreeTrialService
 {
-    public static function apply(User $user, ?string $routerIdentifier): void
+    public static function apply(User $user, ?string $routerIdentifier = null): void
     {
         if (! AppSetting::bool('free_wifi_enabled', false)) {
             return;

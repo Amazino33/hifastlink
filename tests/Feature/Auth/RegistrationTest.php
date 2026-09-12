@@ -1,12 +1,12 @@
 <?php
 
-test('registration screen can be rendered', function () {
+test('registration endpoint redirects to unified onboarding', function () {
     $response = $this->get('/register');
 
-    $response->assertStatus(200);
+    $response->assertRedirect(route('login', ['tab' => 'whatsapp']));
 });
 
-test('new users can register', function () {
+test('legacy registration post redirects to login', function () {
     $response = $this->post('/register', [
         'name' => 'Test User',
         'username' => 'testuser',
@@ -15,6 +15,5 @@ test('new users can register', function () {
         'password_confirmation' => 'password',
     ]);
 
-    $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertRedirect(route('login'));
 });

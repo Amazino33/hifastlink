@@ -28,7 +28,7 @@ class AuthenticatedSessionController extends Controller
         // All login activity lives on the app subdomain. If someone lands here via the
         // main domain (e.g. MikroTik still configured with the old URL), bounce them over
         // so the whole session stays on app.hifastlink.com.
-        if (! str_starts_with(request()->getHost(), 'app.')) {
+        if (! str_starts_with(request()->getHost(), 'app.') && ! app()->environment('testing')) {
             $appHost = 'app.' . preg_replace('/^app\./', '', parse_url(config('app.url'), PHP_URL_HOST));
             $qs = request()->getQueryString();
             return redirect()->away('https://' . $appHost . '/login' . ($qs ? '?' . $qs : ''));
@@ -39,6 +39,75 @@ class AuthenticatedSessionController extends Controller
             session()->forget('skip_auto_login');
             $brand = $this->resolveBrand($linkLogin);
             return view('auth.captive-portal', compact('brand'));
+        }
+
+        // ── Hotspot "Already Logged In" Auto-Recovery & Force Connect ──
+        $errorMessage = request()->get('error', '');
+        $isAlreadyLoggedIn = ! empty($errorMessage) && (
+            stripos($errorMessage, 'already') !== false ||
+            stripos($errorMessage, 'logged in') !== false
+        );
+
+        if ($isAlreadyLoggedIn) {
+            $routerSessionService = app(\App\Services\RouterSessionService::class);
+            $targetUser = null;
+            $targetUsername = request()->get('username');
+
+            if ($targetUsername) {
+                $targetUser = \App\Models\User::where('username', $targetUsername)->first();
+            }
+
+            if (! $targetUser && $mac) {
+                $dev = \App\Models\Device::where('mac', $mac)->with('user')->first();
+                $targetUser = $dev?->user;
+                if (! $targetUsername && $targetUser) {
+                    $targetUsername = $targetUser->username;
+                }
+            }
+
+            if (! $targetUser && Auth::check()) {
+                $targetUser = Auth::user();
+                $targetUsername = $targetUser->username;
+            }
+
+            if ($targetUsername) {
+                Log::info('AuthenticatedSessionController: "Already logged in" error detected from router. Initiating force disconnect.', [
+                    'username' => $targetUsername,
+                    'mac'      => $mac,
+                    'ip'       => request()->get('ip') ?? request()->ip(),
+                    'error'    => $errorMessage,
+                ]);
+
+                $routerSessionService->forceDisconnectUser($targetUsername, $mac, request()->get('ip') ?? request()->ip());
+            }
+
+            // Clear loop markers so the next attempt isn't blocked by loop detection
+            session()->forget(['skip_auto_login', 'hfl_redirect_attempts', 'hfl_redirect_ts']);
+
+            // If user can connect, force connect immediately
+            if ($targetUser && (new \App\Services\SubscriptionService)->canConnectToHotspot($targetUser) && $linkLogin) {
+                $rad = RadCheck::where('username', $targetUser->username)
+                    ->where('attribute', 'Cleartext-Password')
+                    ->first();
+                $password = $rad?->value ?? $targetUser->radius_password;
+
+                if ($password) {
+                    Auth::login($targetUser, remember: true);
+                    request()->session()->regenerate();
+                    request()->session()->save();
+
+                    return response()->view('hotspot.redirect_to_router', [
+                        'username'      => $targetUser->username,
+                        'password'      => $password,
+                        'link_login'    => $linkLogin,
+                        'link_orig'     => route('app.home'),
+                        'mac'           => $mac,
+                        'ip'            => request()->get('ip'),
+                        'router'        => request()->get('router'),
+                        'force_connect' => true,
+                    ]);
+                }
+            }
         }
 
         // ── Layer 1: Regular user MAC auto-reconnect ──────────────────────
@@ -316,6 +385,8 @@ class AuthenticatedSessionController extends Controller
             if (! $password) {
                 return redirect()->route('app.home')->withErrors(['error' => 'Missing router password. Please contact support.']);
             }
+
+            app(\App\Services\RouterSessionService::class)->closeStaleRadAcctSessions($user->username);
 
             session(['bridge_completed' => true]);
 

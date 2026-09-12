@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Device;
+use App\Models\RadCheck;
 use App\Models\User;
 use App\Services\FreeTrialService;
 use App\Services\PlanSyncService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -21,22 +24,25 @@ class SocialAuthController extends Controller
         $driver = Socialite::driver('google')->stateless();
 
         $stateData = [];
-        if (request('bonus')) {
-            $stateData['bonus'] = request('bonus');
+        foreach (['bonus', 'router', 'mac', 'ip'] as $key) {
+            if (request()->filled($key)) {
+                $stateData[$key] = request($key);
+            }
         }
-        if (request('router')) {
-            $stateData['router'] = request('router');
+        $linkLogin = request('link-login') ?? request('link_login') ?? request('link-login-only');
+        if ($linkLogin) {
+            $stateData['link_login'] = $linkLogin;
         }
 
         if (! empty($stateData)) {
             $driver->with(['state' => base64_encode(json_encode($stateData))]);
-            session(['oauth_bonus' => request('bonus'), 'oauth_router' => request('router')]);
+            session(['oauth_state' => $stateData]);
         }
 
         return $driver->redirect();
     }
 
-    public function handleGoogleCallback(): RedirectResponse
+    public function handleGoogleCallback(): RedirectResponse|Response
     {
         try {
             $googleUser = Socialite::driver('google')->stateless()->user();
@@ -56,6 +62,24 @@ class SocialAuthController extends Controller
         $user = User::where('google_id', $googleUser->getId())->first()
             ?? User::where('email', $email)->first();
 
+        // Decode preserved state (bonus, router, link_login, mac, ip)
+        $stateData = session('oauth_state', []);
+        if (request('state')) {
+            try {
+                $decoded = json_decode(base64_decode(request('state')), true);
+                if (is_array($decoded)) {
+                    $stateData = array_merge($stateData, $decoded);
+                }
+            } catch (\Throwable $t) {
+                // ignore
+            }
+        }
+
+        $router    = $stateData['router'] ?? null;
+        $linkLogin = $stateData['link_login'] ?? null;
+        $mac       = $stateData['mac'] ?? null;
+        $ip        = $stateData['ip'] ?? request()->ip();
+
         if ($user) {
             // Link the Google account if this is the first time signing in via Google
             $dirty = false;
@@ -63,8 +87,10 @@ class SocialAuthController extends Controller
                 $user->google_id = $googleUser->getId();
                 $dirty = true;
             }
-            // Existing users created before Google OAuth might have no radius_password.
-            // Generate one now so they can connect to the hotspot.
+            if (! $user->email_verified_at) {
+                $user->email_verified_at = now();
+                $dirty = true;
+            }
             if (! $user->radius_password) {
                 $user->radius_password = Str::random(16);
                 $dirty = true;
@@ -72,50 +98,73 @@ class SocialAuthController extends Controller
             if ($dirty) {
                 $user->save();
             }
-            // Push credentials to radcheck immediately so FreeRADIUS can authenticate them.
+
+            // Apply free trial if new user hasn't claimed it yet and toggle is on
+            FreeTrialService::apply($user, $router);
             PlanSyncService::syncUserPlan($user);
         } else {
             // New user — auto-generate a username from the email local part
+            $randomRadiusPassword = Str::random(16);
             $user = User::create([
-                'name'              => $googleUser->getName(),
+                'name'              => $googleUser->getName() ?: 'Google User',
                 'username'          => $this->generateUsername($email),
                 'email'             => $email,
-                'email_verified_at' => now(), // Google already verified the email
+                'email_verified_at' => now(), // Google verified the email
                 'google_id'         => $googleUser->getId(),
                 'password'          => Hash::make(Str::random(32)),
-                'radius_password'   => Str::random(16),
-                'data_limit'        => 1073741824, // 1 GB in bytes
-                'plan_expiry'       => now()->addDays(30), // gives PlanSyncService a future expiry to work with
+                'radius_password'   => $randomRadiusPassword,
+                'data_limit'        => 1073741824, // 1 GB initial limit
+                'plan_expiry'       => now()->addDays(30),
                 'connection_status' => 'active',
             ]);
 
             event(new Registered($user));
-            // Write credentials to radcheck immediately — don't wait for the scheduler.
+
+            // Automatically apply free trial if enabled
+            FreeTrialService::apply($user, $router);
+
+            // Write credentials to radcheck immediately
             PlanSyncService::syncUserPlan($user);
         }
 
         Auth::login($user, remember: true);
         request()->session()->regenerate();
+        session()->forget('oauth_state');
 
-        // Check for bonus & router in session or Google state query param
-        $bonus = session('oauth_bonus');
-        $router = session('oauth_router');
-
-        if (! $bonus && request('state')) {
+        // Upsert device record if MAC is present
+        if ($mac) {
             try {
-                $decoded = json_decode(base64_decode(request('state')), true);
-                if (is_array($decoded)) {
-                    $bonus = $decoded['bonus'] ?? null;
-                    $router = $decoded['router'] ?? null;
-                }
-            } catch (\Throwable $t) {
-                // ignore
+                Device::upsertFromLogin(
+                    $user,
+                    $mac,
+                    $router,
+                    $ip,
+                    request()->userAgent()
+                );
+            } catch (\Throwable $e) {
+                Log::warning('SocialAuthController: Device upsert failed: ' . $e->getMessage());
             }
         }
 
-        if ($bonus === 'free_trial') {
-            FreeTrialService::apply($user, $router);
-            session()->forget(['oauth_bonus', 'oauth_router']);
+        // If user came from captive portal, bridge directly to router for instant Wi-Fi access!
+        if ($linkLogin) {
+            $rad = RadCheck::where('username', $user->username)
+                ->where('attribute', 'Cleartext-Password')
+                ->first();
+            $password = $rad?->value ?? $user->radius_password;
+
+            if ($password) {
+                return response()->view('hotspot.redirect_to_router', [
+                    'username'      => $user->username,
+                    'password'      => $password,
+                    'link_login'    => $linkLogin,
+                    'link_orig'     => route('app.home'),
+                    'mac'           => $mac,
+                    'ip'            => $ip,
+                    'router'        => $router,
+                    'force_connect' => true,
+                ]);
+            }
         }
 
         // Avoid infinite redirect loop back to login if url.intended points to auth routes

@@ -126,16 +126,72 @@ class HotspotController extends Controller
             }
         }
         
+        $routerSessionService = app(\App\Services\RouterSessionService::class);
+        $isForce = $request->boolean('force') || $request->has('force_connect');
+
+        if ($isForce) {
+            $routerSessionService->forceDisconnectUser($user->username, $macToUse, $request->ip());
+            session()->forget(['hfl_redirect_attempts', 'hfl_redirect_ts']);
+        } else {
+            $routerSessionService->closeStaleRadAcctSessions($user->username);
+        }
+
         session(['bridge_completed' => true]);
 
         return view('hotspot.redirect_to_router', [
-            'username' => $user->username,
-            'password' => $password,
-            'link_login' => $link_login,
-            'link_orig' => $link_orig,
-            'mac' => $macToUse,
-            'router' => $routerIdentifier,
+            'username'      => $user->username,
+            'password'      => $password,
+            'link_login'    => $link_login,
+            'link_orig'     => $link_orig,
+            'mac'           => $macToUse,
+            'router'        => $routerIdentifier,
+            'force_connect' => $isForce,
         ]);
+    }
+
+    /**
+     * Force-connect endpoint: forcibly terminates existing/stale session
+     * on the database and router, then redirects to connect.
+     */
+    public function forceConnect(Request $request)
+    {
+        $user = Auth::user();
+        $username = $user?->username ?? $request->input('username');
+        $mac = session('current_device_mac') ?? $request->input('mac');
+
+        if (! $username && $mac) {
+            $dev = \App\Models\Device::where('mac', $mac)->with('user')->first();
+            $username = $dev?->user?->username;
+        }
+
+        if ($username) {
+            $routerSessionService = app(\App\Services\RouterSessionService::class);
+            $routerSessionService->forceDisconnectUser($username, $mac, $request->ip());
+            session()->forget(['hfl_redirect_attempts', 'hfl_redirect_ts']);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Stale session cleared. Reconnecting...',
+            ]);
+        }
+
+        $routerParam = $request->get('router') ?: $request->get('nas_identifier');
+        if (! $routerParam && $user?->router_id) {
+            $r = \App\Models\Router::find($user->router_id);
+            $routerParam = $r?->nas_identifier;
+        }
+
+        if ($routerParam) {
+            return redirect()->route('connect.bridge', array_filter([
+                'router' => $routerParam,
+                'mac'    => $mac,
+                'force'  => '1',
+            ]));
+        }
+
+        return redirect()->route('app.home')->with('success', 'Session reset. Tap Connect to get online.');
     }
 
     /**
@@ -148,8 +204,15 @@ class HotspotController extends Controller
             return redirect()->route('app.home')->with('error', 'Please sign in.');
         }
 
-        // Clear the connection session markers
+        // Clear server and session markers
         session()->forget(['last_connect_claimed_at', 'last_connect_username']);
+
+        $mac = session('current_device_mac') ?? $request->input('mac');
+        try {
+            app(\App\Services\RouterSessionService::class)->forceDisconnectUser($user->username, $mac, $request->ip());
+        } catch (\Throwable $e) {
+            Log::warning('disconnectBridge: session cleanup error: ' . $e->getMessage());
+        }
 
         // Use login.wifi (DNS name) instead of IP address - same as connect logic
         $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'login.wifi/login';

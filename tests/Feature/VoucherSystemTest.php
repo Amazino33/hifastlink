@@ -209,8 +209,10 @@ test('voucher login via captive portal sets up RADIUS credentials', function () 
 
     // Data cap in radreply
     $dataLimit = RadReply::where('username', $v->code)->where('attribute', 'Mikrotik-Total-Limit')->first();
+    $gigawords = RadReply::where('username', $v->code)->where('attribute', 'Mikrotik-Total-Limit-Gigawords')->first();
     expect($dataLimit)->not->toBeNull();
-    expect((int) $dataLimit->value)->toBe(5120 * 1048576);
+    $totalBytes = (int) $dataLimit->value + ((int) ($gigawords?->value ?? 0) * 4294967296);
+    expect($totalBytes)->toBe(5120 * 1048576);
 
     // Device saved
     $device = Device::where('mac', 'AA:BB:CC:DD:EE:FF')->first();

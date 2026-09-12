@@ -94,6 +94,10 @@ if (! app()->isProduction()) {
         ]);
         return view('auth.captive-portal', compact('brand'));
     });
+
+    Route::get('/down-preview', function () {
+        return response()->view('errors.503', [], 503);
+    });
 }
 
 // PWA connect app — installable, handles auto-connect on hotspot
@@ -123,6 +127,8 @@ Route::get('/captive-bridge', function () {
         'router'     => $router,
     ]);
 })->name('captive.bridge');
+
+Route::match(['get', 'post'], '/hotspot/force-connect', [\App\Http\Controllers\HotspotController::class, 'forceConnect'])->name('hotspot.force_connect');
 
 // ============================================================
 // PAYMENTS — public (Paystack redirects browser here)

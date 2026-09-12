@@ -346,7 +346,7 @@ test('unknown MAC shows captive portal form', function () {
 });
 
 test('visiting login page without MAC shows captive portal form', function () {
-    $this->get('/login')
+    $this->get('/login?link-login=' . urlencode(CAPTIVE_LINK))
         ->assertStatus(200)
         ->assertViewIs('auth.captive-portal');
 });

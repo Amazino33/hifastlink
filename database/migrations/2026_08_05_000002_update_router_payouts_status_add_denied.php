@@ -9,7 +9,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement("ALTER TABLE router_payouts MODIFY COLUMN status ENUM('pending','paid','denied') NOT NULL DEFAULT 'pending'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE router_payouts MODIFY COLUMN status ENUM('pending','paid','denied') NOT NULL DEFAULT 'pending'");
+        }
 
         Schema::table('router_payouts', function (Blueprint $table) {
             $table->string('denied_reason')->nullable()->after('paid_at');

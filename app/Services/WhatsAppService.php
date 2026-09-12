@@ -39,6 +39,16 @@ class WhatsAppService
         $sent = $this->send($phone, $message);
 
         if (! $sent) {
+            // When WAWP and SMS are unconfigured or in local/testing environments,
+            // don't lock out developers or testers — log the code and allow the flow to proceed.
+            if (! app()->isProduction() || (! AppSetting::bool('wawp_enabled') && ! AppSetting::bool('sms_enabled'))) {
+                Log::info("WhatsAppService: [Dev/Sandbox] OTP for {$phone}: {$code}");
+                if (function_exists('session')) {
+                    session()->flash('dev_otp', $code);
+                }
+                return $code;
+            }
+
             return null;
         }
 

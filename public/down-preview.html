@@ -1,15 +1,11 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale() ?? 'en') }}" class="dark h-full">
+<html lang="en" class="dark h-full">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#060B18">
 
-    <title>{{ config('app.name', 'HiFastLink') }} — We'll Be Right Back</title>
-
-    <!-- Favicons -->
-    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
-    <link rel="alternate icon" href="{{ asset('favicon.ico') }}">
+    <title>HiFastLink — We'll Be Right Back</title>
 
     <!-- Google Fonts: Outfit & Sora -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -95,7 +91,7 @@
     <!-- Top Logo -->
     <header class="relative z-10 w-full max-w-sm mx-auto flex items-center justify-center shrink-0">
         <a href="/" class="flex items-center gap-2.5 transition-transform hover:scale-105 duration-200">
-            <div class="w-8 h-8 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center p-1.5 shadow-md shadow-primary/20">
+            <div class="w-8 h-8 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center p-1 shadow-md shadow-primary/20">
                 <svg viewBox="0 0 295 471" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full object-contain">
                     <path d="M295 307.098L144.293 207.696L0 307.098V470.631L144.293 358.403L295 470.631V307.098Z" fill="#7DD3FC"/>
                     <path d="M144.293 0L0 102.609V266.141L144.293 157.12L295 266.141V102.609L144.293 0Z" fill="#007AFE"/>
@@ -187,7 +183,7 @@
 
     <!-- Footer -->
     <footer class="relative z-10 text-center text-[11px] text-slate-500 shrink-0">
-        &copy; {{ date('Y') }} {{ config('app.name', 'HiFastLink') }}
+        &copy; 2026 HiFastLink
     </footer>
 
     <!-- Refresh Script -->

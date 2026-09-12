@@ -21,11 +21,11 @@ Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCa
 Route::get('login', [AuthenticatedSessionController::class, 'create'])
     ->name('login');
 
-Route::get('register', fn () => redirect()->route('login', ['register' => 1]))
+Route::get('register', fn () => redirect()->route('login', array_merge(['tab' => 'whatsapp'], request()->all())))
     ->name('register');
 
 Route::middleware('guest')->group(function () {
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    Route::post('register', fn () => redirect()->route('login', request()->only(['bonus', 'router', 'link-login', 'link_login', 'mac', 'ip'])));
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
     // Router magic link flows
