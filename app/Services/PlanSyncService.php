@@ -21,13 +21,20 @@ class PlanSyncService
             return; // nothing to do without username
         }
 
+        // Guarantee a valid radius_password so Cleartext-Password is never blank
+        if (empty($user->radius_password)) {
+            $generated = \Illuminate\Support\Str::random(16);
+            $user->updateQuietly(['radius_password' => $generated]);
+            $user->radius_password = $generated;
+        }
+
         // Admins always get unrestricted RADIUS access regardless of plan assignment.
         // A plan on the admin account is cosmetic only — never apply its speed or data caps.
         if ($user->isAdmin()) {
             DB::transaction(function () use ($user) {
                 RadCheck::updateOrCreate(
                     ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
-                    ['op' => ':=', 'value' => $user->radius_password ?? $user->username]
+                    ['op' => ':=', 'value' => $user->radius_password]
                 );
                 RadCheck::where('username', $user->username)
                     ->whereIn('attribute', ['Simultaneous-Use', 'Mikrotik-Total-Limit', 'Max-Octets', 'Expiration'])
@@ -57,7 +64,7 @@ class PlanSyncService
                     // Staff / free-pass with no plan: give RADIUS access, 2 devices, no data cap
                     RadCheck::updateOrCreate(
                         ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
-                        ['op' => ':=', 'value' => $user->radius_password ?? $user->username]
+                        ['op' => ':=', 'value' => $user->radius_password]
                     );
                     RadCheck::updateOrCreate(
                         ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
@@ -84,14 +91,18 @@ class PlanSyncService
                 }
 
                 // Temporary access granted by a custom voucher (plan_expiry set, no plan_id)
-                if ($user->plan_expiry && $user->plan_expiry->isFuture()) {
+                if ($user->plan_expiry && Carbon::parse($user->plan_expiry)->isFuture()) {
                     RadCheck::updateOrCreate(
                         ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
-                        ['op' => ':=', 'value' => $user->radius_password ?? $user->username]
+                        ['op' => ':=', 'value' => $user->radius_password]
                     );
                     RadCheck::updateOrCreate(
                         ['username' => $user->username, 'attribute' => 'Simultaneous-Use'],
                         ['op' => ':=', 'value' => '1']
+                    );
+                    RadCheck::updateOrCreate(
+                        ['username' => $user->username, 'attribute' => 'Expiration'],
+                        ['op' => ':=', 'value' => Carbon::parse($user->plan_expiry)->format('d M Y H:i')]
                     );
                     // Apply global speed cap for voucher-access users
                     $globalRate = self::globalRateLimit();
@@ -104,14 +115,15 @@ class PlanSyncService
                         ]);
                     }
                     if ($user->data_limit) {
-                        RadCheck::updateOrCreate(
-                            ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
-                            ['op' => ':=', 'value' => (string) $user->data_limit]
-                        );
-                    } else {
-                        RadCheck::where('username', $user->username)
-                            ->where('attribute', 'Mikrotik-Total-Limit')
-                            ->delete();
+                        RadReply::create([
+                            'username'  => $user->username,
+                            'attribute' => 'Mikrotik-Total-Limit',
+                            'op'        => ':=',
+                            'value'     => (string) $user->data_limit,
+                        ]);
+                    }
+                    if (in_array($user->connection_status, ['exhausted', 'inactive', 'disconnected', 'suspended'])) {
+                        $user->connection_status = 'active';
                     }
                     $user->saveQuietly();
                     return;
@@ -320,6 +332,12 @@ class PlanSyncService
             } catch (\Exception $e) {
                 // Don't let radusergroup failures prevent user updates
                 \Illuminate\Support\Facades\Log::error('Failed to sync RadUserGroup for user ' . $user->username . ': ' . $e->getMessage());
+            }
+
+            if ($user->plan_expiry && Carbon::parse($user->plan_expiry)->isFuture()) {
+                if (in_array($user->connection_status, ['exhausted', 'inactive', 'disconnected', 'suspended'])) {
+                    $user->connection_status = 'active';
+                }
             }
 
             $user->saveQuietly();

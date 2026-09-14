@@ -53,8 +53,17 @@ class UserObserver
             $user->saveQuietly();
         }
 
-        // Sync RADIUS when plan, radius_password, or username changes
-        if ($user->wasChanged('plan_id') || $user->wasChanged('radius_password') || $user->wasChanged('username')) {
+        // Sync RADIUS when plan, expiry, data limits, status, or credentials change
+        if ($user->wasChanged([
+            'plan_id',
+            'plan_expiry',
+            'data_limit',
+            'data_used',
+            'radius_password',
+            'username',
+            'connection_status',
+            'parent_id',
+        ])) {
             try {
                 PlanSyncService::syncUserPlan($user);
 

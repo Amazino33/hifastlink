@@ -423,3 +423,120 @@ test('isVoucherCode rejects invalid patterns', function () {
     expect(Voucher::isVoucherCode('VCH-'))->toBeFalse();
     expect(Voucher::isVoucherCode('NOTAVOUCHER'))->toBeFalse();
 });
+
+// ── Registered user voucher redemption & RADIUS credential sync ──
+
+test('registered user redeeming voucher for same plan immediately updates RADIUS credentials and expiration', function () {
+    $plan = createPlan([
+        'validity_days' => 7,
+        'data_limit'    => 10,
+        'limit_unit'    => 'GB',
+        'max_devices'   => 2,
+    ]);
+
+    $user = createUser([
+        'plan_id'           => $plan->id,
+        'radius_password'   => 'secretpass123',
+        'connection_status' => 'inactive',
+    ]);
+    // Simulate expired plan: past expiry in database and radcheck
+    $user->updateQuietly([
+        'plan_expiry' => now()->subDays(2),
+    ]);
+
+    \App\Models\RadCheck::updateOrCreate(
+        ['username' => $user->username, 'attribute' => 'Expiration'],
+        ['op' => ':=', 'value' => now()->subDays(2)->format('d M Y H:i')]
+    );
+    \App\Models\RadCheck::updateOrCreate(
+        ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
+        ['op' => ':=', 'value' => $user->radius_password]
+    );
+
+    // Verify initial state has expired RADIUS date
+    $initialExp = \App\Models\RadCheck::where('username', $user->username)->where('attribute', 'Expiration')->first();
+    expect(\Carbon\Carbon::parse($initialExp->value)->isPast())->toBeTrue();
+
+    // Create a voucher for the exact same plan
+    $voucher = createVoucher([
+        'plan_id'   => $plan->id,
+        'max_uses'  => 1,
+        'used_count'=> 0,
+    ]);
+
+    // User logs in and redeems the voucher via Livewire AppDashboard
+    $this->actingAs($user);
+
+    \Livewire\Livewire::test(\App\Livewire\AppDashboard::class)
+        ->set('voucherCode', $voucher->code)
+        ->call('redeemVoucher')
+        ->assertHasNoErrors()
+        ->assertDispatched('toast');
+
+    $user->refresh();
+
+    // User should have active status and future expiry
+    expect($user->connection_status)->toBe('active');
+    expect($user->plan_expiry->isFuture())->toBeTrue();
+
+    // RADIUS Expiration MUST be updated to future date (no longer expired)
+    $radExp = \App\Models\RadCheck::where('username', $user->username)->where('attribute', 'Expiration')->first();
+    expect($radExp)->not->toBeNull();
+    expect(\Carbon\Carbon::parse($radExp->value)->isFuture())->toBeTrue();
+
+    // RADIUS Cleartext-Password MUST be present and match user's password
+    $radPass = \App\Models\RadCheck::where('username', $user->username)->where('attribute', 'Cleartext-Password')->first();
+    expect($radPass)->not->toBeNull();
+    expect($radPass->value)->toBe('secretpass123');
+
+    // Simultaneous-Use limit must be synced
+    $radSim = \App\Models\RadCheck::where('username', $user->username)->where('attribute', 'Simultaneous-Use')->first();
+    expect($radSim)->not->toBeNull();
+    expect($radSim->value)->toBe('2');
+});
+
+test('registered user redeeming custom duration voucher sets future RADIUS Expiration', function () {
+    $user = createUser([
+        'plan_id'           => null,
+        'radius_password'   => 'mywifi123',
+        'connection_status' => 'exhausted',
+    ]);
+    // Stale past expiration from previous subscription
+    \App\Models\RadCheck::updateOrCreate(
+        ['username' => $user->username, 'attribute' => 'Expiration'],
+        ['op' => ':=', 'value' => now()->subDay()->format('d M Y H:i')]
+    );
+
+    $voucher = createVoucher([
+        'plan_id'        => null,
+        'duration_hours' => 24,
+        'data_limit_mb'  => 1024,
+        'is_unlimited'   => false,
+        'max_uses'       => 1,
+        'used_count'     => 0,
+    ]);
+
+    $this->actingAs($user);
+
+    \Livewire\Livewire::test(\App\Livewire\AppDashboard::class)
+        ->set('voucherCode', $voucher->code)
+        ->call('redeemVoucher')
+        ->assertHasNoErrors()
+        ->assertDispatched('toast');
+
+    $user->refresh();
+
+    expect($user->connection_status)->toBe('active');
+    expect($user->plan_expiry->isFuture())->toBeTrue();
+
+    // RADIUS Expiration must be future
+    $radExp = \App\Models\RadCheck::where('username', $user->username)->where('attribute', 'Expiration')->first();
+    expect($radExp)->not->toBeNull();
+    expect(\Carbon\Carbon::parse($radExp->value)->isFuture())->toBeTrue();
+
+    // RADIUS password must be present
+    $radPass = \App\Models\RadCheck::where('username', $user->username)->where('attribute', 'Cleartext-Password')->first();
+    expect($radPass)->not->toBeNull();
+    expect($radPass->value)->toBe('mywifi123');
+});
+

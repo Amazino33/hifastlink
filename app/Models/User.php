@@ -630,14 +630,14 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 
         // 2. When a User is UPDATED -> Update Radius password if changed
         static::updated(function ($user) {
-            if ($user->isDirty('radius_password') && !empty($user->username)) {
+            if ($user->wasChanged('radius_password') && !empty($user->username)) {
                 \App\Models\RadCheck::where('username', $user->username)
                     ->where('attribute', 'Cleartext-Password')
                     ->update(['value' => $user->radius_password]);
             }
             
-            // If plan_id changed, sync RADIUS attributes
-            if ($user->isDirty('plan_id') && !empty($user->username)) {
+            // If plan, expiry, limits, status, or credentials changed, sync RADIUS attributes
+            if ($user->wasChanged(['plan_id', 'plan_expiry', 'data_limit', 'radius_password', 'username', 'connection_status']) && !empty($user->username)) {
                 if ($user->isAdmin()) {
                     \App\Models\RadCheck::where('username', $user->username)
                         ->where('attribute', 'Simultaneous-Use')

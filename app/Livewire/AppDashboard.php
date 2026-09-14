@@ -207,13 +207,18 @@ class AppDashboard extends Component
 
         if (! $newPlan) {
             // Custom duration voucher — always activates immediately (no plan_id to queue)
-            $user->plan_id         = null;
-            $user->data_limit      = $voucher->is_unlimited ? null : ($voucher->data_limit_mb ? $voucher->data_limit_mb * 1048576 : null);
-            $user->data_used       = 0;
-            $user->plan_expiry     = now()->addHours($voucher->duration_hours);
-            $user->plan_started_at = now();
+            $user->plan_id           = null;
+            $user->data_limit        = $voucher->is_unlimited ? null : ($voucher->data_limit_mb ? $voucher->data_limit_mb * 1048576 : null);
+            $user->data_used         = 0;
+            $user->plan_expiry       = now()->addHours($voucher->duration_hours);
+            $user->plan_started_at   = now();
+            $user->connection_status = 'active';
             $user->save();
-            try { \App\Services\PlanSyncService::syncUserPlan($user); } catch (\Throwable) {}
+            try {
+                \App\Services\PlanSyncService::syncUserPlan($user->fresh());
+            } catch (\Throwable $e) {
+                Log::error('AppDashboard custom voucher sync error: ' . $e->getMessage());
+            }
 
             try {
                 \App\Models\Transaction::create([
@@ -269,13 +274,20 @@ class AppDashboard extends Component
         // No active plan — activate immediately
         $pval      = (int) $newPlan->data_limit;
         $planBytes = $newPlan->limit_unit === 'Unlimited' ? null : ($pval > 1048576 ? $pval : ($newPlan->limit_unit === 'GB' ? $pval * 1073741824 : $pval * 1048576));
-        $user->plan_id         = $newPlan->id;
-        $user->data_limit      = $planBytes;
-        $user->data_used       = 0;
-        $user->plan_expiry     = now()->addDays($newPlan->validity_days);
-        $user->plan_started_at = now();
-        $user->family_limit    = $newPlan->family_limit ?? 0;
+        $user->plan_id           = $newPlan->id;
+        $user->data_limit        = $planBytes;
+        $user->data_used         = 0;
+        $user->plan_expiry       = now()->addDays($newPlan->validity_days);
+        $user->plan_started_at   = now();
+        $user->family_limit      = $newPlan->family_limit ?? 0;
+        $user->connection_status = 'active';
         $user->save();
+
+        try {
+            \App\Services\PlanSyncService::syncUserPlan($user->fresh());
+        } catch (\Throwable $e) {
+            Log::error('AppDashboard voucher plan sync error: ' . $e->getMessage());
+        }
 
         try {
             \App\Models\Transaction::create([
@@ -364,9 +376,14 @@ class AppDashboard extends Component
             $user->plan_started_at = now();
             $user->plan_expiry     = $expiresAt;
         }
+        $user->connection_status = 'active';
         $user->save();
 
-        try { \App\Services\PlanSyncService::syncUserPlan($user); } catch (\Throwable) {}
+        try {
+            \App\Services\PlanSyncService::syncUserPlan($user->fresh());
+        } catch (\Throwable $e) {
+            Log::error('AppDashboard partner invoice sync error: ' . $e->getMessage());
+        }
 
         try {
             Transaction::create([
@@ -409,11 +426,12 @@ class AppDashboard extends Component
         $newLimit = is_null($planBytes) ? null : ($planBytes + ($rolloverBytes ?? 0));
 
         $update = [
-            'plan_id'      => $plan->id,
-            'data_limit'   => $newLimit,
-            'data_used'    => 0,
-            'plan_expiry'  => now()->addDays($plan->validity_days),
-            'family_limit' => $plan->family_limit,
+            'plan_id'           => $plan->id,
+            'data_limit'        => $newLimit,
+            'data_used'         => 0,
+            'plan_expiry'       => now()->addDays($plan->validity_days),
+            'family_limit'      => $plan->family_limit,
+            'connection_status' => 'active',
         ];
 
         if ($plan->is_family) {
@@ -428,6 +446,12 @@ class AppDashboard extends Component
         $user->update($update);
         $subscription->delete();
         $user->save(); // triggers RADIUS observer
+
+        try {
+            \App\Services\PlanSyncService::syncUserPlan($user->fresh());
+        } catch (\Throwable $e) {
+            Log::error('AppDashboard forceActivate plan sync error: ' . $e->getMessage());
+        }
 
         $this->syncState();
         $msg = ($rolloverBytes > 0)
