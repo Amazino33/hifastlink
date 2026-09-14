@@ -24,39 +24,25 @@ class VoucherController extends Controller
         }
 
         $vouchers = \App\Models\Voucher::where('created_by', $user->id)
-            ->with('plan')
+            ->with(['plan', 'batch'])
             ->latest()
             ->paginate(15);
 
+        $batches = \App\Models\VoucherBatch::where('user_id', $user->id)
+            ->with(['plan', 'router'])
+            ->latest()
+            ->take(10)
+            ->get();
+
         $plans = \App\Models\Plan::where('is_active', true)
-            ->orderBy('name')
+            ->orderBy('price')
             ->get(['id', 'name', 'validity_days', 'data_limit', 'limit_unit', 'price']);
 
         $isAdmin = $user->isAdmin();
+        $walletBalance = (float) ($user->wallet_balance ?? 0);
+        $ownedRouters = \App\Models\Router::where('owner_id', $user->id)->get();
 
-        // Compute plan limits for non-admin router owners so the view can enforce caps
-        $planLimits = null;
-        if (! $isAdmin && $user->plan) {
-            $plan            = $user->plan;
-            $planIsUnlimited = $plan->limit_unit === 'Unlimited';
-            $planDataMb      = null;
-            if (! $planIsUnlimited && $plan->data_limit) {
-                $planDataMb = $plan->limit_unit === 'GB'
-                    ? (int) ($plan->data_limit * 1024)
-                    : (int) $plan->data_limit;
-            }
-            $planLimits = [
-                'plan_name'            => $plan->name,
-                'validity_days'        => (int) $plan->validity_days,
-                'is_unlimited'         => $planIsUnlimited,
-                'data_limit_mb'        => $planDataMb,
-                'data_human'           => $planIsUnlimited ? 'Unlimited' : ($plan->data_limit . ' ' . $plan->limit_unit),
-                'speed_limit_download' => (int) ($plan->speed_limit_download ?? 0),
-                'speed_limit_upload'   => (int) ($plan->speed_limit_upload ?? 0),
-            ];
-        }
-
-        return view('vouchers.index', compact('vouchers', 'plans', 'isAdmin', 'isRouterOwner', 'planLimits'));
+        return view('vouchers.index', compact('vouchers', 'batches', 'plans', 'isAdmin', 'isRouterOwner', 'walletBalance', 'ownedRouters'));
     }
 
     /**
@@ -73,7 +59,7 @@ class VoucherController extends Controller
     }
 
     /**
-     * Generate vouchers — supports "quick" (inherits plan) and "custom" modes.
+     * Generate vouchers — prepaid via wallet balance deduction or family slot allocation.
      */
     public function generate(Request $request)
     {
@@ -81,150 +67,33 @@ class VoucherController extends Controller
 
         $isRouterOwner = \App\Models\Router::where('owner_id', $user->id)->exists();
 
-        if (! $user->isAdmin() && ! $isRouterOwner) {
+        if (! $user->isAdmin() && ! $isRouterOwner && ! $user->is_family_admin) {
             return back()->with('error', 'You do not have permission to create vouchers.');
         }
 
-        $mode = $request->input('mode', 'quick');
-
-        if ($mode === 'custom') {
-            return $this->generateCustom($request, $user, $isRouterOwner);
-        }
-
-        return $this->generateQuick($request, $user, $isRouterOwner);
-    }
-
-    private function generateQuick(Request $request, $user, bool $isRouterOwner = false)
-    {
-        // Router owners and admins have no slot cap — they run a business
-        if (! $user->isAdmin() && ! $isRouterOwner) {
-            $maxAllowed     = $user->plan->family_limit ?? $user->family_limit ?? 10;
-            $activeCount    = Voucher::where('created_by', $user->id)
-                ->where(function ($q) {
-                    $q->whereColumn('used_count', '<', 'max_uses')
-                      ->where(fn ($q2) => $q2->whereNull('expires_at')->orWhere('expires_at', '>', now()));
-                })
-                ->count();
-            $remainingSlots = $maxAllowed - 1 - $activeCount;
-            $quantity       = (int) $request->input('quantity', 1);
-
-            if ($remainingSlots <= 0) {
-                return back()->with('error', 'Slot limit reached. Remove old vouchers to add more.');
-            }
-            if ($quantity > $remainingSlots) {
-                return back()->with('error', "Only {$remainingSlots} slot(s) remaining.");
-            }
-        }
-
-        $duration    = ($user->plan->validity_days ?? 1) * 24;
-        $rawLimit    = $user->plan->data_limit ?? 0;
-        $dataLimitMb = $rawLimit > 1000000 ? (int) ($rawLimit / 1048576) : (int) $rawLimit;
-
-        for ($i = 0; $i < $quantity; $i++) {
-            Voucher::create([
-                'code'          => Voucher::generateCode(),
-                'plan_id'       => $user->plan_id,
-                'created_by'    => $user->id,
-                'router_id'     => $user->router_id,
-                'duration_hours'=> $duration,
-                'data_limit_mb' => $dataLimitMb ?: null,
-                'max_uses'      => 1,
-                'is_used'       => false,
-            ]);
-        }
-
-        return back()->with('success', "{$quantity} voucher(s) created. {$remainingSlots} slot(s) remaining.");
-    }
-
-    private function generateCustom(Request $request, $user, bool $isRouterOwner = false)
-    {
         $request->validate([
-            'quantity'             => 'required|integer|min:1|max:100',
-            'validity_days'        => 'required|integer|min:1|max:365',
-            'max_uses'             => 'required|integer|min:1|max:500',
-            'data_limit_mb'        => 'nullable|integer|min:1',
-            'speed_limit_upload'   => 'nullable|integer|min:0',
-            'speed_limit_download' => 'nullable|integer|min:0',
-            'plan_id'              => 'nullable|exists:plans,id',
-            'label'                => 'nullable|string|max:100',
+            'plan_id'   => 'required|exists:plans,id',
+            'quantity'  => 'required|integer|min:1|max:100',
+            'router_id' => 'nullable|exists:routers,id',
+            'label'     => 'nullable|string|max:100',
         ]);
 
-        $isUnlimited  = $request->boolean('is_unlimited');
-        $validityDays = (int) $request->input('validity_days');
-        $quantity     = (int) $request->input('quantity');
+        $plan = \App\Models\Plan::findOrFail($request->input('plan_id'));
+        $quantity = (int) $request->input('quantity', 1);
+        $routerId = $request->input('router_id') ?: ($user->router_id ?: \App\Models\Router::where('owner_id', $user->id)->value('id'));
 
-        // Convert data limit to MB if user selected GB
-        $rawDataLimit = $request->input('data_limit_mb');
-        if ($rawDataLimit && $request->input('data_unit') === 'GB') {
-            $rawDataLimit = (int) ($rawDataLimit * 1024);
-        }
-
-        // Non-admins: enforce plan caps on specs and slot count
-        if (! $user->isAdmin()) {
-            $plan = $user->plan;
-
-            if (! $plan) {
-                return back()->with('error', 'You need an active plan to create custom vouchers.');
-            }
-
-            // Validity
-            if ($validityDays > (int) $plan->validity_days) {
-                return back()->with('error', "Validity cannot exceed your plan limit of {$plan->validity_days} days.");
-            }
-
-            // Unlimited data
-            if ($isUnlimited && $plan->limit_unit !== 'Unlimited') {
-                return back()->with('error', 'You cannot create unlimited vouchers — your plan has a data cap.');
-            }
-
-            // Data allowance
-            if (! $isUnlimited && $plan->limit_unit !== 'Unlimited' && $rawDataLimit) {
-                $planDataMb = $plan->limit_unit === 'GB'
-                    ? (int) ($plan->data_limit * 1024)
-                    : (int) $plan->data_limit;
-                if ((int) $rawDataLimit > $planDataMb) {
-                    $humanLimit = $plan->data_limit . ' ' . $plan->limit_unit;
-                    return back()->with('error', "Data allowance cannot exceed your plan limit ({$humanLimit}).");
-                }
-            }
-
-            // Speed limits
-            if ($plan->speed_limit_download && (int) $request->input('speed_limit_download') > $plan->speed_limit_download) {
-                return back()->with('error', "Download speed cannot exceed your plan limit of {$plan->speed_limit_download} Kbps.");
-            }
-            if ($plan->speed_limit_upload && (int) $request->input('speed_limit_upload') > $plan->speed_limit_upload) {
-                return back()->with('error', "Upload speed cannot exceed your plan limit of {$plan->speed_limit_upload} Kbps.");
-            }
-
-            // Slot count — only applies to family plan users, not router owners
-            if (! $isRouterOwner) {
-                $maxAllowed     = $plan->family_limit ?? $user->family_limit ?? 10;
-                $activeCount    = Voucher::where('created_by', $user->id)->count();
-                $remainingSlots = $maxAllowed - 1 - $activeCount;
-                if ($quantity > $remainingSlots) {
-                    return back()->with('error', "Only {$remainingSlots} slot(s) remaining in your plan.");
-                }
-            }
-        }
-
-        for ($i = 0; $i < $quantity; $i++) {
-            Voucher::create([
-                'code'                 => Voucher::generateCode(),
-                'plan_id'              => $request->input('plan_id') ?: null,
-                'created_by'           => $user->id,
-                'router_id'            => $user->router_id,
-                'duration_hours'       => $validityDays * 24,
-                'data_limit_mb'        => $isUnlimited ? null : ($rawDataLimit ?: null),
-                'is_unlimited'         => $isUnlimited,
-                'speed_limit_upload'   => $request->input('speed_limit_upload') ?: null,
-                'speed_limit_download' => $request->input('speed_limit_download') ?: null,
-                'max_uses'             => (int) $request->input('max_uses', 1),
-                'label'                => $request->input('label') ?: null,
-                'is_used'              => false,
+        try {
+            $service = app(\App\Services\VoucherGenerationService::class);
+            $batch = $service->generateBatch($user, $plan, $quantity, [
+                'router_id'      => $routerId,
+                'payment_method' => 'wallet',
+                'label'          => $request->input('label'),
             ]);
-        }
 
-        return back()->with('success', "{$quantity} custom voucher(s) created.");
+            return back()->with('success', "Batch {$batch->batch_code} generated successfully! {$quantity} vouchers created. ₦" . number_format((float) $batch->total_cost, 2) . " deducted from your wallet.");
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     /**

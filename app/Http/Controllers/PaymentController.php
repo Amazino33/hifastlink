@@ -147,6 +147,35 @@ class PaymentController extends Controller
             return redirect()->route($afterRoute)->with('error', 'User not found for this payment.');
         }
 
+        // Handle wallet top-up callback
+        if (($metadata['type'] ?? '') === 'wallet_topup') {
+            if (\App\Models\Transaction::where('reference', $data['reference'])->exists()) {
+                return redirect()->route('vouchers.index')->with('success', 'Your wallet top-up was already processed.');
+            }
+
+            $topUpAmount = ((float) ($data['amount'] ?? 0)) / 100; // Kobo to Naira
+
+            \Illuminate\Support\Facades\DB::transaction(function () use ($user, $topUpAmount, $data) {
+                $fresh = User::lockForUpdate()->find($user->id);
+                $fresh->increment('wallet_balance', $topUpAmount);
+
+                \App\Models\Transaction::create([
+                    'user_id'     => $fresh->id,
+                    'plan_id'     => null,
+                    'amount'      => $topUpAmount,
+                    'reference'   => $data['reference'],
+                    'type'        => 'wallet_topup',
+                    'description' => 'Wallet top-up via Paystack',
+                    'status'      => 'completed',
+                    'gateway'     => 'paystack',
+                    'paid_at'     => now(),
+                    'router_id'   => $fresh->router_id,
+                ]);
+            });
+
+            return redirect()->route('vouchers.index')->with('success', "Wallet topped up successfully with ₦" . number_format($topUpAmount, 2) . "!");
+        }
+
         $plan = Plan::find($planId);
         if (! $plan) {
             return redirect()->route($afterRoute)->with('error', 'Plan not found for this payment.');
@@ -361,6 +390,71 @@ class PaymentController extends Controller
 
         if ($stale->isNotEmpty()) {
             Log::info("Cleaned up {$stale->count()} stale voucher(s) for {$user->username} after plan activation.");
+        }
+    }
+
+    /**
+     * Initialize Paystack payment to fund user's prepaid wallet.
+     */
+    public function topUpWallet(Request $request)
+    {
+        $request->validate([
+            'amount' => ['required', 'numeric', 'min:500', 'max:500000'],
+        ]);
+
+        $user = Auth::user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'You must be logged in to top up your wallet.');
+        }
+
+        $amountInNaira = (float) $request->input('amount');
+        $amountInKobo = (int) round($amountInNaira * 100);
+
+        $paystackEmail = $user->email;
+        if (empty($paystackEmail) && $user->phone) {
+            $digits = preg_replace('/\D/', '', $user->phone);
+            $paystackEmail = $digits . '@hifastlink.ng';
+        }
+        if (empty($paystackEmail)) {
+            return back()->with('error', 'Please add an email or phone number to your profile before topping up.');
+        }
+
+        $reference = 'WAL_' . Str::random(12);
+        $fromApp = str_starts_with(request()->getHost(), 'app.');
+        $payload = [
+            'email'        => $paystackEmail,
+            'amount'       => $amountInKobo,
+            'reference'    => $reference,
+            'callback_url' => route('payment.callback'),
+            'metadata'     => [
+                'type'         => 'wallet_topup',
+                'user_id'      => $user->id,
+                'amount_naira' => $amountInNaira,
+                'from_app'     => $fromApp,
+            ],
+        ];
+
+        try {
+            $response = Http::withToken(env('PAYSTACK_SECRET_KEY'))
+                ->post(rtrim(env('PAYSTACK_PAYMENT_URL', 'https://api.paystack.co'), '/') . '/transaction/initialize', $payload);
+
+            if (! $response->successful()) {
+                return back()->with('error', 'Unable to initialize payment (network error).');
+            }
+
+            $body = $response->json();
+            if (! isset($body['status']) || ! $body['status'] || empty($body['data']['authorization_url'])) {
+                $message = $body['message'] ?? 'Unable to initialize payment.';
+                return back()->with('error', $message);
+            }
+
+            return redirect($body['data']['authorization_url']);
+        } catch (\Throwable $e) {
+            Log::error('Paystack wallet top-up failed', [
+                'error'   => $e->getMessage(),
+                'payload' => $payload,
+            ]);
+            return back()->with('error', 'Network error: Unable to connect to payment gateway.');
         }
     }
 }

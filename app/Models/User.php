@@ -51,12 +51,18 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         'google_id',
         'email_verified_at',
         'phone_verified_at',
+        'wallet_balance',
         'bank_name',
         'bank_account_number',
         'bank_account_name',
         'paystack_recipient_code',
         'free_trial_claimed_at',
     ];
+
+    public function voucherBatches(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\VoucherBatch::class);
+    }
 
     /**
      * Plan relationship
@@ -150,7 +156,43 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             'rollover_available_bytes' => 'integer',
             'rollover_validity_days'   => 'integer',
             'free_trial_claimed_at'   => 'datetime',
+            'wallet_balance'          => 'decimal:2',
         ];
+    }
+
+    public function hasSufficientWalletBalance(float $amount): bool
+    {
+        return (float) ($this->wallet_balance ?? 0) >= $amount;
+    }
+
+    public function deductWallet(float $amount, string $description, ?int $planId = null, ?int $routerId = null): Transaction
+    {
+        if (! $this->hasSufficientWalletBalance($amount)) {
+            throw new \RuntimeException('Insufficient wallet balance.');
+        }
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($amount, $description, $planId, $routerId) {
+            $fresh = static::lockForUpdate()->find($this->id);
+            if ((float) ($fresh->wallet_balance ?? 0) < $amount) {
+                throw new \RuntimeException('Insufficient wallet balance.');
+            }
+
+            $fresh->decrement('wallet_balance', $amount);
+            $this->wallet_balance = $fresh->wallet_balance;
+
+            return Transaction::create([
+                'user_id'     => $fresh->id,
+                'plan_id'     => $planId,
+                'router_id'   => $routerId ?? $fresh->router_id,
+                'amount'      => $amount,
+                'reference'   => 'WAL-' . strtoupper(\Illuminate\Support\Str::random(10)),
+                'type'        => 'wallet_deduction',
+                'description' => $description,
+                'status'      => 'completed',
+                'gateway'     => 'wallet',
+                'paid_at'     => now(),
+            ]);
+        });
     }
 
     /**

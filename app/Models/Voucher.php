@@ -12,8 +12,11 @@ class Voucher extends Model
     use HasFactory;
 
     protected $fillable = [
+        'batch_id',
         'code',
         'plan_id',
+        'price',
+        'transaction_id',
         'created_by',
         'router_id',
         'duration_hours',
@@ -37,6 +40,7 @@ class Voucher extends Model
         'expires_at'           => 'datetime',
         'duration_hours'       => 'integer',
         'data_limit_mb'        => 'integer',
+        'price'                => 'decimal:2',
         'max_uses'             => 'integer',
         'used_count'           => 'integer',
         'speed_limit_upload'   => 'integer',
@@ -44,6 +48,16 @@ class Voucher extends Model
     ];
 
     // ─── Relationships ────────────────────────────────────────────────
+
+    public function batch()
+    {
+        return $this->belongsTo(VoucherBatch::class, 'batch_id');
+    }
+
+    public function transaction()
+    {
+        return $this->belongsTo(Transaction::class);
+    }
 
     public function plan()
     {

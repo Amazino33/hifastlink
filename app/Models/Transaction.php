@@ -15,6 +15,8 @@ class Transaction extends Model
         'plan_id',
         'amount',
         'reference',
+        'type',
+        'description',
         'status',
         'gateway',
         'paid_at',
@@ -27,6 +29,11 @@ class Transaction extends Model
     public function router()
     {
         return $this->belongsTo(\App\Models\Router::class, 'router_id');
+    }
+
+    public function voucherBatch()
+    {
+        return $this->hasOne(VoucherBatch::class, 'transaction_id');
     }
 
     protected $casts = [

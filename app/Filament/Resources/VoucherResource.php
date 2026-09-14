@@ -39,6 +39,11 @@ class VoucherResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return VoucherForm::configure($schema);

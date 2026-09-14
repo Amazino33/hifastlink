@@ -170,6 +170,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // ── Plans & Billing ───────────────────────────────────────
     Route::post('/pay', [PaymentController::class, 'redirectToGateway'])->name('pay');
+    Route::post('/wallet/topup', [PaymentController::class, 'topUpWallet'])->name('wallet.topup');
     Route::get('/request-custom-plans', \App\Livewire\RequestCustomPlans::class)->name('request-custom-plans');
 
     // ── Vouchers ──────────────────────────────────────────────

@@ -1,36 +1,35 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            Voucher Management
-        </h2>
+        <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight flex items-center gap-2">
+                <i class="fa-solid fa-ticket text-blue-600"></i>
+                Voucher Management & Financial Ledger
+            </h2>
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                    Prepaid Financial Mode
+                </span>
+            </div>
+        </div>
     </x-slot>
 
-    <div class="py-8">
+    <div class="py-8" x-data="{
+        topUpModal: false,
+        topUpAmount: 5000,
+        planId: '{{ $plans->first()?->id ?? '' }}',
+        quantity: 10,
+        plans: {{ $plans->toJson() }},
+        get selectedPlan() {
+            return this.plans.find(p => p.id == this.planId) || null;
+        },
+        get totalCost() {
+            return (this.selectedPlan ? parseFloat(this.selectedPlan.price) : 0) * (parseInt(this.quantity) || 0);
+        },
+        get canAfford() {
+            return {{ $walletBalance }} >= this.totalCost;
+        }
+    }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-
-            {{-- Stats bar --}}
-            @php
-                $unlimitedSlots  = $isAdmin || $isRouterOwner;
-                $totalLimit      = $unlimitedSlots ? null : (auth()->user()->plan->family_limit ?? auth()->user()->family_limit ?? 10);
-                $activeCount     = \App\Models\Voucher::where('created_by', auth()->id())->count();
-                $usedSlots       = $unlimitedSlots ? null : ($totalLimit - 1);
-                $remaining       = $unlimitedSlots ? '∞' : max(0, $usedSlots - $activeCount);
-                $canCustomCreate = $isAdmin || $isRouterOwner;
-            @endphp
-
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                @foreach([
-                    ['label' => 'Total Vouchers',  'value' => $activeCount,                          'color' => 'blue'],
-                    ['label' => 'Slots Used',       'value' => $activeCount,                          'color' => 'orange'],
-                    ['label' => 'Slots Available',  'value' => $remaining,                            'color' => 'green'],
-                    ['label' => 'Plan Limit',       'value' => $unlimitedSlots ? 'Unlimited' : $usedSlots, 'color' => 'purple'],
-                ] as $stat)
-                <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
-                    <div class="text-2xl font-black text-{{ $stat['color'] }}-600 dark:text-{{ $stat['color'] }}-400">{{ $stat['value'] }}</div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">{{ $stat['label'] }}</div>
-                </div>
-                @endforeach
-            </div>
 
             {{-- Flash messages --}}
             @if(session('success'))
@@ -46,279 +45,225 @@
                 </div>
             @endif
 
-            {{-- Create panel --}}
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
-                 x-data="{ tab: 'quick' }">
-
-                {{-- Tabs --}}
-                <div class="flex border-b border-gray-100 dark:border-gray-700">
-                    <button @click="tab = 'quick'"
-                        :class="tab === 'quick'
-                            ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-bold'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'"
-                        class="flex-1 py-4 text-sm transition-colors">
-                        <i class="fa-solid fa-bolt mr-2"></i>Quick Create
-                    </button>
-                    @if($canCustomCreate)
-                    <button @click="tab = 'custom'"
-                        :class="tab === 'custom'
-                            ? 'border-b-2 border-purple-600 text-purple-600 dark:text-purple-400 font-bold'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'"
-                        class="flex-1 py-4 text-sm transition-colors">
-                        <i class="fa-solid fa-sliders mr-2"></i>Custom Create
-                    </button>
-                    @endif
-                </div>
-
-                {{-- Quick tab --}}
-                <div x-show="tab === 'quick'" x-transition class="p-6">
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                        Generates vouchers that inherit your current plan's settings (duration, data, speed).
-                    </p>
-                    <form action="{{ route('vouchers.generate') }}" method="POST" class="flex flex-wrap items-end gap-4">
-                        @csrf
-                        <input type="hidden" name="mode" value="quick">
-                        <div class="flex-1 min-w-[160px]">
-                            <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
-                                Quantity
-                            </label>
-                            <input type="number" name="quantity" min="1"
-                                   max="{{ $isAdmin ? 100 : max(0, $remaining) }}"
-                                   value="1"
-                                   @if(!$isAdmin && $remaining <= 0) disabled @endif
-                                   class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50">
-                            @if(!$isAdmin)
-                                <p class="text-xs text-gray-400 mt-1">{{ $remaining }} slot(s) available</p>
-                            @endif
+            {{-- Financial Overview & Stats Cards --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {{-- Wallet Balance Card --}}
+                <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-5 shadow-sm text-white flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute -right-4 -bottom-4 opacity-10 text-8xl">
+                        <i class="fa-solid fa-wallet"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-blue-100">Prepaid Wallet</span>
+                            <i class="fa-solid fa-shield-halved text-blue-200"></i>
                         </div>
-                        <button type="submit"
-                                @if(!$isAdmin && $remaining <= 0) disabled @endif
-                                class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
-                            <i class="fa-solid fa-plus mr-2"></i>Generate
+                        <div class="text-3xl font-black tracking-tight">
+                            ₦{{ number_format($walletBalance, 2) }}
+                        </div>
+                        <p class="text-xs text-blue-100 mt-1">Available for voucher generation</p>
+                    </div>
+                    <div class="mt-4">
+                        <button type="button" @click="topUpModal = true"
+                                class="w-full py-2 px-3 bg-white hover:bg-blue-50 text-blue-700 font-bold text-xs rounded-xl shadow transition-colors flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-plus-circle"></i> Top Up Wallet
                         </button>
-                    </form>
+                    </div>
                 </div>
 
-                {{-- Custom tab --}}
-                @if($canCustomCreate)
-                <div x-show="tab === 'custom'" x-transition class="p-6"
-                     x-data="{
-                         isUnlimited: {{ (!$isAdmin && $planLimits && $planLimits['is_unlimited']) ? 'false' : 'false' }},
-                         dataUnit: 'MB',
-                         hasSpeed: false,
-                         hasPlan: false
-                     }">
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                        Set your own validity, data cap, speed limits, and number of uses. Perfect for welcome gifts, trials, or one-off access.
-                    </p>
-
-                    {{-- Plan limits notice for non-admins --}}
-                    @if(!$isAdmin && $planLimits)
-                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4 mb-6">
-                        <div class="flex items-center gap-2 mb-3">
-                            <i class="fa-solid fa-circle-info text-blue-500"></i>
-                            <span class="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
-                                Your Plan Limits — {{ $planLimits['plan_name'] }}
-                            </span>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                            <div>
-                                <span class="text-gray-500 dark:text-gray-400 block">Max Validity</span>
-                                <span class="font-semibold text-gray-800 dark:text-white">{{ $planLimits['validity_days'] }} days</span>
-                            </div>
-                            <div>
-                                <span class="text-gray-500 dark:text-gray-400 block">Data Cap</span>
-                                <span class="font-semibold text-gray-800 dark:text-white">{{ $planLimits['data_human'] }}</span>
-                            </div>
-                            @if($planLimits['speed_limit_download'])
-                            <div>
-                                <span class="text-gray-500 dark:text-gray-400 block">Max Download</span>
-                                <span class="font-semibold text-gray-800 dark:text-white">{{ $planLimits['speed_limit_download'] }} Kbps</span>
-                            </div>
-                            @endif
-                            @if($planLimits['speed_limit_upload'])
-                            <div>
-                                <span class="text-gray-500 dark:text-gray-400 block">Max Upload</span>
-                                <span class="font-semibold text-gray-800 dark:text-white">{{ $planLimits['speed_limit_upload'] }} Kbps</span>
-                            </div>
-                            @endif
+                {{-- Total Vouchers Created --}}
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Vouchers</span>
+                        <div class="text-3xl font-black text-gray-900 dark:text-white mt-2">
+                            {{ $vouchers->total() }}
                         </div>
                     </div>
-                    @endif
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-4 flex items-center gap-1.5">
+                        <i class="fa-solid fa-barcode text-blue-500"></i> Lifetime generated tokens
+                    </div>
+                </div>
 
+                {{-- Total Batches --}}
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Tracked Batches</span>
+                        <div class="text-3xl font-black text-indigo-600 dark:text-indigo-400 mt-2">
+                            {{ $batches->count() }}
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-4 flex items-center gap-1.5">
+                        <i class="fa-solid fa-boxes-stacked text-indigo-500"></i> Financial lot entries
+                    </div>
+                </div>
+
+                {{-- Plan Count --}}
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Active Plans</span>
+                        <div class="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-2">
+                            {{ $plans->count() }}
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-4 flex items-center gap-1.5">
+                        <i class="fa-solid fa-tags text-emerald-500"></i> Available retail tariffs
+                    </div>
+                </div>
+            </div>
+
+            {{-- Batch Generator Card (Financial Locked) --}}
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-coins text-amber-500"></i> Generate Prepaid Voucher Batch
+                        </h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            Select a tariff and batch volume. The total face value is deducted from your prepaid wallet.
+                        </p>
+                    </div>
+                    <span class="text-xs px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold rounded-full border border-green-200 dark:border-green-800">
+                        Zero Financial Leakage
+                    </span>
+                </div>
+
+                <div class="p-6">
                     <form action="{{ route('vouchers.generate') }}" method="POST">
                         @csrf
-                        <input type="hidden" name="mode" value="custom">
-                        <input type="hidden" name="is_unlimited" :value="isUnlimited ? '1' : '0'">
-
-                        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-
-                            {{-- Label / Note --}}
-                            <div class="sm:col-span-2 lg:col-span-3">
-                                <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
-                                    Label <span class="font-normal text-gray-400">(optional — helps you identify this batch)</span>
-                                </label>
-                                <input type="text" name="label" maxlength="100"
-                                       placeholder="e.g. 3-day welcome gift, Event promo, Staff access..."
-                                       class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500">
-                            </div>
-
-                            {{-- Validity --}}
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            {{-- Plan Selection --}}
                             <div>
-                                <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
-                                    Validity
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
+                                    Target Data Plan <span class="text-red-500">*</span>
                                 </label>
-                                <div class="relative">
-                                    <input type="number" name="validity_days" min="1"
-                                           max="{{ $isAdmin ? 365 : ($planLimits['validity_days'] ?? 365) }}"
-                                           value="{{ $isAdmin ? 3 : min(3, $planLimits['validity_days'] ?? 3) }}" required
-                                           class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 pr-14">
-                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">days</span>
-                                </div>
+                                <select name="plan_id" x-model="planId" required
+                                        class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                    @foreach($plans as $plan)
+                                        <option value="{{ $plan->id }}">
+                                            {{ $plan->name }} — ₦{{ number_format($plan->price, 2) }} ({{ $plan->validity_days }}d)
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
 
-                            {{-- Max uses --}}
+                            {{-- Quantity Input --}}
                             <div>
-                                <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
-                                    Uses per Code
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
+                                    Number of Vouchers <span class="text-red-500">*</span>
                                 </label>
-                                <input type="number" name="max_uses" min="1" max="500" value="1" required
-                                       class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500">
-                                <p class="text-xs text-gray-400 mt-1">How many devices can use a single code</p>
+                                <input type="number" name="quantity" min="1" max="100" x-model.number="quantity" required
+                                       class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
                             </div>
 
-                            {{-- Quantity --}}
+                            {{-- Router / Location --}}
                             <div>
-                                <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
-                                    Number of Codes
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
+                                    Assigned Router / Location
                                 </label>
-                                <input type="number" name="quantity" min="1" max="100" value="1" required
-                                       class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500">
+                                <select name="router_id"
+                                        class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                    <option value="">Global (All Routers)</option>
+                                    @foreach($ownedRouters as $r)
+                                        <option value="{{ $r->id }}">{{ $r->name }} ({{ $r->location ?? 'Site' }})</option>
+                                    @endforeach
+                                </select>
                             </div>
 
-                            {{-- Data allowance --}}
-                            <div class="sm:col-span-2">
-                                <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
-                                    Data Allowance
+                            {{-- Batch Label --}}
+                            <div class="md:col-span-3">
+                                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
+                                    Batch Label / Remark <span class="font-normal text-gray-400">(Optional for bookkeeping)</span>
                                 </label>
-                                <div class="flex items-center gap-3">
-                                    {{-- Unlimited toggle --}}
-                                    @if($isAdmin || ($planLimits && $planLimits['is_unlimited']))
-                                    <label class="flex items-center gap-2 cursor-pointer select-none flex-shrink-0">
-                                        <div class="relative">
-                                            <input type="checkbox" class="sr-only" x-model="isUnlimited">
-                                            <div :class="isUnlimited ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-600'"
-                                                 class="w-10 h-5 rounded-full transition-colors"></div>
-                                            <div :class="isUnlimited ? 'translate-x-5' : 'translate-x-0'"
-                                                 class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"></div>
-                                        </div>
-                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Unlimited</span>
-                                    </label>
-                                    @else
-                                    <label class="flex items-center gap-2 opacity-40 cursor-not-allowed select-none flex-shrink-0" title="Your plan has a data cap — unlimited vouchers not available">
-                                        <div class="relative">
-                                            <input type="checkbox" class="sr-only" disabled>
-                                            <div class="w-10 h-5 rounded-full bg-gray-300 dark:bg-gray-600"></div>
-                                            <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow"></div>
-                                        </div>
-                                        <span class="text-sm font-medium text-gray-500">Unlimited</span>
-                                        <span class="text-xs text-gray-400">(not on your plan)</span>
-                                    </label>
-                                    @endif
-
-                                    <div x-show="!isUnlimited" class="flex flex-1 gap-2">
-                                        <input type="number" name="data_limit_mb" min="1"
-                                               @if(!$isAdmin && $planLimits && $planLimits['data_limit_mb']) max="{{ $planLimits['data_limit_mb'] }}" @endif
-                                               placeholder="e.g. 500"
-                                               :required="!isUnlimited"
-                                               class="flex-1 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500">
-                                        <select name="data_unit" x-model="dataUnit"
-                                                class="rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500">
-                                            <option value="MB">MB</option>
-                                            <option value="GB">GB</option>
-                                        </select>
-                                    </div>
-                                    <span x-show="isUnlimited" class="text-sm text-purple-600 dark:text-purple-400 font-semibold">No data cap</span>
-                                </div>
+                                <input type="text" name="label" placeholder="e.g. Front Desk Scratch Cards, Cafe POS Stock" maxlength="100"
+                                       class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
                             </div>
-
-                            {{-- Speed limits (optional) --}}
-                            <div class="sm:col-span-2 lg:col-span-3">
-                                <label class="flex items-center gap-2 cursor-pointer select-none mb-3">
-                                    <div class="relative">
-                                        <input type="checkbox" class="sr-only" x-model="hasSpeed">
-                                        <div :class="hasSpeed ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-600'"
-                                             class="w-10 h-5 rounded-full transition-colors"></div>
-                                        <div :class="hasSpeed ? 'translate-x-5' : 'translate-x-0'"
-                                             class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"></div>
-                                    </div>
-                                    <span class="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Set Speed Limits</span>
-                                    <span class="text-xs text-gray-400">(leave off to use plan defaults)</span>
-                                </label>
-
-                                <div x-show="hasSpeed" class="grid sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Download Speed</label>
-                                        <div class="relative">
-                                            <input type="number" name="speed_limit_download" min="0" placeholder="e.g. 2048"
-                                                   @if(!$isAdmin && $planLimits && $planLimits['speed_limit_download']) max="{{ $planLimits['speed_limit_download'] }}" @endif
-                                                   class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 pr-14">
-                                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Kbps</span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Upload Speed</label>
-                                        <div class="relative">
-                                            <input type="number" name="speed_limit_upload" min="0" placeholder="e.g. 512"
-                                                   @if(!$isAdmin && $planLimits && $planLimits['speed_limit_upload']) max="{{ $planLimits['speed_limit_upload'] }}" @endif
-                                                   class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500 pr-14">
-                                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Kbps</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {{-- Attach to plan (optional) --}}
-                            @if($plans->isNotEmpty())
-                            <div class="sm:col-span-2 lg:col-span-3">
-                                <label class="flex items-center gap-2 cursor-pointer select-none mb-3">
-                                    <div class="relative">
-                                        <input type="checkbox" class="sr-only" x-model="hasPlan">
-                                        <div :class="hasPlan ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-600'"
-                                             class="w-10 h-5 rounded-full transition-colors"></div>
-                                        <div :class="hasPlan ? 'translate-x-5' : 'translate-x-0'"
-                                             class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"></div>
-                                    </div>
-                                    <span class="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Attach to a Plan</span>
-                                    <span class="text-xs text-gray-400">(optional — lets logged-in users activate the plan via this voucher)</span>
-                                </label>
-                                <div x-show="hasPlan">
-                                    <select name="plan_id"
-                                            class="w-full rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-purple-500 focus:ring-purple-500">
-                                        <option value="">— Select a plan —</option>
-                                        @foreach($plans as $plan)
-                                            <option value="{{ $plan->id }}">
-                                                {{ $plan->name }} — {{ $plan->validity_days }} days
-                                                / {{ $plan->limit_unit === 'Unlimited' ? 'Unlimited' : $plan->data_limit . ' ' . $plan->limit_unit }}
-                                                (₦{{ number_format($plan->price) }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            @endif
                         </div>
 
-                        <div class="mt-6 flex justify-end">
-                            <button type="submit"
-                                    class="px-8 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-colors shadow-sm">
-                                <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Create Custom Vouchers
-                            </button>
+                        {{-- Live Financial Checkout Bar --}}
+                        <div class="mt-6 p-4 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-4"
+                             :class="canAfford ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800' : 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-800'">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg"
+                                     :class="canAfford ? 'bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300' : 'bg-red-100 dark:bg-red-800 text-red-600 dark:text-red-300'">
+                                    <i :class="canAfford ? 'fa-solid fa-calculator' : 'fa-solid fa-triangle-exclamation'"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                        <span>Total Batch Cost:</span>
+                                        <span class="text-lg text-blue-600 dark:text-blue-400">₦<span x-text="totalCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span></span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                                        <span x-text="quantity"></span> voucher(s) × ₦<span x-text="(selectedPlan ? parseFloat(selectedPlan.price) : 0).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                                        · Your Balance: <strong class="text-gray-700 dark:text-gray-300">₦{{ number_format($walletBalance, 2) }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <template x-if="canAfford">
+                                    <button type="submit"
+                                            class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-sm flex items-center gap-2">
+                                        <i class="fa-solid fa-lock"></i> Pay from Wallet & Generate
+                                    </button>
+                                </template>
+                                <template x-if="!canAfford">
+                                    <button type="button" @click="topUpModal = true"
+                                            class="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-all shadow-sm flex items-center gap-2">
+                                        <i class="fa-solid fa-plus"></i> Insufficient Balance — Top Up Wallet
+                                    </button>
+                                </template>
+                            </div>
                         </div>
                     </form>
                 </div>
-                @endif
             </div>
+
+            {{-- Recent Voucher Batches --}}
+            @if($batches->isNotEmpty())
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <h3 class="font-bold text-gray-900 dark:text-white flex items-center gap-2 text-sm">
+                        <i class="fa-solid fa-receipt text-indigo-500"></i> Recent Financial Batches
+                    </h3>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ $batches->count() }} batches</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700 text-xs">
+                        <thead class="bg-gray-50 dark:bg-gray-700/50">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-bold text-gray-500 uppercase">Batch Code</th>
+                                <th class="px-4 py-3 text-left font-bold text-gray-500 uppercase">Plan</th>
+                                <th class="px-4 py-3 text-left font-bold text-gray-500 uppercase">Quantity</th>
+                                <th class="px-4 py-3 text-left font-bold text-gray-500 uppercase">Total Paid</th>
+                                <th class="px-4 py-3 text-left font-bold text-gray-500 uppercase">Redeemed</th>
+                                <th class="px-4 py-3 text-left font-bold text-gray-500 uppercase">Payment</th>
+                                <th class="px-4 py-3 text-left font-bold text-gray-500 uppercase">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50 dark:divide-gray-700/50">
+                            @foreach($batches as $b)
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                <td class="px-4 py-3 font-mono font-bold text-indigo-600 dark:text-indigo-400">{{ $b->batch_code }}</td>
+                                <td class="px-4 py-3 font-medium text-gray-800 dark:text-white">{{ $b->plan?->name ?? 'Custom' }}</td>
+                                <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ $b->quantity }} codes</td>
+                                <td class="px-4 py-3 font-bold text-gray-900 dark:text-white">₦{{ number_format((float) $b->total_cost, 2) }}</td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-0.5 rounded-full font-semibold {{ $b->redeemed_count > 0 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600' }}">
+                                        {{ $b->redeemed_count }} / {{ $b->quantity }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 uppercase">
+                                        {{ $b->payment_method }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-gray-400">{{ $b->created_at->format('d M, H:i') }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
 
             {{-- Vouchers table with bulk actions --}}
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
@@ -336,7 +281,9 @@
 
                 {{-- Header --}}
                 <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-4 flex-wrap">
-                    <h3 class="font-bold text-gray-900 dark:text-white">Your Vouchers</h3>
+                    <h3 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <i class="fa-solid fa-ticket text-blue-600"></i> Active Vouchers Inventory
+                    </h3>
                     <span class="text-xs text-gray-500 dark:text-gray-400">{{ $vouchers->total() }} total</span>
                 </div>
 
@@ -390,9 +337,9 @@
                                            class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer">
                                 </th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Code</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Label / Plan</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Plan / Label</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Data</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Speed</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Uses</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Expires</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
@@ -420,31 +367,28 @@
                                 </td>
                                 <td class="px-4 py-3 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                                     {{ $v->code }}
+                                    @if($v->batch)
+                                        <div class="text-[10px] text-gray-400 font-mono font-normal">{{ $v->batch->batch_code }}</div>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
-                                    @if($v->label)
-                                        <span class="font-medium text-gray-800 dark:text-white">{{ $v->label }}</span>
-                                        @if($v->plan)
-                                            <br><span class="text-xs text-gray-400">{{ $v->plan->name }}</span>
-                                        @endif
-                                    @elseif($v->plan)
-                                        {{ $v->plan->name }}
+                                    @if($v->plan)
+                                        <span class="font-medium text-gray-800 dark:text-white">{{ $v->plan->name }}</span>
                                     @else
                                         <span class="text-xs text-gray-400 italic">Custom</span>
                                     @endif
+                                    @if($v->label)
+                                        <br><span class="text-xs text-gray-400">{{ $v->label }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                                    ₦{{ number_format((float) ($v->price ?? $v->plan?->price ?? 0), 2) }}
                                 </td>
                                 <td class="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">
                                     @if($v->is_unlimited)
                                         <span class="text-blue-600 dark:text-blue-400 font-semibold">Unlimited</span>
                                     @elseif($v->data_limit_mb)
                                         {{ $v->data_limit_mb >= 1024 ? round($v->data_limit_mb / 1024, 1).' GB' : $v->data_limit_mb.' MB' }}
-                                    @else
-                                        <span class="text-gray-400">—</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap text-xs">
-                                    @if($v->speed_limit_download || $v->speed_limit_upload)
-                                        ↓{{ $v->speed_limit_download ?? '?' }}k / ↑{{ $v->speed_limit_upload ?? '?' }}k
                                     @else
                                         <span class="text-gray-400">—</span>
                                     @endif
@@ -485,7 +429,7 @@
                             <tr>
                                 <td colspan="9" class="px-6 py-12 text-center text-gray-400 dark:text-gray-500">
                                     <i class="fa-solid fa-ticket text-3xl mb-3 block opacity-40"></i>
-                                    No vouchers yet. Create one above.
+                                    No vouchers generated yet.
                                 </td>
                             </tr>
                             @endforelse
@@ -500,6 +444,65 @@
                 @endif
             </div>
 
+        </div>
+
+        {{-- Top Up Wallet Modal --}}
+        <div x-show="topUpModal" x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+             x-transition:enter="ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-700 relative"
+                 @click.away="topUpModal = false">
+                <button type="button" @click="topUpModal = false"
+                        class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-wallet"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-900 dark:text-white">Top Up Prepaid Wallet</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Instant funding via Paystack (Cards & Bank Transfer)</p>
+                    </div>
+                </div>
+
+                <form action="{{ route('wallet.topup') }}" method="POST" class="space-y-4">
+                    @csrf
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
+                            Choose Amount (₦)
+                        </label>
+                        <div class="grid grid-cols-3 gap-2 mb-3">
+                            @foreach([2000, 5000, 10000, 20000, 50000, 100000] as $preset)
+                                <button type="button" @click="topUpAmount = {{ $preset }}"
+                                        :class="topUpAmount === {{ $preset }} ? 'bg-blue-600 text-white font-bold' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'"
+                                        class="py-2 text-xs rounded-xl transition-colors">
+                                    ₦{{ number_format($preset) }}
+                                </button>
+                            @endforeach
+                        </div>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-gray-400">₦</span>
+                            <input type="number" name="amount" x-model.number="topUpAmount" min="500" max="500000" step="100" required
+                                   class="w-full pl-8 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 font-bold">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Minimum: ₦500 · Maximum: ₦500,000</p>
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="submit"
+                                class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow transition-colors flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-lock"></i> Pay with Paystack
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </x-app-layout>

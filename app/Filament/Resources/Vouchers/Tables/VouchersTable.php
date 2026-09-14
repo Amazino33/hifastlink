@@ -64,6 +64,18 @@ class VouchersTable
                     ->placeholder('Custom')
                     ->sortable(),
 
+                TextColumn::make('price')
+                    ->label('Price')
+                    ->money('NGN')
+                    ->sortable(),
+
+                TextColumn::make('batch.batch_code')
+                    ->label('Batch')
+                    ->badge()
+                    ->color('gray')
+                    ->placeholder('—')
+                    ->searchable(),
+
                 TextColumn::make('label')
                     ->label('Label')
                     ->placeholder('—')
