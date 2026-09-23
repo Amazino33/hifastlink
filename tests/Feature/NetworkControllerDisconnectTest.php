@@ -56,7 +56,8 @@ class NetworkControllerDisconnectTest extends TestCase
             ->actingAs($user)
             ->post(route('user.disconnect'));
 
-        $response->assertRedirect();
+        $response->assertOk();
+        $response->assertViewIs('hotspot.disconnect_from_router');
 
         $this->assertFalse($device->fresh()->is_connected);
         $this->assertNull(session('current_device_mac'));

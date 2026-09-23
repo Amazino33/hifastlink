@@ -9,6 +9,7 @@ use App\Models\RadAcct;
 use App\Models\Router;
 use App\Models\Transaction;
 use App\Services\PlanFilterService;
+use App\Services\RouterSessionService;
 use Carbon\CarbonInterval;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -60,7 +61,7 @@ class AppDashboard extends Component
         $this->profileEmail = $u->email ?? '';
     }
 
-    /** Called by wire:poll every 15 s */
+    /** Called by wire:poll every 5 s */
     public function pollConnection(): void
     {
         $this->syncState();
@@ -69,8 +70,25 @@ class AppDashboard extends Component
 
     private function syncState(): void
     {
-        $user     = Auth::user();
+        $user = Auth::user();
+        if (! $user) return;
         $clientIp = request()->ip();
+
+        // Capture MAC from request if passed by MikroTik redirect (?mac=...)
+        if (request()->filled('mac')) {
+            session(['current_device_mac' => request()->query('mac')]);
+        }
+        $deviceMac = session('current_device_mac');
+
+        // Automatically clean stale sessions in the background so dead sessions
+        // don't leave ghost "Connected" indicators
+        if (! empty($user->username)) {
+            try {
+                app(RouterSessionService::class)->closeStaleRadAcctSessions($user->username, 3);
+            } catch (\Throwable $e) {
+                Log::warning('AppDashboard: failed cleaning stale radacct: ' . $e->getMessage());
+            }
+        }
 
         // When hotspot detection is disabled in Network Settings, treat every
         // user as on the hotspot — Connect button always fires and MikroTik
@@ -114,12 +132,23 @@ class AppDashboard extends Component
 
         // Active RADIUS session?
         $hasSession = false;
-        try {
-            $hasSession = RadAcct::where('username', $user->username)
-                ->whereNull('acctstoptime')
-                ->exists();
-        } catch (\Exception $e) {
-            Log::warning('AppDashboard: RADIUS unreachable — ' . $e->getMessage());
+        if (! empty($user->username) && $user->connection_status !== 'suspended') {
+            try {
+                $activeQuery = RadAcct::forUser($user->username)->active();
+
+                // If device MAC is known, check if THIS device has the active session
+                if ($deviceMac) {
+                    $cleanMac = strtoupper(str_replace(['-', '.'], ':', $deviceMac));
+                    $hasSession = (clone $activeQuery)->where('callingstationid', $cleanMac)->exists();
+                }
+
+                // Fall back to checking any active session for the user
+                if (! $hasSession) {
+                    $hasSession = $activeQuery->exists();
+                }
+            } catch (\Exception $e) {
+                Log::warning('AppDashboard: RADIUS unreachable — ' . $e->getMessage());
+            }
         }
 
         // Plan / voucher / unrestricted access?
@@ -609,25 +638,80 @@ class AppDashboard extends Component
         $this->dispatch('toast', message: "Linked {$foundUser->username} to your family plan.", type: 'success');
     }
 
-    public function disconnectSession(?string $sessionId = null): void
+    public function disconnect(?string $sessionId = null): void
     {
         $user = Auth::user();
-        if (! $user->username) return;
+        if (! $user || ! $user->username) return;
 
-        $query = DB::table('radacct')
-            ->where('username', $user->username)
-            ->whereNull('acctstoptime');
+        $mac = session('current_device_mac') ?? request()->input('mac');
 
-        if ($sessionId) {
-            $query->where('radacctid', $sessionId);
+        try {
+            app(RouterSessionService::class)->forceDisconnectUser(
+                $user->username,
+                $mac,
+                request()->ip()
+            );
+        } catch (\Throwable $e) {
+            Log::warning('AppDashboard disconnect error: ' . $e->getMessage());
         }
 
-        $query->update([
-            'acctstoptime'        => now(),
-            'acctterminatecause'  => 'User-Request',
-        ]);
+        // Mark devices offline and user connection_status
+        try {
+            \App\Models\Device::where('user_id', $user->id)
+                ->where('is_connected', true)
+                ->update(['is_connected' => false, 'last_seen' => now()]);
+        } catch (\Throwable) {}
 
+        $user->update(['connection_status' => 'disconnected']);
+        session()->forget(['current_device_mac', 'last_connect_claimed_at', 'last_connect_username']);
+
+        // Build the hotspot logout URL for client-side beacon/fetch
+        $gateway = config('services.mikrotik.gateway') ?? env('MIKROTIK_GATEWAY') ?? 'http://login.wifi/login';
+        if (strpos($gateway, '://') === false) {
+            $gateway = 'http://' . $gateway;
+        }
+        $parsed    = parse_url($gateway);
+        $logoutUrl = ($parsed['scheme'] ?? 'http') . '://' . ($parsed['host'] ?? 'login.wifi') . '/logout';
+
+        $this->syncState();
         $this->dispatch('toast', message: 'Disconnected successfully.', type: 'success');
+        $this->dispatch('trigger-router-logout', logoutUrl: $logoutUrl);
+    }
+
+    public function disconnectSession(?string $sessionId = null): void
+    {
+        $this->disconnect($sessionId);
+    }
+
+    public function disconnectDevice(string $mac): void
+    {
+        $user = Auth::user();
+        if (! $user || ! $user->username) return;
+
+        try {
+            app(RouterSessionService::class)->forceDisconnectUser(
+                $user->username,
+                $mac,
+                request()->ip()
+            );
+        } catch (\Throwable $e) {
+            Log::warning('AppDashboard disconnectDevice error: ' . $e->getMessage());
+        }
+
+        $this->syncState();
+        $this->dispatch('toast', message: "Device {$mac} disconnected.", type: 'success');
+    }
+
+    public function checkConnection(): void
+    {
+        $this->syncState();
+        if ($this->connectionState === 'connected') {
+            $this->dispatch('toast', message: 'Connection active.', type: 'success');
+        } elseif ($this->connectionState === 'plan-active') {
+            $this->dispatch('toast', message: 'Device disconnected. Tap Connect to get online.', type: 'info');
+        } else {
+            $this->dispatch('toast', message: 'No active plan. Please subscribe.', type: 'warning');
+        }
     }
 
     public function deleteSubAccount(int $subId): void
@@ -768,10 +852,17 @@ class AppDashboard extends Component
         $expiryHuman     = null;
 
         try {
-            $activeSession = RadAcct::where('username', $user->username)
-                ->whereNull('acctstoptime')
-                ->latest('acctstarttime')
-                ->first();
+            $query = RadAcct::forUser($user->username)->active();
+
+            $deviceMac = session('current_device_mac');
+            if ($deviceMac) {
+                $cleanMac = strtoupper(str_replace(['-', '.'], ':', $deviceMac));
+                $activeSession = (clone $query)->where('callingstationid', $cleanMac)->latest('acctstarttime')->first();
+            }
+
+            if (! $activeSession) {
+                $activeSession = $query->latest('acctstarttime')->first();
+            }
 
             if ($activeSession) {
                 $sessionDownload = Number::fileSize((int) ($activeSession->acctoutputoctets ?? 0));
@@ -871,8 +962,8 @@ class AppDashboard extends Component
         $activeDevices = collect();
         try {
             if ($user->username) {
-                $activeDevices = RadAcct::where('username', $user->username)
-                    ->whereNull('acctstoptime')
+                $activeDevices = RadAcct::forUser($user->username)
+                    ->active()
                     ->orderBy('acctstarttime', 'desc')
                     ->get();
             }

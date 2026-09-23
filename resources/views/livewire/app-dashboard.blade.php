@@ -7,10 +7,39 @@
         pwOpen: false,
         hotspotWarning: false,
         toast: null,
-        showToast(msg, type) { this.toast = { msg, type }; setTimeout(() => this.toast = null, 3400); }
+        isConnecting: false,
+        isDisconnecting: false,
+        clientOffline: !navigator.onLine,
+        showToast(msg, type) { this.toast = { msg, type }; setTimeout(() => this.toast = null, 3400); },
+        async verifyOnline() {
+            if (!navigator.onLine) {
+                this.clientOffline = true;
+                return false;
+            }
+            try {
+                const res = await fetch('/api/ping?t=' + Date.now(), { method: 'GET', cache: 'no-store' });
+                this.clientOffline = !res.ok;
+                return res.ok;
+            } catch (e) {
+                this.clientOffline = true;
+                return false;
+            }
+        }
     }"
     x-on:toast.window="showToast($event.detail?.message || ($event.detail?.[0] && $event.detail[0].message) || $event.detail, $event.detail?.type || ($event.detail?.[0] && $event.detail[0].type) || 'info')"
-    x-init="document.addEventListener('visibilitychange', () => { if (!document.hidden) $wire.pollConnection() })"
+    x-init="
+        window.addEventListener('online', () => { clientOffline = false; verifyOnline(); $wire.pollConnection(); });
+        window.addEventListener('offline', () => { clientOffline = true; });
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) { verifyOnline(); $wire.pollConnection(); } });
+        window.addEventListener('trigger-router-logout', (e) => {
+            const url = e.detail?.logoutUrl || (e.detail?.[0] && e.detail[0].logoutUrl);
+            if (url) {
+                const img = new Image();
+                img.src = url + '?t=' + Date.now();
+                fetch(url, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
+            }
+        });
+    "
     wire:poll.5000ms="pollConnection"
 >
 
@@ -186,21 +215,66 @@
 .pr-green:nth-child(2) { animation-delay: .93s; }
 .pr-green:nth-child(3) { animation-delay: 1.86s; }
 
-/* Connected center — flat glass orb */
-.conn-center {
+/* Connected center button — smart interactive glass orb */
+.conn-center-btn {
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%,-50%);
     width: 110px; height: 110px; border-radius: 50%;
-    background: radial-gradient(circle at 45% 38%, rgba(140,255,170,.22) 0%, rgba(50,215,75,.13) 60%, rgba(20,180,50,.08) 100%);
+    background: radial-gradient(circle at 45% 38%, rgba(140,255,170,.25) 0%, rgba(50,215,75,.15) 60%, rgba(20,180,50,.08) 100%);
     border: 1.5px solid rgba(50,215,75,.5);
     box-shadow:
-        0 0 0 10px rgba(50,215,75,.06),
+        0 0 0 8px rgba(50,215,75,.08),
         0 0 42px rgba(50,215,75,.55),
         0 0 80px rgba(50,215,75,.18),
         0 8px 24px rgba(0,0,0,.45);
-    display: flex; align-items: center; justify-content: center; z-index: 3;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 3;
+    transition: transform .15s, box-shadow .2s, background .2s, border-color .2s;
+    -webkit-tap-highlight-color: transparent;
 }
-.conn-center svg { width: 46px; height: 46px; color: var(--green); stroke-width: 2.5; filter: drop-shadow(0 0 10px rgba(50,215,75,.9)); }
+.conn-center-btn:hover {
+    transform: translate(-50%,-50%) scale(1.04);
+    box-shadow:
+        0 0 0 10px rgba(50,215,75,.15),
+        0 0 52px rgba(50,215,75,.75),
+        0 8px 28px rgba(0,0,0,.5);
+}
+.conn-center-btn:active {
+    transform: translate(-50%,-50%) scale(.96);
+}
+.conn-center-btn.client-offline {
+    background: radial-gradient(circle at 45% 38%, rgba(255,159,10,.25) 0%, rgba(255,69,58,.15) 60%, rgba(180,30,20,.08) 100%);
+    border-color: rgba(255,159,10,.5);
+    box-shadow:
+        0 0 0 8px rgba(255,159,10,.08),
+        0 0 36px rgba(255,159,10,.45),
+        0 8px 24px rgba(0,0,0,.45);
+}
+.conn-center-inner {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+}
+.conn-center-inner svg {
+    width: 38px; height: 38px; color: var(--green); stroke-width: 2.6;
+    filter: drop-shadow(0 0 8px rgba(50,215,75,.85));
+}
+.conn-center-inner.conn-offline svg {
+    width: 32px; height: 32px; color: var(--amber); stroke-width: 2.2;
+    filter: drop-shadow(0 0 8px rgba(255,159,10,.75));
+}
+.conn-center-lbl {
+    color: rgba(255,255,255,.9); font-size: 10px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; font-family: 'Sora', sans-serif;
+}
+.conn-reconnect-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 11px 16px; border-radius: 14px;
+    background: rgba(255,159,10,.15); border: 1px solid rgba(255,159,10,.35);
+    color: #ff9f0a; font-size: 13px; font-weight: 600; font-family: 'Sora', sans-serif;
+    cursor: pointer; transition: all .15s;
+}
+.conn-reconnect-btn:hover {
+    background: rgba(255,159,10,.25); border-color: #ff9f0a;
+}
 
 /* ─── Status badge ───────────────────────────── */
 .status-row { display: flex; flex-direction: column; align-items: center; gap: 5px; }
@@ -1340,23 +1414,50 @@
                     <button class="connect-btn" id="app-connect-btn"
                         data-hotspot="{{ $isOnHotspot ? '1' : '0' }}"
                         data-url="{{ $connectUrl }}"
-                        @click="$el.dataset.hotspot === '1' ? (window.location.href = $el.dataset.url) : (hotspotWarning = true)">
-                        <span class="connect-btn-icon">
+                        :disabled="isConnecting"
+                        @click="
+                            if ($el.dataset.hotspot !== '1') {
+                                hotspotWarning = true;
+                            } else {
+                                isConnecting = true;
+                                window.location.href = $el.dataset.url;
+                            }
+                        ">
+                        <span class="connect-btn-icon" x-show="!isConnecting">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                 <line x1="12" y1="2" x2="12" y2="12"/><path d="M8.5 4.8A8 8 0 1 0 15.5 4.8"/>
                             </svg>
                         </span>
-                        <span class="connect-btn-lbl">Connect</span>
+                        <span class="connect-btn-icon" x-show="isConnecting" style="display:none;">
+                            <svg style="animation:spin .8s linear infinite;width:24px;height:24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                        </span>
+                        <span class="connect-btn-lbl" x-text="isConnecting ? 'Connecting…' : 'Connect'">Connect</span>
                     </button>
                 @endif
 
-                {{-- Connected checkmark --}}
+                {{-- Connected interactive button --}}
                 @if($connectionState === 'connected')
-                    <div class="conn-center">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                    </div>
+                    <button class="conn-center-btn" type="button"
+                        :class="{ 'client-offline': clientOffline }"
+                        @click="clientOffline ? verifyOnline().then(ok => { if(!ok) hotspotWarning = true; else $wire.pollConnection(); }) : $wire.checkConnection()"
+                        title="Connection status — tap to test or refresh">
+                        <template x-if="!clientOffline">
+                            <div class="conn-center-inner">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                                <span class="conn-center-lbl">Online</span>
+                            </div>
+                        </template>
+                        <template x-if="clientOffline">
+                            <div class="conn-center-inner conn-offline">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>
+                                </svg>
+                                <span class="conn-center-lbl">Offline</span>
+                            </div>
+                        </template>
+                    </button>
                 @endif
 
                 {{-- No-plan amber dot center --}}
@@ -1372,10 +1473,13 @@
                     <span class="status-sub">Subscribe to get online</span>
                 @elseif($connectionState === 'plan-active')
                     <div class="status-badge badge-active"><span class="badge-dot"></span> Plan Active</div>
-                    <span class="status-sub">Tap Connect to get online</span>
+                    <span class="status-sub" x-text="clientOffline ? 'Join Wi-Fi to connect' : 'Tap Connect to get online'">Tap Connect to get online</span>
                 @else
-                    <div class="status-badge badge-conn"><span class="badge-dot"></span> Connected</div>
-                    <span class="status-sub">Session active · {{ $uptime ?? '—' }}</span>
+                    <div class="status-badge" :class="clientOffline ? 'badge-noplan' : 'badge-conn'">
+                        <span class="badge-dot"></span>
+                        <span x-text="clientOffline ? 'Disconnected / Offline' : 'Connected'">Connected</span>
+                    </div>
+                    <span class="status-sub" x-text="clientOffline ? 'Signal lost · tap orb to retry' : 'Session active · {{ $uptime ?? '—' }}'">Session active · {{ $uptime ?? '—' }}</span>
                 @endif
             </div>
 
@@ -1434,16 +1538,23 @@
                 </div>
             @endif
 
-            {{-- Disconnect button (connected state only) --}}
+            {{-- Disconnect & Reconnect action row (connected state only) --}}
             @if($connectionState === 'connected')
-                <form method="POST" action="{{ route('user.disconnect') }}"
-                    @submit.prevent="if(window.confirm('Disconnect from WiFi?')) $el.submit()">
-                    @csrf
-                    <button type="submit" class="disconnect-btn">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        Disconnect
+                <div class="conn-actions-wrap" style="display: flex; gap: 8px; width: 100%; margin-top: 14px;">
+                    <button type="button" class="conn-reconnect-btn"
+                        x-show="clientOffline"
+                        @click="window.location.href = '{{ $connectUrl }}'"
+                        style="display:none; flex: 1;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                        Reconnect
                     </button>
-                </form>
+                    <button type="button" class="disconnect-btn" style="flex:1; margin-top:0;"
+                        @click="if(window.confirm('Disconnect from WiFi?')) { isDisconnecting = true; $wire.disconnect().then(() => { isDisconnecting = false; }); }"
+                        :disabled="isDisconnecting">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        <span x-text="isDisconnecting ? 'Disconnecting…' : 'Disconnect'">Disconnect</span>
+                    </button>
+                </div>
             @endif
 
         </div>{{-- end conn-card --}}
@@ -1759,14 +1870,11 @@
                                     <div class="device-meta">{{ $ip }} &nbsp;·&nbsp; {{ $uptime }}</div>
                                     <div class="device-data">↓ {{ $dl }} &nbsp; ↑ {{ $ul }}</div>
                                 </div>
-                                <form method="POST" action="{{ route('user.disconnect') }}"
-                                    @submit.prevent="if(window.confirm('Disconnect this device?')) $el.submit()">
-                                    @csrf
-                                    <input type="hidden" name="mac" value="{{ $mac }}">
-                                    <button type="submit" class="device-disc-btn" title="Disconnect">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                    </button>
-                                </form>
+                                <button type="button" class="device-disc-btn" title="Disconnect"
+                                    wire:click="disconnectDevice('{{ $mac }}')"
+                                    wire:confirm="Disconnect this device?">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
                             </div>
                         @endforeach
                     </div>
