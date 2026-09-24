@@ -59,8 +59,8 @@ class PaymentController extends Controller
         ];
 
         try {
-            $response = Http::withToken(env('PAYSTACK_SECRET_KEY'))
-                ->post(rtrim(env('PAYSTACK_PAYMENT_URL', 'https://api.paystack.co'), '/') . '/transaction/initialize', $payload);
+            $response = Http::withToken(config('services.paystack.secret_key'))
+                ->post(rtrim(config('services.paystack.payment_url'), '/') . '/transaction/initialize', $payload);
 
             \Log::info('Paystack API response', [
                 'status' => $response->status(),
@@ -78,7 +78,8 @@ class PaymentController extends Controller
         // dd($response->json()); // --- DEBUG ---
 
         if (! $response->successful()) {
-            return back()->with('error', 'Unable to initialize payment (network error).');
+            $apiError = $response->json('message') ?? 'Unable to initialize payment (gateway error).';
+            return back()->with('error', $apiError);
         }
 
         $body = $response->json();
@@ -102,8 +103,8 @@ class PaymentController extends Controller
             return redirect()->route($afterRoute)->with('error', 'Missing payment reference.');
         }
 
-        $response = Http::withToken(env('PAYSTACK_SECRET_KEY'))
-            ->get(rtrim(env('PAYSTACK_PAYMENT_URL', 'https://api.paystack.co'), '/') . '/transaction/verify/' . urlencode($reference));
+        $response = Http::withToken(config('services.paystack.secret_key'))
+            ->get(rtrim(config('services.paystack.payment_url'), '/') . '/transaction/verify/' . urlencode($reference));
 
         if (! $response->successful()) {
             return redirect()->route($afterRoute)->with('error', 'Unable to verify payment (network error).');
@@ -435,8 +436,8 @@ class PaymentController extends Controller
         ];
 
         try {
-            $response = Http::withToken(env('PAYSTACK_SECRET_KEY'))
-                ->post(rtrim(env('PAYSTACK_PAYMENT_URL', 'https://api.paystack.co'), '/') . '/transaction/initialize', $payload);
+            $response = Http::withToken(config('services.paystack.secret_key'))
+                ->post(rtrim(config('services.paystack.payment_url'), '/') . '/transaction/initialize', $payload);
 
             if (! $response->successful()) {
                 return back()->with('error', 'Unable to initialize payment (network error).');

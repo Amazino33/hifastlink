@@ -10,7 +10,7 @@
         isConnecting: false,
         isDisconnecting: false,
         clientOffline: !navigator.onLine,
-        showToast(msg, type) { this.toast = { msg, type }; setTimeout(() => this.toast = null, 3400); },
+        showToast(msg, type) { this.toast = { msg, type }; const duration = type === 'error' ? 6000 : 3400; setTimeout(() => this.toast = null, duration); },
         async verifyOnline() {
             if (!navigator.onLine) {
                 this.clientOffline = true;
@@ -39,6 +39,16 @@
                 fetch(url, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
             }
         });
+
+        @if(session('error'))
+            showToast(@js(session('error')), 'error');
+        @elseif(session('success'))
+            showToast(@js(session('success')), 'success');
+        @elseif(session('status'))
+            showToast(@js(session('status')), 'info');
+        @elseif($errors->any())
+            showToast(@js($errors->first()), 'error');
+        @endif
     "
     wire:poll.5000ms="pollConnection"
 >
