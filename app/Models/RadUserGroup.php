@@ -9,6 +9,8 @@ class RadUserGroup extends Model
 {
     use HasFactory;
 
+    protected $connection = 'radius';
+
     // Radius tables don't typically use 'created_at' and 'updated_at'
     public $timestamps = false;
 

@@ -23,7 +23,8 @@ Schedule::command('network:check-limits')->hourly();
 Schedule::command('users:kick-expired')->everyMinute();
 
 // Check subscriptions expiry daily and snapshot rollover bytes
-Schedule::command('subscriptions:check-expiry')->dailyAt('02:00');
+// Check subscriptions expiry every ten minutes and snapshot rollover bytes
+Schedule::command('subscriptions:check-expiry')->everyTenMinutes();
 
 // Generate daily reports at 1 AM
 Schedule::command('reports:generate --type=daily')->dailyAt('01:00');

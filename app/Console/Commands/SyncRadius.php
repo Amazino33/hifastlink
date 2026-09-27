@@ -20,13 +20,13 @@ class SyncRadius extends Command
 
         try {
             // 1) Mark online users (active sessions: acctstoptime IS NULL)
-            if (!\Schema::hasTable('radacct')) {
+            $connName = (new \App\Models\RadAcct)->getConnectionName();
+            if (!\Illuminate\Support\Facades\Schema::connection($connName)->hasTable('radacct')) {
                 $this->error('radacct table not found. Aborting.');
                 return 1;
             }
 
-            $activeUsernames = DB::table('radacct')
-                ->whereNull('acctstoptime')
+            $activeUsernames = \App\Models\RadAcct::whereNull('acctstoptime')
                 ->distinct()
                 ->pluck('username')
                 ->toArray();
@@ -39,8 +39,7 @@ class SyncRadius extends Command
                     continue;
                 }
 
-                $session = DB::table('radacct')
-                    ->where('username', $username)
+                $session = \App\Models\RadAcct::where('username', $username)
                     ->whereNull('acctstoptime')
                     ->orderByDesc('acctstarttime')
                     ->first();
@@ -62,7 +61,7 @@ class SyncRadius extends Command
             }
 
             // 2) Mark offline users (no active sessions)
-            $allUsernamesWithAcct = DB::table('radacct')->distinct()->pluck('username')->toArray();
+            $allUsernamesWithAcct = \App\Models\RadAcct::distinct()->pluck('username')->toArray();
             $usersToCheck = User::whereIn('username', $allUsernamesWithAcct)->get();
             foreach ($usersToCheck as $user) {
                 if (in_array($user->username, $activeUsernames)) {
@@ -78,7 +77,7 @@ class SyncRadius extends Command
             }
 
             // 3) Recompute total usage per user from radacct (idempotent)
-            $usernames = DB::table('radacct')->distinct()->pluck('username');
+            $usernames = \App\Models\RadAcct::distinct()->pluck('username');
 
             foreach ($usernames as $username) {
                 $user = User::where('username', $username)->first();
@@ -97,13 +96,21 @@ class SyncRadius extends Command
                 // Sum only bytes from the current plan period (since plan_started_at).
                 // This keeps data_used consistent with what PlanSyncService writes to
                 // Mikrotik-Total-Limit, which also filters by plan_started_at.
-                $totalQuery = DB::table('radacct')->where('username', $username);
+                $totalQuery = \App\Models\RadAcct::where('username', $username);
                 if ($user->plan_started_at) {
                     $totalQuery->where('acctstarttime', '>=', $user->plan_started_at);
                 }
-                $total = $totalQuery
-                    ->selectRaw('COALESCE(SUM(COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)),0) AS total')
-                    ->value('total');
+
+                $hasGigawords = false;
+                try {
+                    $hasGigawords = \Illuminate\Support\Facades\Schema::connection((new \App\Models\RadAcct)->getConnectionName())->hasColumn('radacct', 'acctinputgigawords');
+                } catch (\Throwable $e) {}
+
+                $expr = $hasGigawords
+                    ? 'COALESCE(SUM(COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0) + (COALESCE(acctinputgigawords,0) * 4294967296) + (COALESCE(acctoutputgigawords,0) * 4294967296)),0) AS total'
+                    : 'COALESCE(SUM(COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)),0) AS total';
+
+                $total = $totalQuery->selectRaw($expr)->value('total');
 
                 $this->info("Usage: {$username} total_bytes={$total}");
 
@@ -113,7 +120,7 @@ class SyncRadius extends Command
                     Log::info("sync: updated {$username} data_used={$total}");
 
                     // Check if user has exhausted their data
-                    if ($user->hasExceededDataLimit() && $user->plan_id) {
+                    if ($user->hasExceededDataLimit() && ($user->plan_id || $user->data_limit > 0)) {
                         $this->warn("Data exhausted for {$username} - clearing ALL plan details and disconnecting");
                         
                         // Clear ALL plan-related fields
@@ -128,9 +135,8 @@ class SyncRadius extends Command
                         $user->connection_status = 'exhausted';
                         $user->save();
 
-                        // Disconnect active sessions
-                        DB::table('radacct')
-                            ->where('username', $username)
+                        // Disconnect active sessions in radacct
+                        \App\Models\RadAcct::where('username', $username)
                             ->whereNull('acctstoptime')
                             ->update([
                                 'acctstoptime' => now(),
@@ -138,8 +144,25 @@ class SyncRadius extends Command
                             ]);
 
                         // Remove RADIUS credentials
-                        DB::table('radcheck')->where('username', $username)->delete();
-                        DB::table('radreply')->where('username', $username)->delete();
+                        \App\Models\RadCheck::where('username', $username)->delete();
+                        \App\Models\RadReply::where('username', $username)->delete();
+
+                        // Immediately block reconnection
+                        \App\Models\RadReply::updateOrCreate(
+                            ['username' => $username, 'attribute' => 'Mikrotik-Total-Limit'],
+                            ['op' => ':=', 'value' => '0']
+                        );
+                        \App\Models\RadCheck::updateOrCreate(
+                            ['username' => $username, 'attribute' => 'Expiration'],
+                            ['op' => ':=', 'value' => now()->subMinute()->format('d M Y H:i')]
+                        );
+
+                        // Forcibly disconnect active session on MikroTik router
+                        try {
+                            app(\App\Services\RouterSessionService::class)->forceDisconnectUser($username);
+                        } catch (\Throwable $te) {
+                            Log::warning("sync: failed router disconnect for {$username}: " . $te->getMessage());
+                        }
 
                         Log::info("sync: data exhausted for {$username}, plan cleared and user disconnected");
                     }

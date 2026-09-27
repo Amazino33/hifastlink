@@ -5,9 +5,11 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\User;
 use App\Models\RadAcct;
+use App\Models\RadCheck;
 use App\Models\RadReply;
+use App\Services\RouterSessionService;
+use App\Services\SubscriptionService;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 
 class KickExpiredUsers extends Command
 {
@@ -33,61 +35,63 @@ class KickExpiredUsers extends Command
         $checkedUsers = 0;
         $disconnectedUsers = 0;
 
-        $collation = config('database.connections.mysql.collation', 'utf8mb4_unicode_ci');
+        // Fetch open sessions from RadAcct model (which uses the correct RADIUS connection)
+        $activeUsernames = RadAcct::whereNull('acctstoptime')
+            ->distinct()
+            ->pluck('username')
+            ->filter()
+            ->map(fn ($u) => strtolower($u))
+            ->unique()
+            ->values()
+            ->toArray();
 
-        // Users whose plan has expired and who still have active sessions (collation-safe)
+        // Expired users who either have an active session or are currently marked active
         $expiredUsers = User::whereNotNull('plan_expiry')
             ->where('plan_expiry', '<=', now())
-            ->whereExists(function ($q) use ($collation) {
-                $q->select(DB::raw(1))
-                    ->from('radacct')
-                    ->whereNull('radacct.acctstoptime')
-                    ->whereRaw("radacct.username COLLATE {$collation} = users.username COLLATE {$collation}");
+            ->where(function ($q) use ($activeUsernames) {
+                if (!empty($activeUsernames)) {
+                    $q->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(username)'), $activeUsernames)
+                      ->orWhere('connection_status', 'active');
+                } else {
+                    $q->where('connection_status', 'active');
+                }
             })
             ->get();
+
+        $subscriptionService = app(SubscriptionService::class);
+        $routerSessionService = app(RouterSessionService::class);
 
         foreach ($expiredUsers as $user) {
             $checkedUsers++;
 
-            $sessions = RadAcct::where('username', $user->username)
-                ->whereNull('acctstoptime')
-                ->get();
-
-            if ($sessions->isEmpty()) {
-                continue;
+            // 1. Drop active session on MikroTik router via PoD (UDP 3799) and RouterOS REST API
+            try {
+                $routerSessionService->forceDisconnectUser($user->username);
+            } catch (\Throwable $e) {
+                Log::warning("KickExpiredUsers: forceDisconnectUser failed for {$user->username}: " . $e->getMessage());
             }
 
-            $updateData = [
-                'acctstoptime' => now(),
-                'acctterminatecause' => 'Session-Timeout',
-            ];
-
-            foreach ($sessions as $session) {
-                // Force-close session in DB — this is the authoritative disconnect.
-                // A RADIUS CoA/PoD packet would also terminate the live TCP session,
-                // but the web server cannot reach the MikroTik LAN IP from shared hosting.
-                // Mikrotik-Total-Limit=0 (set below) blocks data on any mac-cookie reconnect.
-                $query = DB::table('radacct')
-                    ->where('username', $user->username)
-                    ->whereNull('acctstoptime');
-
-                if (!empty($session->radacctid)) {
-                    $query->where('radacctid', $session->radacctid);
-                }
-
-                if (!empty($session->callingstationid)) {
-                    $query->where('callingstationid', $session->callingstationid);
-                }
-
-                $query->update($updateData);
+            // 2. Expire the user's plan via SubscriptionService (snapshots rollover, checks queue, updates status)
+            try {
+                $subscriptionService->expireForExpiry($user);
+            } catch (\Throwable $e) {
+                Log::error("KickExpiredUsers: expireForExpiry failed for {$user->username}: " . $e->getMessage());
             }
 
-            // Block reconnection immediately — mac-cookie would otherwise re-auth and get
-            // a new session before subscriptions:check-expiry runs expireForExpiry().
-            RadReply::updateOrCreate(
-                ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
-                ['op' => ':=', 'value' => '0']
-            );
+            // 3. Immediately block reconnection in RADIUS
+            try {
+                RadReply::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
+                    ['op' => ':=', 'value' => '0']
+                );
+
+                RadCheck::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Expiration'],
+                    ['op' => ':=', 'value' => now()->subMinute()->format('d M Y H:i')]
+                );
+            } catch (\Throwable $e) {
+                Log::warning("KickExpiredUsers: RadReply/RadCheck block failed for {$user->username}: " . $e->getMessage());
+            }
 
             $disconnectedUsers++;
         }

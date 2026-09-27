@@ -122,6 +122,18 @@ class PlanSyncService
                             'value'     => (string) $user->data_limit,
                         ]);
                     }
+
+                    // Enforce Session-Timeout for voucher/receipt window so MikroTik drops the session on expiry
+                    $voucherSecondsRemaining = (int) now()->diffInSeconds(Carbon::parse($user->plan_expiry), false);
+                    if ($voucherSecondsRemaining > 0) {
+                        RadReply::create([
+                            'username'  => $user->username,
+                            'attribute' => 'Session-Timeout',
+                            'op'        => ':=',
+                            'value'     => (string) $voucherSecondsRemaining,
+                        ]);
+                    }
+
                     if (in_array($user->connection_status, ['exhausted', 'inactive', 'disconnected', 'suspended'])) {
                         $user->connection_status = 'active';
                     }
@@ -157,14 +169,26 @@ class PlanSyncService
             $familyUsernames = User::where('id', $masterId)->orWhere('parent_id', $masterId)->pluck('username');
             $startDate = $user->plan_started_at ?? now()->subYears(1);
 
-            // If radacct table is not present in the test DB, assume zero usage
-            $radacctExists = \Illuminate\Support\Facades\Schema::hasTable('radacct');
+            // Calculate total usage including Gigawords (>4GB accounting)
+            $radacctExists = \Illuminate\Support\Facades\Schema::connection('radius')->hasTable('radacct');
             if ($radacctExists) {
-                $totalUsed = RadAcct::whereIn('username', $familyUsernames)
+                $hasGigawords = \Illuminate\Support\Facades\Schema::connection('radius')->hasColumn('radacct', 'acctinputgigawords');
+                $selectRaw = $hasGigawords
+                    ? 'COALESCE(SUM(COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0) + (COALESCE(acctinputgigawords, 0) * 4294967296) + (COALESCE(acctoutputgigawords, 0) * 4294967296)), 0) as total'
+                    : 'COALESCE(SUM(COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)), 0) as total';
+
+                $totalUsed = (int) RadAcct::whereIn('username', $familyUsernames)
                     ->where('acctstarttime', '>=', $startDate)
-                    ->sum(DB::raw('COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)'));
+                    ->selectRaw($selectRaw)
+                    ->value('total');
             } else {
                 $totalUsed = 0;
+            }
+
+            // Ensure $totalUsed is at least what is recorded on the user model (e.g. from data sync)
+            $userRecordedUsed = (int) ($user->data_used ?? 0);
+            if ($userRecordedUsed > $totalUsed) {
+                $totalUsed = $userRecordedUsed;
             }
 
             // Remaining data in bytes — respect the plan's limit_unit (MB or GB)
@@ -211,39 +235,31 @@ class PlanSyncService
             // Tell MikroTik the remaining data for this session.
             // Mikrotik-Total-Limit is a 32-bit attribute (max ~4 GB). For larger values
             // we split into Gigawords (each unit = 4,294,967,296 bytes) + the low remainder.
-            if ($remainingBytes > 0) {
-                $gigawords  = (int) ($remainingBytes / 4294967296);
-                $totalLimit = $remainingBytes - ($gigawords * 4294967296);
-                RadReply::create([
-                    'username'  => $user->username,
-                    'attribute' => 'Mikrotik-Total-Limit',
-                    'op'        => ':=',
-                    'value'     => (string) $totalLimit,
-                ]);
-                if ($gigawords > 0) {
+            if ($plan->data_limit) {
+                if ($remainingBytes > 0) {
+                    $gigawords  = (int) ($remainingBytes / 4294967296);
+                    $totalLimit = $remainingBytes - ($gigawords * 4294967296);
                     RadReply::create([
                         'username'  => $user->username,
-                        'attribute' => 'Mikrotik-Total-Limit-Gigawords',
+                        'attribute' => 'Mikrotik-Total-Limit',
                         'op'        => ':=',
-                        'value'     => (string) $gigawords,
+                        'value'     => (string) $totalLimit,
                     ]);
-                }
-            }
-
-            // Unlimited-data plans have no Mikrotik-Total-Limit to end the session,
-            // so write Session-Timeout instead. Without it, a long keepalive-timeout
-            // keeps the session alive past plan expiry — Expiration only blocks new
-            // logins, not already-running sessions.
-            if (!$plan->data_limit && !empty($plan->validity_days) && $plan->validity_days > 0) {
-                $planExpiry = $user->plan_expiry
-                    ?? Carbon::now()->addDays($plan->validity_days);
-                $secondsRemaining = (int) now()->diffInSeconds(Carbon::parse($planExpiry), false);
-                if ($secondsRemaining > 0) {
+                    if ($gigawords > 0) {
+                        RadReply::create([
+                            'username'  => $user->username,
+                            'attribute' => 'Mikrotik-Total-Limit-Gigawords',
+                            'op'        => ':=',
+                            'value'     => (string) $gigawords,
+                        ]);
+                    }
+                } else {
+                    // Remaining data is 0: explicitly set 0 so MikroTik does not treat missing limit as unlimited
                     RadReply::create([
                         'username'  => $user->username,
-                        'attribute' => 'Session-Timeout',
+                        'attribute' => 'Mikrotik-Total-Limit',
                         'op'        => ':=',
-                        'value'     => (string) $secondsRemaining,
+                        'value'     => '0',
                     ]);
                 }
             }
@@ -260,6 +276,21 @@ class PlanSyncService
                     $user->plan_expiry = Carbon::now()->addDays($plan->validity_days);
                 } else {
                     $user->plan_expiry = null;
+                }
+            }
+
+            // Write Session-Timeout for ANY plan with a validity duration (capped or unlimited).
+            // Without Session-Timeout, MikroTik keeps the session alive past plan expiry because
+            // Expiration only blocks new logins, not already-running sessions.
+            if ($user->plan_expiry) {
+                $secondsRemaining = (int) now()->diffInSeconds(Carbon::parse($user->plan_expiry), false);
+                if ($secondsRemaining > 0) {
+                    RadReply::create([
+                        'username'  => $user->username,
+                        'attribute' => 'Session-Timeout',
+                        'op'        => ':=',
+                        'value'     => (string) $secondsRemaining,
+                    ]);
                 }
             }
 

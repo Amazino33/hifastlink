@@ -122,6 +122,14 @@ class SubscriptionService
             // Revoke all vouchers created by this user so beneficiaries lose access
             $this->revokeUserVouchers($user);
 
+            // Immediately disconnect active sessions on router and RADIUS
+            try {
+                $radius = new RadiusService();
+                $radius->disconnectUser($user);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to force-disconnect user after exhaustion: ' . $e->getMessage());
+            }
+
             Log::info("Expired exhausted subscription for {$user->username} - rollover cleared");
         } catch (\Exception $e) {
             Log::error('Failed to expire exhausted subscription for user ' . $user->username . ': ' . $e->getMessage());
@@ -235,11 +243,18 @@ class SubscriptionService
             $code,
             'vch_' . strtolower($code),
         ]);
-        $voucherUsed  = $allVoucherUsernames->isNotEmpty()
-            ? (int) \App\Models\RadAcct::whereIn('username', $allVoucherUsernames)
+        $voucherUsed = 0;
+        if ($allVoucherUsernames->isNotEmpty()) {
+            $hasGigawords = \Illuminate\Support\Facades\Schema::connection('radius')->hasColumn('radacct', 'acctinputgigawords');
+            $rawSql = $hasGigawords
+                ? 'COALESCE(SUM(COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0) + (COALESCE(acctinputgigawords,0) * 4294967296) + (COALESCE(acctoutputgigawords,0) * 4294967296)), 0) as total'
+                : 'COALESCE(SUM(COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)), 0) as total';
+
+            $voucherUsed = (int) \App\Models\RadAcct::whereIn('username', $allVoucherUsernames)
                 ->where('acctstarttime', '>=', $checkUser->plan_started_at ?? now()->subYears(1))
-                ->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(acctinputoctets,0) + COALESCE(acctoutputoctets,0)'))
-            : 0;
+                ->selectRaw($rawSql)
+                ->value('total');
+        }
 
         $totalUsed = ($checkUser->data_used ?? 0) + $voucherUsed;
 

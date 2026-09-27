@@ -48,11 +48,17 @@ class SyncRadiusDataUsage extends Command
             $users = User::whereIn('id', $userIds)->get();
             $this->info("Syncing data usage for " . $users->count() . " specific user(s)...");
         } else {
-            // Sync all active users
+            // Sync all active users: users with a plan, future expiry, or currently active session
+            $activeAcctUsers = RadAcct::whereNull('acctstoptime')->distinct()->pluck('username')->toArray();
+
             $users = User::whereNotNull('username')
-                ->where(function ($query) {
-                    $query->whereNull('subscription_end_date')
-                        ->orWhere('subscription_end_date', '>', now());
+                ->where(function ($query) use ($activeAcctUsers) {
+                    $query->whereNotNull('plan_id')
+                        ->orWhere(function ($q) {
+                            $q->whereNotNull('plan_expiry')
+                              ->where('plan_expiry', '>', now());
+                        })
+                        ->orWhereIn('username', $activeAcctUsers);
                 })
                 ->get();
             $this->info("Syncing data usage for all active users (" . $users->count() . " users)...");

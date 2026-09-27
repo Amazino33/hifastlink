@@ -100,18 +100,32 @@ class RadiusService
     public function syncUserDataUsage(User $user): bool
     {
         try {
-            // Get total data usage from radacct table
-            $totalUsage = RadAcct::forUser($user->username)
-                ->selectRaw('SUM(acctinputoctets + acctoutputoctets) as total')
-                ->value('total') ?? 0;
+            // Sum usage only since plan_started_at so past plan cycles don't exhaust the current plan
+            $query = RadAcct::forUser($user->username);
+            if ($user->plan_started_at) {
+                $query->where('acctstarttime', '>=', $user->plan_started_at);
+            }
+
+            // Include gigawords if present in radacct schema
+            $connName = (new RadAcct)->getConnectionName();
+            $hasGigawords = false;
+            try {
+                $hasGigawords = \Illuminate\Support\Facades\Schema::connection($connName)->hasColumn('radacct', 'acctinputgigawords');
+            } catch (\Throwable $e) {}
+
+            $rawExpr = $hasGigawords
+                ? 'COALESCE(SUM(COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0) + (COALESCE(acctinputgigawords, 0) * 4294967296) + (COALESCE(acctoutputgigawords, 0) * 4294967296)), 0) as total'
+                : 'COALESCE(SUM(COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)), 0) as total';
+
+            $totalUsage = $query->selectRaw($rawExpr)->value('total') ?? 0;
 
             // Update user's data_used
             $user->update([
-                'data_used' => (int)$totalUsage,
+                'data_used' => (int) $totalUsage,
             ]);
 
             // Check if user exceeded limit
-            if ($user->hasExceededDataLimit()) {
+            if ($user->hasExceededDataLimit() && ($user->plan_id || $user->data_limit > 0)) {
                 $this->handleDataExhaustion($user);
             }
 
@@ -142,11 +156,23 @@ class RadiusService
             // Keep data_used for history/reporting
             $user->save();
 
-            // Disconnect active sessions
+            // Disconnect active sessions (drops router session via RouterSessionService)
             $this->disconnectUser($user);
 
             // Remove RADIUS credentials to prevent reconnection
             $this->disableUser($user);
+
+            // Immediately set Mikrotik-Total-Limit to 0 and Expiration in the past
+            try {
+                RadReply::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
+                    ['op' => ':=', 'value' => '0']
+                );
+                RadCheck::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Expiration'],
+                    ['op' => ':=', 'value' => now()->subMinute()->format('d M Y H:i')]
+                );
+            } catch (\Throwable $te) {}
 
             \Log::info("Data exhaustion handled for user: {$user->username}");
         } catch (\Exception $e) {
@@ -155,18 +181,25 @@ class RadiusService
     }
 
     /**
-     * Disconnect user's active RADIUS sessions
+     * Disconnect user's active RADIUS sessions and drop from MikroTik
      */
     public function disconnectUser(User $user): bool
     {
         try {
-            // Mark all active sessions as stopped
+            // Mark all active sessions as stopped in radacct
             RadAcct::forUser($user->username)
                 ->whereNull('acctstoptime')
                 ->update([
                     'acctstoptime' => now(),
                     'acctterminatecause' => 'Admin-Reset',
                 ]);
+
+            // Forcibly disconnect user on MikroTik router (via PoD UDP 3799 and RouterOS REST API)
+            try {
+                app(\App\Services\RouterSessionService::class)->forceDisconnectUser($user->username);
+            } catch (\Throwable $te) {
+                \Log::warning("RadiusService: Router force-disconnect error for {$user->username}: " . $te->getMessage());
+            }
 
             return true;
         } catch (\Exception $e) {

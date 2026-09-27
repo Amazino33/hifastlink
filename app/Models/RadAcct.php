@@ -7,16 +7,16 @@ use Illuminate\Database\Eloquent\Builder;
 
 class RadAcct extends Model
 {
-    // protected $connection = 'radius';
+    protected $connection = 'radius';
     protected $table      = 'radacct';
     protected $primaryKey = 'radacctid'; // radacct uses radacctid, not id
     protected $fillable = [
         'username', 'acctsessionid', 'acctuniqueid', 'realm', 'nasipaddress',
         'nasportid', 'nasporttype', 'acctstarttime', 'acctstoptime',
         'acctsessiontime', 'acctauthentic', 'connectinfo_start', 'connectinfo_stop',
-        'acctinputoctets', 'acctoutputoctets', 'calledstationid', 'callingstationid',
-        'acctterminatecause', 'servicetype', 'framedprotocol', 'framedipaddress',
-        'acctupdatetime', 'nas_identifier'
+        'acctinputoctets', 'acctoutputoctets', 'acctinputgigawords', 'acctoutputgigawords',
+        'calledstationid', 'callingstationid', 'acctterminatecause', 'servicetype',
+        'framedprotocol', 'framedipaddress', 'acctupdatetime', 'nas_identifier'
     ];
     public $timestamps = false;
 
@@ -27,6 +27,8 @@ class RadAcct extends Model
         'acctsessiontime' => 'integer',
         'acctinputoctets' => 'integer',
         'acctoutputoctets' => 'integer',
+        'acctinputgigawords' => 'integer',
+        'acctoutputgigawords' => 'integer',
     ];
 
     /**
@@ -66,11 +68,14 @@ class RadAcct extends Model
     }
 
     /**
-     * Get total data usage (upload + download).
+     * Get total data usage (upload + download), accounting for 32-bit Gigaword rollover.
      */
     public function getTotalDataUsageAttribute(): int
     {
-        return ($this->acctinputoctets ?? 0) + ($this->acctoutputoctets ?? 0);
+        return ($this->acctinputoctets ?? 0)
+            + ($this->acctoutputoctets ?? 0)
+            + (($this->acctinputgigawords ?? 0) * 4294967296)
+            + (($this->acctoutputgigawords ?? 0) * 4294967296);
     }
 
     /**

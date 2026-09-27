@@ -239,11 +239,18 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
      */
     public function hasExceededDataLimit(): bool
     {
-        if (!$this->data_limit || $this->data_limit === 0) {
+        if (!$this->data_limit || (int) $this->data_limit === 0) {
             return false;
         }
 
-        return $this->data_used >= $this->data_limit;
+        $limitBytes = $this->storedValueToBytes($this->data_limit);
+        $usedBytes  = $this->storedValueToBytes($this->data_used) ?? (int) $this->data_used;
+
+        if (!$limitBytes || $limitBytes === 0) {
+            return false;
+        }
+
+        return $usedBytes >= $limitBytes;
     }
 
     /**
