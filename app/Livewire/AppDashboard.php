@@ -80,15 +80,7 @@ class AppDashboard extends Component
         }
         $deviceMac = session('current_device_mac');
 
-        // Automatically clean stale sessions in the background so dead sessions
-        // don't leave ghost "Connected" indicators
-        if (! empty($user->username)) {
-            try {
-                app(RouterSessionService::class)->closeStaleRadAcctSessions($user->username, 3);
-            } catch (\Throwable $e) {
-                Log::warning('AppDashboard: failed cleaning stale radacct: ' . $e->getMessage());
-            }
-        }
+
 
         // When hotspot detection is disabled in Network Settings, treat every
         // user as on the hotspot — Connect button always fires and MikroTik

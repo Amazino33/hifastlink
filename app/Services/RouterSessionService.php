@@ -61,10 +61,12 @@ class RouterSessionService
      * Close stale radacct sessions that haven't received an interim update recently.
      * Prevents FreeRADIUS Simultaneous-Use from rejecting legitimate reconnects.
      */
-    public function closeStaleRadAcctSessions(string $username, int $staleMinutes = 2): int
+    public function closeStaleRadAcctSessions(string $username, int $staleMinutes = 30): int
     {
         $normalizedUser = strtolower(trim($username));
-        $threshold = now()->subMinutes($staleMinutes);
+        // FreeRADIUS stores timestamps in UTC
+        $thresholdUtc = now('UTC')->subMinutes($staleMinutes)->format('Y-m-d H:i:s');
+        $nowUtc = now('UTC')->format('Y-m-d H:i:s');
         $totalClosed = 0;
 
         $connections = array_unique(array_filter([
@@ -78,16 +80,20 @@ class RouterSessionService
                 $query = DB::connection($conn)->table('radacct')
                     ->whereRaw('LOWER(username) = ?', [$normalizedUser])
                     ->whereNull('acctstoptime')
-                    ->where(function ($q) use ($threshold) {
-                        $q->where('acctupdatetime', '<', $threshold)
-                          ->orWhere(function ($q2) use ($threshold) {
-                              $q2->whereNull('acctupdatetime')
-                                 ->where('acctstarttime', '<', $threshold);
-                          });
+                    ->where(function ($q) use ($thresholdUtc) {
+                        // Stale if interim update received but older than threshold,
+                        // or if no interim was ever received and session has been open longer than 24 hours.
+                        $q->where(function ($q1) use ($thresholdUtc) {
+                            $q1->whereNotNull('acctupdatetime')
+                               ->where('acctupdatetime', '<', $thresholdUtc);
+                        })->orWhere(function ($q2) {
+                            $q2->whereNull('acctupdatetime')
+                               ->where('acctstarttime', '<', now('UTC')->subDay()->format('Y-m-d H:i:s'));
+                        });
                     });
 
                 $affected = $query->update([
-                    'acctstoptime'       => now(),
+                    'acctstoptime'       => $nowUtc,
                     'acctterminatecause' => 'Stale-AutoClean',
                 ]);
 
