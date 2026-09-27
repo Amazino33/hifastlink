@@ -131,10 +131,11 @@ Route::get('/captive-bridge', function () {
 Route::match(['get', 'post'], '/hotspot/force-connect', [\App\Http\Controllers\HotspotController::class, 'forceConnect'])->name('hotspot.force_connect');
 
 // ============================================================
-// PAYMENTS — public (Paystack redirects browser here)
+// PAYMENTS — public (Paystack / Flutterwave callbacks & webhooks)
 // ============================================================
 
-Route::get('/payment/callback', [PaymentController::class, 'handleGatewayCallback'])->name('payment.callback');
+Route::match(['get', 'post'], '/payment/callback', [PaymentController::class, 'handleGatewayCallback'])->name('payment.callback');
+Route::post('/payment/webhook', [PaymentController::class, 'handleWebhook'])->name('payment.webhook');
 
 // ============================================================
 // AUTHENTICATED ROUTES
@@ -150,7 +151,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ── Dashboard ─────────────────────────────────────────────
     // The old UserDashboard page is gone — the PWA on the app subdomain replaces it.
     // Old bookmarks and printed QR codes land here, so keep a redirect.
-    Route::get('/dashboard', fn () => redirect()->to(auth()->user()->homeUrl()));
+    Route::get('/dashboard', fn () => redirect()->to(auth()->user()->homeUrl()))->name('dashboard');
 
     // Still used by the app's Connect button and live stats polling.
     Route::get('/dashboard/realtime-data', [DashboardController::class, 'getRealtimeData'])->name('dashboard.realtime');

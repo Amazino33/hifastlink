@@ -25,7 +25,8 @@ class RevenueChartWidget extends ChartWidget
         for ($i = 29; $i >= 0; $i--) {
             $date     = now($tz)->subDays($i);
             $labels[] = $date->format('M d');
-            $data[]   = (float) Transaction::whereIn('status', ['completed', 'success'])->where('gateway', 'paystack')
+            $data[]   = (float) Transaction::whereIn('status', ['completed', 'success'])
+                ->whereIn('gateway', ['paystack', 'flutterwave'])
                 ->whereDate('created_at', $date->toDateString())
                 ->when($router, fn($q) => $q->where('router_id', $router->id))
                 ->sum('amount');

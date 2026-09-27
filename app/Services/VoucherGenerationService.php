@@ -177,14 +177,14 @@ class VoucherGenerationService
             });
         }
 
-        // ── 3. Paystack Direct (Callback completed batch) ─────────────
-        if ($paymentMethod === 'paystack') {
+        // ── 3. Online Gateway Direct (Paystack / Flutterwave) ─────────
+        if (in_array($paymentMethod, ['paystack', 'flutterwave'])) {
             $transactionId = $options['transaction_id'] ?? null;
 
             return DB::transaction(function () use (
                 $user, $plan, $quantity, $totalCost, $unitPrice, $routerId,
                 $transactionId, $durationHours, $isUnlimited, $dataLimitMb,
-                $speedDownload, $speedUpload, $maxUses, $label, $options
+                $speedDownload, $speedUpload, $maxUses, $label, $options, $paymentMethod
             ) {
                 $batchCode = VoucherBatch::generateBatchCode();
 
@@ -196,7 +196,7 @@ class VoucherGenerationService
                     'quantity'       => $quantity,
                     'unit_price'     => $unitPrice,
                     'total_cost'     => $totalCost,
-                    'payment_method' => 'paystack',
+                    'payment_method' => $paymentMethod,
                     'transaction_id' => $transactionId,
                     'status'         => 'completed',
                     'notes'          => $options['notes'] ?? null,

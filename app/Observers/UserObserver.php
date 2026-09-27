@@ -65,6 +65,17 @@ class UserObserver
             'parent_id',
         ])) {
             try {
+                if ($user->wasChanged('username')) {
+                    $oldUsername = $user->getOriginal('username');
+                    if ($oldUsername && $oldUsername !== $user->username) {
+                        RadCheck::where('username', $oldUsername)->delete();
+                        RadReply::where('username', $oldUsername)->delete();
+                        try {
+                            \App\Models\RadUserGroup::where('username', $oldUsername)->delete();
+                        } catch (\Throwable $e) {}
+                    }
+                }
+
                 PlanSyncService::syncUserPlan($user);
 
                 if ($user->plan && ! empty($user->plan->allowed_login_time)) {

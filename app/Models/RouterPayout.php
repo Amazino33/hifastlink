@@ -42,7 +42,7 @@ class RouterPayout extends Model
         ?int $excludeUserId = null
     ): float {
         return (float) Transaction::where('router_id', $routerId)
-            ->where('gateway', 'paystack')
+            ->whereIn('gateway', ['paystack', 'flutterwave'])
             ->where('status', 'completed')
             ->whereBetween('paid_at', [$periodStart . ' 00:00:00', $periodEnd . ' 23:59:59'])
             ->when($excludeUserId, fn ($q) => $q->where('user_id', '!=', $excludeUserId))

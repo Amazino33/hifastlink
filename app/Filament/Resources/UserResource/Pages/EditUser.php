@@ -6,6 +6,7 @@ use App\Filament\Resources\UserResource;
 use App\Models\Plan;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Models\AppSetting;
 use App\Services\PlanSyncService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
@@ -120,43 +121,97 @@ class EditUser extends EditRecord
             return;
         }
 
-        // Verify with Paystack
-        try {
-            $response = Http::withToken(env('PAYSTACK_SECRET_KEY'))
-                ->timeout(15)
-                ->get(rtrim(env('PAYSTACK_PAYMENT_URL', 'https://api.paystack.co'), '/') . '/transaction/verify/' . urlencode($reference));
-        } catch (\Throwable $e) {
-            Notification::make()
-                ->title('Paystack unreachable')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
-            return;
-        }
+        // Detect gateway from reference format
+        $isFlutterwave = str_starts_with($reference, 'FLW_') || is_numeric($reference);
+        $gateway = $isFlutterwave ? 'flutterwave' : 'paystack';
 
-        if (! $response->successful()) {
-            Notification::make()
-                ->title('Paystack API error')
-                ->body('HTTP ' . $response->status() . ': ' . ($response->json('message') ?? 'Unknown error'))
-                ->danger()
-                ->send();
-            return;
-        }
+        if ($isFlutterwave) {
+            $secretKey = AppSetting::get('flw_secret_key') ?: config('services.flutterwave.secret_key');
+            $baseUrl = rtrim(AppSetting::get('flw_base_url') ?: config('services.flutterwave.base_url', 'https://api.flutterwave.com/v3'), '/');
+            $verifyUrl = is_numeric($reference)
+                ? "{$baseUrl}/transactions/{$reference}/verify"
+                : "{$baseUrl}/transactions/verify_by_reference?tx_ref=" . urlencode($reference);
 
-        $body = $response->json();
-        $txData = $body['data'] ?? [];
+            try {
+                $response = Http::withToken($secretKey)->timeout(15)->get($verifyUrl);
+            } catch (\Throwable $e) {
+                Notification::make()
+                    ->title('Flutterwave unreachable')
+                    ->body($e->getMessage())
+                    ->danger()
+                    ->send();
+                return;
+            }
 
-        if (($txData['status'] ?? '') !== 'success') {
-            Notification::make()
-                ->title('Payment not successful')
-                ->body('Paystack status: ' . ($txData['status'] ?? 'unknown') . '. Only completed payments can be activated.')
-                ->warning()
-                ->send();
-            return;
+            if (! $response->successful()) {
+                Notification::make()
+                    ->title('Flutterwave API error')
+                    ->body('HTTP ' . $response->status() . ': ' . ($response->json('message') ?? 'Unknown error'))
+                    ->danger()
+                    ->send();
+                return;
+            }
+
+            $body = $response->json();
+            $txData = $body['data'] ?? [];
+
+            if (($body['status'] ?? '') !== 'success' || ($txData['status'] ?? '') !== 'successful') {
+                Notification::make()
+                    ->title('Payment not successful')
+                    ->body('Flutterwave status: ' . ($txData['status'] ?? 'unknown') . '. Only completed payments can be activated.')
+                    ->warning()
+                    ->send();
+                return;
+            }
+
+            $amountInNaira = (float) ($txData['amount'] ?? 0);
+            $metadata = $txData['meta'] ?? [];
+            $reference = $txData['tx_ref'] ?? $reference;
+        } else {
+            // Verify with Paystack
+            $secretKey = AppSetting::get('paystack_secret_key') ?: config('services.paystack.secret_key', env('PAYSTACK_SECRET_KEY'));
+            $paymentUrl = rtrim(AppSetting::get('paystack_payment_url') ?: config('services.paystack.payment_url', env('PAYSTACK_PAYMENT_URL', 'https://api.paystack.co')), '/');
+
+            try {
+                $response = Http::withToken($secretKey)
+                    ->timeout(15)
+                    ->get($paymentUrl . '/transaction/verify/' . urlencode($reference));
+            } catch (\Throwable $e) {
+                Notification::make()
+                    ->title('Paystack unreachable')
+                    ->body($e->getMessage())
+                    ->danger()
+                    ->send();
+                return;
+            }
+
+            if (! $response->successful()) {
+                Notification::make()
+                    ->title('Paystack API error')
+                    ->body('HTTP ' . $response->status() . ': ' . ($response->json('message') ?? 'Unknown error'))
+                    ->danger()
+                    ->send();
+                return;
+            }
+
+            $body = $response->json();
+            $txData = $body['data'] ?? [];
+
+            if (($txData['status'] ?? '') !== 'success') {
+                Notification::make()
+                    ->title('Payment not successful')
+                    ->body('Paystack status: ' . ($txData['status'] ?? 'unknown') . '. Only completed payments can be activated.')
+                    ->warning()
+                    ->send();
+                return;
+            }
+
+            $amountInNaira = ((float) ($txData['amount'] ?? 0)) / 100;
+            $metadata = $txData['metadata'] ?? [];
+            $reference = $txData['reference'] ?? $reference;
         }
 
         // Resolve plan and user from metadata
-        $metadata = $txData['metadata'] ?? [];
         $planId   = $metadata['plan_id']  ?? null;
         $userId   = $metadata['user_id']  ?? null;
 
@@ -196,15 +251,15 @@ class EditUser extends EditRecord
             [
                 'user_id'   => $user->id,
                 'plan_id'   => $plan->id,
-                'amount'    => ($txData['amount'] ?? 0) / 100,
+                'amount'    => $amountInNaira,
                 'status'    => 'completed',
-                'gateway'   => 'paystack',
+                'gateway'   => $gateway,
                 'paid_at'   => now(),
                 'router_id' => $user->router_id,
             ]
         );
 
-        Log::info("Admin manually activated plan via Paystack reference {$reference} for user {$user->username}");
+        Log::info("Admin manually activated plan via {$gateway} reference {$reference} for user {$user->username}");
 
         Notification::make()
             ->title('Plan activated')

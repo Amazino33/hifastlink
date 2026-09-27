@@ -17,7 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         $middleware->validateCsrfTokens(except: [
-            'payment/webhook', // OR 'paystack/webhook' - Check your route name
+            'payment/webhook',
+            'payment/callback',
         ]);
 
         $middleware->alias([

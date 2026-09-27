@@ -2347,6 +2347,11 @@
                             @error('profileName') <span class="prof-error">{{ $message }}</span> @enderror
                         </div>
                         <div class="prof-field">
+                            <label class="prof-label">Username</label>
+                            <input type="text" wire:model="profileUsername" class="prof-input" placeholder="e.g. johndoe" autocomplete="username">
+                            @error('profileUsername') <span class="prof-error">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="prof-field">
                             <label class="prof-label">Phone Number</label>
                             <input type="tel" wire:model="profilePhone" class="prof-input" placeholder="e.g. 07012345678">
                             @error('profilePhone') <span class="prof-error">{{ $message }}</span> @enderror

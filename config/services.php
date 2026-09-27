@@ -76,6 +76,8 @@ return [
         'pass' => env('VPS_PASSWORD'),
     ],
 
+    'payment_gateway' => env('PAYMENT_GATEWAY', 'flutterwave'),
+
     'paystack' => [
         'public_key'    => env('PAYSTACK_PUBLIC_KEY'),
         'secret_key'    => env('PAYSTACK_SECRET_KEY'),

@@ -52,33 +52,35 @@ class OverviewStatsWidget extends BaseWidget
         $activeSubscribers = $activeSubsQuery->count();
 
         // ── Revenue ───────────────────────────────────────────────────────────
-        $todayRevenue = (float) Transaction::whereIn('status', ['completed', 'success'])->where('gateway', 'paystack')
+        $paidGateways = ['paystack', 'flutterwave'];
+
+        $todayRevenue = (float) Transaction::whereIn('status', ['completed', 'success'])->whereIn('gateway', $paidGateways)
             ->whereDate('created_at', $today)
             ->when($router, fn($q) => $q->where('router_id', $router->id))
             ->sum('amount');
 
-        $yesterdayRevenue = (float) Transaction::whereIn('status', ['completed', 'success'])->where('gateway', 'paystack')
+        $yesterdayRevenue = (float) Transaction::whereIn('status', ['completed', 'success'])->whereIn('gateway', $paidGateways)
             ->whereDate('created_at', now($tz)->subDay()->toDateString())
             ->when($router, fn($q) => $q->where('router_id', $router->id))
             ->sum('amount');
 
-        $monthlyRevenue = (float) Transaction::whereIn('status', ['completed', 'success'])->where('gateway', 'paystack')
+        $monthlyRevenue = (float) Transaction::whereIn('status', ['completed', 'success'])->whereIn('gateway', $paidGateways)
             ->whereMonth('created_at', now($tz)->month)
             ->whereYear('created_at', now($tz)->year)
             ->when($router, fn($q) => $q->where('router_id', $router->id))
             ->sum('amount');
 
-        $lastMonthRevenue = (float) Transaction::whereIn('status', ['completed', 'success'])->where('gateway', 'paystack')
+        $lastMonthRevenue = (float) Transaction::whereIn('status', ['completed', 'success'])->whereIn('gateway', $paidGateways)
             ->whereMonth('created_at', now($tz)->subMonth()->month)
             ->whereYear('created_at', now($tz)->subMonth()->year)
             ->when($router, fn($q) => $q->where('router_id', $router->id))
             ->sum('amount');
 
-        $totalRevenue = (float) Transaction::whereIn('status', ['completed', 'success'])->where('gateway', 'paystack')
+        $totalRevenue = (float) Transaction::whereIn('status', ['completed', 'success'])->whereIn('gateway', $paidGateways)
             ->when($router, fn($q) => $q->where('router_id', $router->id))
             ->sum('amount');
 
-        $todayTransactions = Transaction::whereIn('status', ['completed', 'success'])->where('gateway', 'paystack')
+        $todayTransactions = Transaction::whereIn('status', ['completed', 'success'])->whereIn('gateway', $paidGateways)
             ->whereDate('created_at', $today)
             ->when($router, fn($q) => $q->where('router_id', $router->id))
             ->count();
@@ -112,7 +114,7 @@ class OverviewStatsWidget extends BaseWidget
         // ── 7-day revenue sparkline ───────────────────────────────────────────
         $revenueSparkline = [];
         for ($i = 6; $i >= 0; $i--) {
-            $revenueSparkline[] = (float) Transaction::whereIn('status', ['completed', 'success'])->where('gateway', 'paystack')
+            $revenueSparkline[] = (float) Transaction::whereIn('status', ['completed', 'success'])->whereIn('gateway', $paidGateways)
                 ->whereDate('created_at', now($tz)->subDays($i)->toDateString())
                 ->when($router, fn($q) => $q->where('router_id', $router->id))
                 ->sum('amount');

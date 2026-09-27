@@ -36,6 +36,7 @@ class AppDashboard extends Component
 
     // Profile editing
     public string $profileName             = '';
+    public string $profileUsername         = '';
     public string $profilePhone            = '';
     public string $profileEmail            = '';
     public string $currentPassword         = '';
@@ -56,9 +57,10 @@ class AppDashboard extends Component
         $this->syncState();
 
         $u = Auth::user();
-        $this->profileName  = $u->name  ?? '';
-        $this->profilePhone = $u->phone ?? '';
-        $this->profileEmail = $u->email ?? '';
+        $this->profileName     = $u->name     ?? '';
+        $this->profileUsername = $u->username ?? '';
+        $this->profilePhone    = $u->phone    ?? '';
+        $this->profileEmail    = $u->email    ?? '';
     }
 
     /** Called by wire:poll every 5 s */
@@ -754,13 +756,25 @@ class AppDashboard extends Component
     public function saveProfile(): void
     {
         $user = Auth::user();
+        if (! $user) return;
+
         $this->validate([
-            'profileName'  => ['required', 'string', 'max:255'],
-            'profilePhone' => ['required', 'string', 'max:20'],
-            'profileEmail' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'profileName'     => ['required', 'string', 'max:255'],
+            'profileUsername' => [
+                'required',
+                'string',
+                'min:3',
+                'max:50',
+                'alpha_dash',
+                Rule::unique('users', 'username')->ignore($user->id),
+            ],
+            'profilePhone'    => ['required', 'string', 'max:20'],
+            'profileEmail'    => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
         ]);
-        $user->name  = $this->profileName;
-        $user->phone = $this->profilePhone;
+
+        $user->name     = $this->profileName;
+        $user->username = strtolower(trim($this->profileUsername));
+        $user->phone    = $this->profilePhone;
         if ($this->profileEmail) {
             $user->email = $this->profileEmail;
         }

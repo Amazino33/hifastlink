@@ -72,6 +72,8 @@
     /ip/hotspot/walled-garden add dst-host=$DomainName comment="Allow Dashboard Root"
     /ip/hotspot/walled-garden add dst-host="*.paystack.com" comment="Allow Paystack"
     /ip/hotspot/walled-garden add dst-host="*.paystack.co" comment="Allow Paystack Alt"
+    /ip/hotspot/walled-garden add dst-host="*.flutterwave.com" comment="Allow Flutterwave"
+    /ip/hotspot/walled-garden add dst-host="api.flutterwave.com" comment="Allow Flutterwave API"
     /ip/hotspot/walled-garden add dst-host="*.sentry.io" comment="Allow Error Logs"
 } else={
     /ip hotspot walled-garden remove [find]
@@ -79,6 +81,8 @@
     /ip hotspot walled-garden add dst-host=$DomainName comment="Allow Dashboard Root"
     /ip hotspot walled-garden add dst-host=*paystack.com comment="Allow Paystack"
     /ip hotspot walled-garden add dst-host=*paystack.co comment="Allow Paystack Alt"
+    /ip hotspot walled-garden add dst-host=*flutterwave.com comment="Allow Flutterwave"
+    /ip hotspot walled-garden add dst-host=api.flutterwave.com comment="Allow Flutterwave API"
     /ip hotspot walled-garden add dst-host=*sentry.io comment="Allow Error Logs"
 }
 :put ">> Walled Garden (DNS) Configured"
