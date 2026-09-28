@@ -82,7 +82,15 @@ class AppDashboard extends Component
         }
         $deviceMac = session('current_device_mac');
 
-
+        // Automatically clean stale sessions in the background so dead sessions
+        // don't leave ghost "Connected" indicators when switching networks or SSIDs
+        if (! empty($user->username)) {
+            try {
+                app(\App\Services\RouterSessionService::class)->closeStaleRadAcctSessions($user->username, 10);
+            } catch (\Throwable $e) {
+                Log::warning('AppDashboard: failed cleaning stale radacct: ' . $e->getMessage());
+            }
+        }
 
         // When hotspot detection is disabled in Network Settings, treat every
         // user as on the hotspot — Connect button always fires and MikroTik
@@ -126,7 +134,7 @@ class AppDashboard extends Component
 
         // Active RADIUS session?
         $hasSession = false;
-        if (! empty($user->username) && $user->connection_status !== 'suspended') {
+        if (! empty($user->username) && $user->connection_status !== 'suspended' && $user->connection_status !== 'disconnected') {
             try {
                 $activeQuery = RadAcct::forUser($user->username)->active();
 
@@ -134,10 +142,8 @@ class AppDashboard extends Component
                 if ($deviceMac) {
                     $cleanMac = strtoupper(str_replace(['-', '.'], ':', $deviceMac));
                     $hasSession = (clone $activeQuery)->where('callingstationid', $cleanMac)->exists();
-                }
-
-                // Fall back to checking any active session for the user
-                if (! $hasSession) {
+                } else {
+                    // Fall back to checking any active session for the user only when device MAC is unknown
                     $hasSession = $activeQuery->exists();
                 }
             } catch (\Exception $e) {
@@ -177,6 +183,27 @@ class AppDashboard extends Component
         }
 
         // When on hotspot, redirect browser to the captive portal with credentials
+        return $this->redirect($this->connectUrl ?? route('app.home'));
+    }
+
+    /** Tap reconnect button (forces re-authentication or network switch) */
+    public function reconnect(): mixed
+    {
+        $user = Auth::user();
+        if ($user && ! empty($user->username)) {
+            try {
+                // Free previous session so FreeRADIUS Simultaneous-Use allows immediate authentication on the new SSID/network
+                app(\App\Services\RouterSessionService::class)->closeRadAcctSessions($user->username);
+            } catch (\Throwable $e) {
+                Log::warning('AppDashboard: reconnect failed closing radacct: ' . $e->getMessage());
+            }
+        }
+
+        if (! $this->isOnHotspot) {
+            $this->showWarning = true;
+            return null;
+        }
+
         return $this->redirect($this->connectUrl ?? route('app.home'));
     }
 
@@ -700,7 +727,7 @@ class AppDashboard extends Component
     {
         $this->syncState();
         if ($this->connectionState === 'connected') {
-            $this->dispatch('toast', message: 'Connection active.', type: 'success');
+            $this->dispatch('toast', message: 'Connection active. Tap Reconnect if you switched Wi-Fi networks.', type: 'info');
         } elseif ($this->connectionState === 'plan-active') {
             $this->dispatch('toast', message: 'Device disconnected. Tap Connect to get online.', type: 'info');
         } else {

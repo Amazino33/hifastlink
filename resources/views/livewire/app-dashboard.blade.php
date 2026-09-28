@@ -1552,11 +1552,30 @@
             @if($connectionState === 'connected')
                 <div class="conn-actions-wrap" style="display: flex; gap: 8px; width: 100%; margin-top: 14px;">
                     <button type="button" class="conn-reconnect-btn"
-                        x-show="clientOffline"
-                        @click="window.location.href = '{{ $connectUrl }}'"
-                        style="display:none; flex: 1;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                        Reconnect
+                        id="app-reconnect-btn"
+                        data-hotspot="{{ $isOnHotspot ? '1' : '0' }}"
+                        data-url="{{ $connectUrl }}"
+                        :disabled="isConnecting"
+                        @click="
+                            if ($el.dataset.hotspot !== '1') {
+                                hotspotWarning = true;
+                            } else {
+                                isConnecting = true;
+                                $wire.reconnect().catch(() => {
+                                    window.location.href = $el.dataset.url;
+                                });
+                            }
+                        "
+                        style="flex: 1;"
+                        title="Reconnect to router or authenticate after switching Wi-Fi / SSID">
+                        <span x-show="!isConnecting" style="display:inline-flex; align-items:center; gap:6px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                            Reconnect
+                        </span>
+                        <span x-show="isConnecting" style="display:none; align-items:center; gap:6px;">
+                            <svg style="animation:spin .8s linear infinite;width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                            Connecting…
+                        </span>
                     </button>
                     <button type="button" class="disconnect-btn" style="flex:1; margin-top:0;"
                         @click="if(window.confirm('Disconnect from WiFi?')) { isDisconnecting = true; $wire.disconnect().then(() => { isDisconnecting = false; }); }"

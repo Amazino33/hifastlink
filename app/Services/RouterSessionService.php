@@ -140,7 +140,7 @@ class RouterSessionService
                 }
 
                 $affected = $query->update([
-                    'acctstoptime'       => now(),
+                    'acctstoptime'       => now('UTC')->format('Y-m-d H:i:s'),
                     'acctterminatecause' => 'Force-Reset',
                 ]);
 
