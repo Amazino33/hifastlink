@@ -244,7 +244,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         }
 
         $limitBytes = $this->storedValueToBytes($this->data_limit);
-        $usedBytes  = $this->storedValueToBytes($this->data_used) ?? (int) $this->data_used;
+        $usedBytes  = (int) $this->data_used;
 
         if (!$limitBytes || $limitBytes === 0) {
             return false;
@@ -286,7 +286,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function getRemainingDataAttribute(): int
     {
         $limitBytes = $this->storedValueToBytes($this->data_limit);
-        $usedBytes = $this->storedValueToBytes($this->data_used) ?? (int) $this->data_used;
+        $usedBytes  = (int) $this->data_used;
 
         if (!$limitBytes) {
             return 0;

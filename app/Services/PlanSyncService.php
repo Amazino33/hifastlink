@@ -151,6 +151,29 @@ class PlanSyncService
                 return;
             }
 
+            // If the user's plan is already expired, do NOT extend or revive it.
+            // Revoke credentials so FreeRADIUS issues Access-Reject and blocks reconnects.
+            if ($user->plan_expiry && Carbon::parse($user->plan_expiry)->isPast()) {
+                RadCheck::where('username', $user->username)
+                    ->whereIn('attribute', ['Cleartext-Password', 'Simultaneous-Use'])
+                    ->delete();
+                RadCheck::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Expiration'],
+                    ['op' => ':=', 'value' => Carbon::parse($user->plan_expiry)->format('d M Y H:i')]
+                );
+                RadReply::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
+                    ['op' => ':=', 'value' => '0']
+                );
+                RadReply::where('username', $user->username)
+                    ->where('attribute', 'Session-Timeout')
+                    ->delete();
+
+                $user->connection_status = 'inactive';
+                $user->saveQuietly();
+                return;
+            }
+
             // Upsert password — never duplicate (username+attribute is the unique key)
             RadCheck::updateOrCreate(
                 ['username' => $user->username, 'attribute' => 'Cleartext-Password'],
@@ -168,6 +191,7 @@ class PlanSyncService
             $masterId = $user->parent_id ?? $user->id;
             $familyUsernames = User::where('id', $masterId)->orWhere('parent_id', $masterId)->pluck('username');
             $startDate = $user->plan_started_at ?? now()->subYears(1);
+            $startUtc = Carbon::parse($startDate)->setTimezone('UTC')->format('Y-m-d H:i:s');
 
             // Calculate total usage including Gigawords (>4GB accounting)
             $radacctExists = \Illuminate\Support\Facades\Schema::connection('radius')->hasTable('radacct');
@@ -178,7 +202,11 @@ class PlanSyncService
                     : 'COALESCE(SUM(COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)), 0) as total';
 
                 $totalUsed = (int) RadAcct::whereIn('username', $familyUsernames)
-                    ->where('acctstarttime', '>=', $startDate)
+                    ->where(function ($q) use ($startUtc) {
+                        $q->whereNull('acctstoptime')
+                          ->orWhere('acctstoptime', '>=', $startUtc)
+                          ->orWhere('acctstarttime', '>=', $startUtc);
+                    })
                     ->selectRaw($selectRaw)
                     ->value('total');
             } else {
@@ -264,14 +292,9 @@ class PlanSyncService
                 }
             }
 
-            // Update plan expiry.
-            // If the caller (e.g. FreeTrialService) already wrote a future expiry onto the
-            // model before triggering this sync, keep it — don't recalculate from validity_days,
-            // which could be 0/null for an open-ended trial plan and would null out the expiry.
-            $alreadyHasFutureExpiry = $user->plan_expiry
-                && Carbon::parse($user->plan_expiry)->isFuture();
-
-            if (! $alreadyHasFutureExpiry) {
+            // Update plan expiry only when not yet set (initial plan activation).
+            // Never overwrite an existing expiry or extend an expired plan here.
+            if (is_null($user->plan_expiry)) {
                 if (! empty($plan->validity_days) && $plan->validity_days > 0) {
                     $user->plan_expiry = Carbon::now()->addDays($plan->validity_days);
                 } else {

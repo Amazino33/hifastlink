@@ -204,11 +204,9 @@ class UserResource extends Resource
                             ->columnSpan(2),
                         DateTimePicker::make('plan_started_at')
                             ->label('Plan Start Date')
-                            ->default(now())
                             ->columnSpan(1),
                         DateTimePicker::make('plan_expiry')
                             ->label('Plan Expiry Date')
-                            ->default(now()->addDays(30))
                             ->columnSpan(1),
                         Select::make('router_id')
                             ->relationship('router', 'name')

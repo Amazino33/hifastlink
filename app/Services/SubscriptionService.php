@@ -43,10 +43,23 @@ class SubscriptionService
                     ->delete();
                 $user->save();
             } else {
+                RadCheck::where('username', $user->username)
+                    ->whereIn('attribute', ['Cleartext-Password', 'Simultaneous-Use'])
+                    ->delete();
+
+                RadCheck::updateOrCreate(
+                    ['username' => $user->username, 'attribute' => 'Expiration'],
+                    ['op' => ':=', 'value' => now()->subMinute()->format('d M Y H:i')]
+                );
+
                 RadReply::updateOrCreate(
                     ['username' => $user->username, 'attribute' => 'Mikrotik-Total-Limit'],
                     ['op' => ':=', 'value' => '0']
                 );
+
+                RadReply::where('username', $user->username)
+                    ->where('attribute', 'Session-Timeout')
+                    ->delete();
 
                 RadUserGroup::updateOrCreate(
                     ['username' => $user->username],

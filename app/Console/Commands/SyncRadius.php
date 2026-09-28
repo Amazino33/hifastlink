@@ -96,9 +96,19 @@ class SyncRadius extends Command
                 // Sum only bytes from the current plan period (since plan_started_at).
                 // This keeps data_used consistent with what PlanSyncService writes to
                 // Mikrotik-Total-Limit, which also filters by plan_started_at.
-                $totalQuery = \App\Models\RadAcct::where('username', $username);
+                $masterId = $user->parent_id ?? $user->id;
+                $familyUsernames = ($user->is_family_admin || $user->parent_id)
+                    ? User::where('id', $masterId)->orWhere('parent_id', $masterId)->pluck('username')->filter()->toArray()
+                    : [$username];
+
+                $totalQuery = \App\Models\RadAcct::whereIn('username', $familyUsernames);
                 if ($user->plan_started_at) {
-                    $totalQuery->where('acctstarttime', '>=', $user->plan_started_at);
+                    $startUtc = \Illuminate\Support\Carbon::parse($user->plan_started_at)->setTimezone('UTC')->format('Y-m-d H:i:s');
+                    $totalQuery->where(function ($q) use ($startUtc) {
+                        $q->whereNull('acctstoptime')
+                          ->orWhere('acctstoptime', '>=', $startUtc)
+                          ->orWhere('acctstarttime', '>=', $startUtc);
+                    });
                 }
 
                 $hasGigawords = false;

@@ -101,9 +101,19 @@ class RadiusService
     {
         try {
             // Sum usage only since plan_started_at so past plan cycles don't exhaust the current plan
-            $query = RadAcct::forUser($user->username);
+            $masterId = $user->parent_id ?? $user->id;
+            $familyUsernames = ($user->is_family_admin || $user->parent_id)
+                ? User::where('id', $masterId)->orWhere('parent_id', $masterId)->pluck('username')->filter()->toArray()
+                : [$user->username];
+
+            $query = RadAcct::whereIn('username', $familyUsernames);
             if ($user->plan_started_at) {
-                $query->where('acctstarttime', '>=', $user->plan_started_at);
+                $startUtc = Carbon::parse($user->plan_started_at)->setTimezone('UTC')->format('Y-m-d H:i:s');
+                $query->where(function ($q) use ($startUtc) {
+                    $q->whereNull('acctstoptime')
+                      ->orWhere('acctstoptime', '>=', $startUtc)
+                      ->orWhere('acctstarttime', '>=', $startUtc);
+                });
             }
 
             // Include gigawords if present in radacct schema

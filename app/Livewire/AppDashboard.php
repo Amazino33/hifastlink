@@ -884,8 +884,17 @@ class AppDashboard extends Component
 
         // Data usage percentage
         if ($user->data_limit && $user->data_limit > 0) {
-            $limitBytes    = $user->data_limit <= 1048576 ? $user->data_limit * 1048576 : $user->data_limit;
-            $usedBytes     = $user->data_used  <= 1048576 ? $user->data_used  * 1048576 : (int) $user->data_used;
+            $limitBytes  = $user->data_limit <= 1048576 ? $user->data_limit * 1048576 : $user->data_limit;
+            $usedBytes   = (int) $user->data_used;
+
+            // Factor in active session bytes so dashboard reflects usage in real time
+            if (! empty($activeSession)) {
+                $sessionBytes = (int) ($activeSession->acctinputoctets ?? 0) + (int) ($activeSession->acctoutputoctets ?? 0);
+                if ($sessionBytes > 0 && $usedBytes < $sessionBytes) {
+                    $usedBytes = max($usedBytes, $sessionBytes);
+                }
+            }
+
             $dataUsedPct   = (int) min(100, round(($usedBytes / $limitBytes) * 100));
             $remainBytes   = max(0, $limitBytes - $usedBytes);
             $dataRemaining = Number::fileSize($remainBytes);
