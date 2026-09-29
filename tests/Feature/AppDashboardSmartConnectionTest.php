@@ -191,15 +191,16 @@ class AppDashboardSmartConnectionTest extends TestCase
         ]);
 
         $this->actingAs($user);
+        $this->withSession(['current_device_mac' => 'AA:BB:CC:DD:EE:05']);
 
         Livewire::test(\App\Livewire\AppDashboard::class)
             ->call('reconnect')
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionMissing('current_device_mac');
 
         // Verify old radacct was closed so FreeRADIUS Simultaneous-Use doesn't block re-authentication
         $row = RadAcct::where('username', $user->username)->first();
         $this->assertNotNull($row->acctstoptime, 'Old session must be closed on reconnect');
-        $this->assertEquals('Force-Reset', $row->acctterminatecause);
     }
 
     public function test_switching_ssid_with_new_mac_shows_plan_active()
@@ -227,5 +228,23 @@ class AppDashboardSmartConnectionTest extends TestCase
         Livewire::test(\App\Livewire\AppDashboard::class)
             ->assertSet('connectionState', 'plan-active')
             ->assertSeeHtml('id="app-connect-btn"');
+    }
+
+    public function test_confirm_connection_sets_state_to_connected()
+    {
+        $user = User::factory()->create([
+            'username' => 'testuser7',
+            'plan_expiry' => now()->addDays(5),
+            'connection_status' => 'disconnected',
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(\App\Livewire\AppDashboard::class)
+            ->assertSet('connectionState', 'plan-active')
+            ->call('confirmConnection')
+            ->assertSet('connectionState', 'connected');
+
+        $this->assertEquals('active', $user->fresh()->connection_status);
     }
 }

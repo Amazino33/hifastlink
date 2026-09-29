@@ -11,23 +11,69 @@
         isDisconnecting: false,
         clientOffline: !navigator.onLine,
         showToast(msg, type) { this.toast = { msg, type }; const duration = type === 'error' ? 6000 : 3400; setTimeout(() => this.toast = null, duration); },
+        async checkRouter() {
+            return new Promise((resolve) => {
+                const img = new Image();
+                let finished = false;
+                const timer = setTimeout(() => {
+                    if (!finished) { finished = true; resolve(false); }
+                }, 1500);
+                img.onload = () => {
+                    if (!finished) { finished = true; clearTimeout(timer); resolve(true); }
+                };
+                img.onerror = () => {
+                    // On local hotspot network, login.wifi DNS resolves and router responds (even if 404)
+                    if (!finished) { finished = true; clearTimeout(timer); resolve(true); }
+                };
+                const host = '{{ env("MIKROTIK_DNS_NAME", "login.wifi") }}';
+                img.src = 'http://' + host + '/favicon.ico?t=' + Date.now();
+            });
+        },
+        async checkInternet() {
+            try {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 2500);
+                await fetch('https://connectivitycheck.gstatic.com/generate_204?t=' + Date.now(), {
+                    method: 'HEAD',
+                    mode: 'no-cors',
+                    cache: 'no-store',
+                    signal: controller.signal
+                });
+                clearTimeout(timer);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        },
         async verifyOnline() {
             if (!navigator.onLine) {
                 this.clientOffline = true;
                 return false;
             }
-            try {
-                const res = await fetch('/api/ping?t=' + Date.now(), { method: 'GET', cache: 'no-store' });
-                this.clientOffline = !res.ok;
-                return res.ok;
-            } catch (e) {
+
+            const [onRouter, hasNet] = await Promise.all([
+                this.checkRouter(),
+                this.checkInternet()
+            ]);
+
+            if (onRouter && hasNet) {
+                this.clientOffline = false;
+                if (@this.connectionState !== 'connected') {
+                    @this.confirmConnection();
+                }
+                return true;
+            } else if (!hasNet) {
                 this.clientOffline = true;
                 return false;
+            } else {
+                this.clientOffline = false;
+                return true;
             }
         }
     }"
     x-on:toast.window="showToast($event.detail?.message || ($event.detail?.[0] && $event.detail[0].message) || $event.detail, $event.detail?.type || ($event.detail?.[0] && $event.detail[0].type) || 'info')"
     x-init="
+        verifyOnline();
         window.addEventListener('online', () => { clientOffline = false; verifyOnline(); $wire.pollConnection(); });
         window.addEventListener('offline', () => { clientOffline = true; });
         document.addEventListener('visibilitychange', () => { if (!document.hidden) { verifyOnline(); $wire.pollConnection(); } });
@@ -1555,12 +1601,18 @@
                         id="app-reconnect-btn"
                         data-hotspot="{{ $isOnHotspot ? '1' : '0' }}"
                         data-url="{{ $connectUrl }}"
+                        data-logout-url="{{ $logoutUrl }}"
                         :disabled="isConnecting"
                         @click="
                             if ($el.dataset.hotspot !== '1') {
                                 hotspotWarning = true;
                             } else {
                                 isConnecting = true;
+                                try {
+                                    const img = new Image();
+                                    img.src = $el.dataset.logoutUrl + '?t=' + Date.now();
+                                    fetch($el.dataset.logoutUrl, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
+                                } catch(e) {}
                                 $wire.reconnect().catch(() => {
                                     window.location.href = $el.dataset.url;
                                 });

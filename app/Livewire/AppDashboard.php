@@ -31,6 +31,7 @@ class AppDashboard extends Component
     public bool    $hotspotDetection = false;
     public bool    $showWarning      = false;
     public ?string $connectUrl       = null;
+    public ?string $logoutUrl        = null;
     public string  $voucherCode      = '';
     public bool    $voucherLoading   = false;
 
@@ -145,6 +146,12 @@ class AppDashboard extends Component
                 } else {
                     // Fall back to checking any active session for the user only when device MAC is unknown
                     $hasSession = $activeQuery->exists();
+                    if ($hasSession) {
+                        $latestActive = (clone $activeQuery)->latest('acctstarttime')->first();
+                        if ($latestActive && ! empty($latestActive->callingstationid)) {
+                            session(['current_device_mac' => $latestActive->callingstationid]);
+                        }
+                    }
                 }
             } catch (\Exception $e) {
                 Log::warning('AppDashboard: RADIUS unreachable — ' . $e->getMessage());
@@ -161,17 +168,19 @@ class AppDashboard extends Component
             default     => 'no-plan',
         };
 
-        // Build the MikroTik captive portal auto-login URL
-        $gateway  = env('MIKROTIK_DNS_NAME', 'login.wifi');
-        $dest     = route('app.home');
+        // Build the MikroTik captive portal auto-login & logout URLs
+        $gatewayHost = env('MIKROTIK_DNS_NAME', 'login.wifi');
+        $dest        = route('app.home');
 
         $this->connectUrl = sprintf(
             'http://%s/login?username=%s&password=%s&dst=%s',
-            $gateway,
+            $gatewayHost,
             urlencode((string) ($user->username ?? '')),
             urlencode((string) ($user->radius_password ?? '')),
             urlencode($dest)
         );
+
+        $this->logoutUrl = sprintf('http://%s/logout', $gatewayHost);
     }
 
     /** Tap connect button */
@@ -191,12 +200,19 @@ class AppDashboard extends Component
     {
         $user = Auth::user();
         if ($user && ! empty($user->username)) {
+            // Clear cached device MAC so fresh session is not blocked by stale filters
+            session()->forget(['current_device_mac', 'last_connect_claimed_at', 'last_connect_username']);
+
             try {
-                // Free previous session so FreeRADIUS Simultaneous-Use allows immediate authentication on the new SSID/network
-                app(\App\Services\RouterSessionService::class)->closeRadAcctSessions($user->username);
+                // Free previous session across RADIUS and MikroTik active list
+                app(\App\Services\RouterSessionService::class)->forceDisconnectUser($user->username);
             } catch (\Throwable $e) {
-                Log::warning('AppDashboard: reconnect failed closing radacct: ' . $e->getMessage());
+                Log::warning('AppDashboard: reconnect failed force disconnect: ' . $e->getMessage());
             }
+        }
+
+        if (! empty($this->logoutUrl)) {
+            $this->dispatch('trigger-router-logout', logoutUrl: $this->logoutUrl);
         }
 
         if (! $this->isOnHotspot) {
@@ -205,6 +221,24 @@ class AppDashboard extends Component
         }
 
         return $this->redirect($this->connectUrl ?? route('app.home'));
+    }
+
+    /** Called by client-side canary check when real internet access is verified on the router */
+    public function confirmConnection(): void
+    {
+        $user = Auth::user();
+        if (! $user) return;
+        if ($user->connection_status === 'suspended') return;
+
+        $hasPlan = $user->hasUnrestrictedAccess()
+            || ($user->plan_expiry && $user->plan_expiry->isFuture());
+
+        if ($hasPlan) {
+            $this->connectionState = 'connected';
+            if ($user->connection_status === 'disconnected') {
+                $user->update(['connection_status' => 'active']);
+            }
+        }
     }
 
     public function dismissWarning(): void
