@@ -8,6 +8,7 @@ use App\Models\RadCheck;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\GoogleProvider;
 use Laravel\Socialite\Two\User as SocialiteUser;
 use Mockery;
 use Tests\TestCase;
@@ -20,8 +21,8 @@ class GoogleRegistrationTest extends TestCase
     {
         $response = $this->get(route('auth.google', [
             'link-login' => 'http://login.wifi/login',
-            'mac'        => '11:22:33:44:55:66',
-            'router'     => 'main-router',
+            'mac' => '11:22:33:44:55:66',
+            'router' => 'main-router',
         ]));
 
         $response->assertRedirect();
@@ -40,7 +41,7 @@ class GoogleRegistrationTest extends TestCase
         $socialiteUser->shouldReceive('getName')->andReturn('Google Test User');
         $socialiteUser->shouldReceive('getEmail')->andReturn('googletest@example.com');
 
-        $provider = Mockery::mock(\Laravel\Socialite\Two\GoogleProvider::class);
+        $provider = Mockery::mock(GoogleProvider::class);
         $provider->shouldReceive('stateless')->andReturnSelf();
         $provider->shouldReceive('user')->andReturn($socialiteUser);
 
@@ -66,12 +67,12 @@ class GoogleRegistrationTest extends TestCase
     public function test_google_callback_applies_free_trial_when_enabled(): void
     {
         $trialPlan = Plan::create([
-            'name'          => 'Google Trial',
-            'price'         => 0,
-            'data_limit'    => 500,
-            'limit_unit'    => 'MB',
+            'name' => 'Google Trial',
+            'price' => 0,
+            'data_limit' => 500,
+            'limit_unit' => 'MB',
             'validity_days' => 1,
-            'is_active'     => true,
+            'is_active' => true,
         ]);
 
         AppSetting::set('free_wifi_enabled', '1');
@@ -82,7 +83,7 @@ class GoogleRegistrationTest extends TestCase
         $socialiteUser->shouldReceive('getName')->andReturn('Trial User');
         $socialiteUser->shouldReceive('getEmail')->andReturn('triallover@example.com');
 
-        $provider = Mockery::mock(\Laravel\Socialite\Two\GoogleProvider::class);
+        $provider = Mockery::mock(GoogleProvider::class);
         $provider->shouldReceive('stateless')->andReturnSelf();
         $provider->shouldReceive('user')->andReturn($socialiteUser);
 
