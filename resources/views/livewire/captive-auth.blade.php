@@ -75,6 +75,47 @@
 
     {{-- Main form --}}
     @else
+        @php
+            $graceEnabled     = \App\Services\GracePassService::isEnabled();
+            $graceDuration    = \App\Services\GracePassService::getDurationMinutes();
+            $graceBtnText     = \App\Models\AppSetting::get('grace_pass_button_text', "Get {$graceDuration} Mins Free Internet");
+            $graceInstruction = \App\Models\AppSetting::get('grace_pass_instruction', "Need internet to receive your WhatsApp code or test the connection? Tap below for free instant access.");
+        @endphp
+
+        @if($graceEnabled && $linkLogin && ! $noplan)
+            <div class="mb-5 bg-gradient-to-br from-indigo-50 via-blue-50 to-emerald-50 border border-blue-200/80 rounded-2xl p-4 shadow-sm text-left">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <i class="fa-solid fa-bolt text-lg"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-sm font-bold text-gray-900">Instant Free Pass</p>
+                            <span class="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                {{ $graceDuration }} Mins Free
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-600 mt-1 leading-relaxed">
+                            {{ $graceInstruction }}
+                        </p>
+                        <button
+                            type="button"
+                            wire:click="claimGracePass"
+                            wire:loading.attr="disabled"
+                            wire:target="claimGracePass"
+                            class="mt-3 w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2 disabled:opacity-50">
+                            <span wire:loading.remove wire:target="claimGracePass" class="flex items-center gap-1.5">
+                                <i class="fa-solid fa-gift"></i> {{ $graceBtnText }}
+                            </span>
+                            <span wire:loading wire:target="claimGracePass" class="flex items-center gap-1.5">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Activating Free Pass...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         @if($error)
             <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center gap-2">
                 <i class="fa-solid fa-circle-exclamation"></i>

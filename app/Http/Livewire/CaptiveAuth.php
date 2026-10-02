@@ -9,6 +9,8 @@ use App\Models\RadReply;
 use App\Models\User;
 use App\Models\Voucher;
 use App\Services\SubscriptionService;
+use Carbon\Carbon;
+use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -16,26 +18,42 @@ use Livewire\Component;
 class CaptiveAuth extends Component
 {
     public string $identifier = '';
-    public string $error      = '';
-    public bool   $noplan     = false;
+
+    public string $error = '';
+
+    public bool $noplan = false;
 
     public ?string $linkLogin = null;
-    public ?string $mac       = null;
-    public ?string $ip        = null;
-    public ?string $router    = null;
+
+    public ?string $mac = null;
+
+    public ?string $ip = null;
+
+    public ?string $router = null;
 
     // Brand — passed from the captive-portal view when router has custom branding
-    public ?string $brandName       = null;
-    public ?string $brandColor      = null;
-    public ?string $brandLogoUrl    = null;
-    public ?string $brandHeading      = null;
-    public ?string $brandSubheading   = null;
-    public ?string $brandButtonText        = null;
-    public ?string $brandInputPlaceholder  = null;
-    public ?string $brandHelpText     = null;
+    public ?string $brandName = null;
+
+    public ?string $brandColor = null;
+
+    public ?string $brandLogoUrl = null;
+
+    public ?string $brandHeading = null;
+
+    public ?string $brandSubheading = null;
+
+    public ?string $brandButtonText = null;
+
+    public ?string $brandInputPlaceholder = null;
+
+    public ?string $brandHelpText = null;
+
     public ?string $brandHelpLinkText = null;
-    public ?string $brandHelpLinkUrl  = null;
-    public ?array  $brandInstructions  = null;
+
+    public ?string $brandHelpLinkUrl = null;
+
+    public ?array $brandInstructions = null;
+
     public ?string $brandErrorNotFound = null;
 
     public function mount(): void
@@ -45,8 +63,8 @@ class CaptiveAuth extends Component
             ?? request()->query('link_login')
             ?? request()->query('link-orig');
 
-        $this->mac    = request()->query('mac');
-        $this->ip     = request()->query('ip');
+        $this->mac = request()->query('mac');
+        $this->ip = request()->query('ip');
         $this->router = request()->query('router');
 
         // Known device — try silent auto-login before showing the form
@@ -61,37 +79,58 @@ class CaptiveAuth extends Component
     {
         $device = Device::where('mac', strtoupper($this->mac))->with('user')->first();
 
-        if (! $device) return;
+        if (! $device) {
+            return;
+        }
 
         // Regular subscriber — check plan and bridge
         if ($device->user_id && $device->user) {
-            if ((new SubscriptionService())->canConnectToHotspot($device->user)) {
+            if ((new SubscriptionService)->canConnectToHotspot($device->user)) {
                 Log::info('CaptiveAuth: MAC auto-login (user)', ['mac' => $this->mac, 'user_id' => $device->user->id]);
                 $this->completeLogin($device->user);
             }
+
             // Plan expired → fall through, show form
             return;
         }
 
         // Voucher device — re-use the stored RADIUS credentials if not expired
-        $meta        = is_array($device->meta) ? $device->meta : [];
+        $meta = is_array($device->meta) ? $device->meta : [];
         $voucherCode = $meta['voucher_code'] ?? null;
 
-        if (! $voucherCode) return;
+        // Grace pass device — re-use stored credentials if unexpired
+        $passUsername = $meta['grace_pass_username'] ?? null;
+        if ($passUsername) {
+            $rad = RadCheck::where('username', $passUsername)->where('attribute', 'Cleartext-Password')->first();
+            $expiryRow = RadCheck::where('username', $passUsername)->where('attribute', 'Expiration')->first();
+            if ($rad && $expiryRow && \Carbon\Carbon::parse($expiryRow->value)->isFuture()) {
+                Log::info('CaptiveAuth: MAC auto-login (grace pass)', ['mac' => $this->mac, 'username' => $passUsername]);
+                $device->update(['last_seen' => now(), 'is_connected' => true]);
+                session(['bridge_completed' => true]);
+                $this->bridgeToRouter($passUsername, $rad->value, $this->linkLogin, route('app.home'));
+                return;
+            }
+        }
 
-        $radUsername  = 'vch_' . strtolower($voucherCode);
-        $rad          = RadCheck::where('username', $radUsername)->where('attribute', 'Cleartext-Password')->first();
+        if (! $voucherCode) {
+            return;
+        }
 
-        if (! $rad) return;
+        $radUsername = 'vch_'.strtolower($voucherCode);
+        $rad = RadCheck::where('username', $radUsername)->where('attribute', 'Cleartext-Password')->first();
+
+        if (! $rad) {
+            return;
+        }
 
         $expiryRow = RadCheck::where('username', $radUsername)->where('attribute', 'Expiration')->first();
-        if ($expiryRow && \Carbon\Carbon::parse($expiryRow->value)->isPast()) {
+        if ($expiryRow && Carbon::parse($expiryRow->value)->isPast()) {
             return; // Voucher expired → show form
         }
 
         // Block silent reconnect if the creator's plan is currently exhausted/expired
         $voucherModel = Voucher::where('code', strtoupper($voucherCode))->first();
-        if ($voucherModel?->creator && ! (new SubscriptionService())->canConnectToHotspot($voucherModel->creator)) {
+        if ($voucherModel?->creator && ! (new SubscriptionService)->canConnectToHotspot($voucherModel->creator)) {
             return; // Creator's plan is out — show captive portal so they know
         }
 
@@ -105,32 +144,38 @@ class CaptiveAuth extends Component
 
     public function connect(): void
     {
-        $input        = trim($this->identifier);
-        $this->error  = '';
+        $input = trim($this->identifier);
+        $this->error = '';
         $this->noplan = false;
 
         if (empty($input)) {
             $this->error = 'Please enter your phone number, email, username, or voucher code.';
+
             return;
         }
 
         // Voucher code (e.g. VCH-XXXXX)
         if (Voucher::isVoucherCode($input)) {
             $this->activateVoucher(strtoupper($input));
+
             return;
         }
 
         $user = $this->findUser($input);
 
         if (! $user) {
-            if ($this->tryBasmelcareInvoice($input)) return;
+            if ($this->tryBasmelcareInvoice($input)) {
+                return;
+            }
             $this->error = $this->brandErrorNotFound
                 ?: 'No account found. Please subscribe at hifastlink.com first.';
+
             return;
         }
 
-        if (! (new SubscriptionService())->canConnectToHotspot($user)) {
+        if (! (new SubscriptionService)->canConnectToHotspot($user)) {
             $this->noplan = true;
+
             return;
         }
 
@@ -147,8 +192,10 @@ class CaptiveAuth extends Component
 
         $digits = preg_replace('/\D/', '', $input);
         if (strlen($digits) >= 7) {
-            $user = User::where('phone', 'like', '%' . substr($digits, -10))->first();
-            if ($user) return $user;
+            $user = User::where('phone', 'like', '%'.substr($digits, -10))->first();
+            if ($user) {
+                return $user;
+            }
         }
 
         return User::where('username', $input)->first();
@@ -159,16 +206,18 @@ class CaptiveAuth extends Component
         $apiUrl = AppSetting::get('basmelcare_api_url', '');
         $apiKey = AppSetting::get('basmelcare_api_key', '');
 
-        if (! $apiUrl || ! $apiKey) return false;
+        if (! $apiUrl || ! $apiKey) {
+            return false;
+        }
 
         $invoice = strtoupper(preg_replace('/\s+/', '', $input));
 
         try {
-            $client = new \GuzzleHttp\Client(['timeout' => 10, 'http_errors' => false]);
+            $client = new Client(['timeout' => 10, 'http_errors' => false]);
 
             $res = $client->post($apiUrl, [
                 'headers' => ['X-API-Key' => $apiKey, 'Accept' => 'application/json'],
-                'json'    => ['invoice_number' => $invoice],
+                'json' => ['invoice_number' => $invoice],
             ]);
 
             $body = json_decode($res->getBody()->getContents(), true);
@@ -176,14 +225,15 @@ class CaptiveAuth extends Component
             if (empty($body['valid'])) {
                 // BasmelCare gave a specific reason (expired, unpaid, etc.) — show it directly
                 $this->error = $body['message'] ?? 'Invalid or unrecognised receipt.';
+
                 return true;
             }
 
             $radUsername = strtoupper($body['invoice_number'] ?? $invoice);
-            $expiresAt   = $body['expires_at'] ?? null;
+            $expiresAt = $body['expires_at'] ?? null;
 
-            $existing    = RadCheck::where('username', $radUsername)
-                                   ->where('attribute', 'Cleartext-Password')->first();
+            $existing = RadCheck::where('username', $radUsername)
+                ->where('attribute', 'Cleartext-Password')->first();
             $radPassword = $existing?->value ?? Str::random(12);
 
             RadCheck::updateOrCreate(
@@ -199,7 +249,7 @@ class CaptiveAuth extends Component
             if ($expiresAt) {
                 RadCheck::updateOrCreate(
                     ['username' => $radUsername, 'attribute' => 'Expiration'],
-                    ['op' => ':=', 'value' => \Carbon\Carbon::parse($expiresAt)->format('d M Y H:i')]
+                    ['op' => ':=', 'value' => Carbon::parse($expiresAt)->format('d M Y H:i')]
                 );
             }
 
@@ -207,28 +257,30 @@ class CaptiveAuth extends Component
                 Device::updateOrCreate(
                     ['mac' => strtoupper($this->mac)],
                     [
-                        'user_id'      => null,
-                        'ip'           => $this->ip ?? request()->ip(),
-                        'user_agent'   => request()->userAgent(),
-                        'first_seen'   => now(),
-                        'last_seen'    => now(),
+                        'user_id' => null,
+                        'ip' => $this->ip ?? request()->ip(),
+                        'user_agent' => request()->userAgent(),
+                        'first_seen' => now(),
+                        'last_seen' => now(),
                         'is_connected' => true,
-                        'meta'         => ['pharmacy_invoice' => $radUsername],
+                        'meta' => ['pharmacy_invoice' => $radUsername],
                     ]
                 );
             }
 
             session(['bridge_completed' => true]);
             $this->bridgeToRouter($radUsername, $radPassword, $this->linkLogin, route('app.home'));
+
             return true;
 
         } catch (\Throwable $e) {
             Log::error('[CaptiveAuth] BasmelCare API error', [
                 'invoice' => $invoice,
-                'url'     => $apiUrl,
-                'error'   => $e->getMessage(),
+                'url' => $apiUrl,
+                'error' => $e->getMessage(),
             ]);
             $this->error = 'Could not reach the pharmacy system. Please try again or contact support.';
+
             return true;
         }
     }
@@ -241,13 +293,15 @@ class CaptiveAuth extends Component
 
         if (! $voucher) {
             $this->error = 'This voucher is invalid, expired, or has no remaining uses.';
+
             return;
         }
 
         $creator = $voucher->creator;
 
-        if ($creator && ! (new SubscriptionService())->canConnectToHotspot($creator)) {
+        if ($creator && ! (new SubscriptionService)->canConnectToHotspot($creator)) {
             $this->error = "This voucher's plan has expired or run out of data.";
+
             return;
         }
 
@@ -255,12 +309,13 @@ class CaptiveAuth extends Component
         // Refuse early — before consuming the slot — if there's no hotspot session to bridge to
         if (! $this->linkLogin) {
             $this->error = 'Voucher activated but no hotspot session found. Please reconnect to the WiFi.';
+
             return;
         }
 
-        $radUsername = 'vch_' . strtolower($code);
+        $radUsername = 'vch_'.strtolower($code);
 
-        $existing    = RadCheck::where('username', $radUsername)->where('attribute', 'Cleartext-Password')->first();
+        $existing = RadCheck::where('username', $radUsername)->where('attribute', 'Cleartext-Password')->first();
         $radPassword = $existing?->value ?? Str::random(12);
 
         // Consume first so expires_at is set from redemption time for duration_hours-based vouchers.
@@ -284,18 +339,18 @@ class CaptiveAuth extends Component
         if ($expiresAt) {
             RadCheck::updateOrCreate(
                 ['username' => $radUsername, 'attribute' => 'Expiration'],
-                ['op' => ':=', 'value' => \Carbon\Carbon::parse($expiresAt)->format('d M Y H:i')]
+                ['op' => ':=', 'value' => Carbon::parse($expiresAt)->format('d M Y H:i')]
             );
         }
 
         $plan = $voucher->plan ?? $creator?->plan;
         if ($plan) {
-            $uploadKbps   = $voucher->speed_limit_upload   ?? $plan->speed_limit_upload;
+            $uploadKbps = $voucher->speed_limit_upload ?? $plan->speed_limit_upload;
             $downloadKbps = $voucher->speed_limit_download ?? $plan->speed_limit_download;
             if ($uploadKbps || $downloadKbps) {
                 RadReply::updateOrCreate(
                     ['username' => $radUsername, 'attribute' => 'Mikrotik-Rate-Limit'],
-                    ['op' => ':=', 'value' => ($uploadKbps ?? 0) . 'k/' . ($downloadKbps ?? 0) . 'k']
+                    ['op' => ':=', 'value' => ($uploadKbps ?? 0).'k/'.($downloadKbps ?? 0).'k']
                 );
             }
 
@@ -303,7 +358,7 @@ class CaptiveAuth extends Component
                 $limitBytes = $plan->limit_unit === 'GB'
                     ? (int) ($plan->data_limit * 1073741824)
                     : (int) ($plan->data_limit * 1048576);
-                $gigawords  = (int) ($limitBytes / 4294967296);
+                $gigawords = (int) ($limitBytes / 4294967296);
                 $totalLimit = $limitBytes - ($gigawords * 4294967296);
                 RadReply::updateOrCreate(
                     ['username' => $radUsername, 'attribute' => 'Mikrotik-Total-Limit'],
@@ -322,19 +377,20 @@ class CaptiveAuth extends Component
             Device::updateOrCreate(
                 ['mac' => strtoupper($this->mac)],
                 [
-                    'user_id'      => null,
-                    'ip'           => $this->ip ?? request()->ip(),
-                    'user_agent'   => request()->userAgent(),
-                    'first_seen'   => now(),
-                    'last_seen'    => now(),
+                    'user_id' => null,
+                    'ip' => $this->ip ?? request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'first_seen' => now(),
+                    'last_seen' => now(),
                     'is_connected' => true,
-                    'meta'         => ['voucher_code' => $code],
+                    'meta' => ['voucher_code' => $code],
                 ]
             );
         }
 
         if (! $this->linkLogin) {
             $this->error = 'Voucher activated but no hotspot session found. Please reconnect to the WiFi.';
+
             return;
         }
 
@@ -356,21 +412,23 @@ class CaptiveAuth extends Component
                     request()->userAgent()
                 );
             } catch (\Throwable $e) {
-                Log::warning('CaptiveAuth: device upsert failed — ' . $e->getMessage());
+                Log::warning('CaptiveAuth: device upsert failed — '.$e->getMessage());
             }
         }
 
         if (! $this->linkLogin) {
             $this->redirect(route('app.home'));
+
             return;
         }
 
-        $rad         = RadCheck::where('username', $user->username)->where('attribute', 'Cleartext-Password')->first();
+        $rad = RadCheck::where('username', $user->username)->where('attribute', 'Cleartext-Password')->first();
         $radPassword = $rad?->value ?? $user->radius_password;
 
         if (! $radPassword) {
-            Log::warning('CaptiveAuth: no RADIUS password for ' . $user->username . ' — RadCheck may be corrupted or missing');
+            Log::warning('CaptiveAuth: no RADIUS password for '.$user->username.' — RadCheck may be corrupted or missing');
             $this->error = 'Account not set up for hotspot access. Please contact support.';
+
             return;
         }
 
@@ -381,16 +439,57 @@ class CaptiveAuth extends Component
     private function bridgeToRouter(string $username, string $password, string $linkLogin, string $linkOrig): void
     {
         session([
-            'bridge_username'   => $username,
-            'bridge_password'   => $password,
+            'bridge_username' => $username,
+            'bridge_password' => $password,
             'bridge_link_login' => $linkLogin,
-            'bridge_link_orig'  => $linkOrig,
-            'bridge_mac'        => $this->mac,
-            'bridge_ip'         => $this->ip,
-            'bridge_router'     => $this->router,
+            'bridge_link_orig' => $linkOrig,
+            'bridge_mac' => $this->mac,
+            'bridge_ip' => $this->ip,
+            'bridge_router' => $this->router,
         ]);
 
         $this->redirect(route('captive.bridge'));
+    }
+
+    public function claimGracePass(): void
+    {
+        $this->error = '';
+
+        if (! $this->linkLogin) {
+            $this->error = 'No active hotspot session found. Please reconnect to the Wi-Fi.';
+
+            return;
+        }
+
+        if (! $this->mac) {
+            $this->error = 'Your device MAC address was not detected. Please reconnect to the Wi-Fi.';
+
+            return;
+        }
+
+        $result = \App\Services\GracePassService::claim($this->mac, $this->ip, $this->router);
+
+        if (! $result['success']) {
+            $this->error = $result['error'] ?? 'Could not activate free pass.';
+
+            return;
+        }
+
+        session(['bridge_completed' => true]);
+        $this->bridgeToRouter(
+            $result['username'],
+            $result['password'],
+            $this->linkLogin,
+            route('login', array_filter([
+                'tab' => 'whatsapp',
+                'router' => $this->router,
+                'mac' => $this->mac,
+                'ip' => $this->ip,
+                'link-login' => $this->linkLogin,
+                'grace_active' => '1',
+                'grace_duration' => $result['duration'],
+            ]))
+        );
     }
 
     public function render()
