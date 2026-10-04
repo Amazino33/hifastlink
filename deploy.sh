@@ -6,8 +6,13 @@
 #   .           main Laravel app (admin panel, RADIUS API)  →  hifastlink.com/dashboard
 #   public/app  customer PWA clone (separate git checkout)  →  app.hifastlink.com
 #
-# Unlike BasmelCare, the two checkouts are independent — each must be pulled
+# Unlike BasmelCare, the two checkouts are independent — each must be synced
 # separately. Each has its own .env, composer.json, and cache.
+#
+# The server is a DEPLOY TARGET, not a working tree: it always mirrors
+# origin/master exactly. We use `git fetch && git reset --hard` instead of
+# `git pull` so a force-push from dev never leaves the server in a
+# divergent-branches state.
 #
 # Front-end assets are NOT built here: public/build is committed to git, so
 # run `npm run build` in the app you changed and commit the result BEFORE
@@ -18,6 +23,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_CLONE="$ROOT/public/app"
 APPS=("$ROOT" "$APP_CLONE")
+BRANCH="master"
 
 step() { printf '\n==> %s\n' "$1"; }
 
@@ -31,9 +37,6 @@ on_failure() {
 trap on_failure ERR
 
 # ── 0. Pre-flight ────────────────────────────────────────────────────
-# The customer app's MikroTik redirect URL is built from APP_URL — if it is
-# missing or still localhost, the Connect button on app.hifastlink.com will
-# redirect users to the wrong host. Catch it before anything goes offline.
 step "Checking configuration"
 
 if [ ! -f "$APP_CLONE/.env" ]; then
@@ -52,29 +55,51 @@ fi
 
 echo "    APP_URL (customer app): $(grep -E '^APP_URL=' "$APP_CLONE/.env" | cut -d= -f2-)"
 
+# ── Helper: sync a repo to origin/<branch> with reset, not pull ──────
+sync_repo() {
+    local repo="$1" label="$2"
+    cd "$repo"
+
+    # Discard regenerated Laravel artifacts that otherwise block the reset
+    # or show up as "modified" in every deploy.
+    git checkout -- bootstrap/cache 2>/dev/null || true
+    git checkout -- storage          2>/dev/null || true
+    git checkout -- public/vendor/livewire 2>/dev/null || true
+    git clean -fd public/vendor/livewire 2>/dev/null || true
+
+    local before
+    before="$(git rev-parse HEAD)"
+
+    git fetch origin "$BRANCH"
+
+    local after
+    after="$(git rev-parse "origin/$BRANCH")"
+
+    if [ "$before" != "$after" ]; then
+        echo "    $label: $before -> $after"
+        git reset --hard "origin/$BRANCH"
+    else
+        echo "    $label: already at $after"
+    fi
+
+    echo "$before"   # echo so caller can capture
+}
+
 # ── 1. Maintenance mode ──────────────────────────────────────────────
 step "Taking both apps offline"
 for app in "${APPS[@]}"; do
     (cd "$app" && php artisan down --retry=60) || true
 done
 
-# ── 2. Pull — two separate git clones ────────────────────────────────
-step "Pulling main app"
-cd "$ROOT"
-git checkout -- public/vendor/livewire 2>/dev/null || true
-git clean -fd public/vendor/livewire 2>/dev/null || true
-before_root="$(git rev-parse HEAD)"
-git pull
-after_root="$(git rev-parse HEAD)"
+# ── 2. Sync — two separate git clones ────────────────────────────────
+step "Syncing main app"
+before_root="$(sync_repo "$ROOT" "main app" | tail -n1)"
+after_root="$(cd "$ROOT" && git rev-parse HEAD)"
 
-step "Pulling customer app clone (public/app)"
-cd "$APP_CLONE"
-git checkout -- public/vendor/livewire 2>/dev/null || true
-git clean -fd public/vendor/livewire 2>/dev/null || true
-git pull
+step "Syncing customer app clone (public/app)"
+sync_repo "$APP_CLONE" "customer app" >/dev/null
 
-# Detect if markup changed without a rebuilt public/build in the main pull.
-# (The app clone is the same code, so checking the main clone is sufficient.)
+# Detect if markup changed without a rebuilt public/build in the main sync.
 if [ "$before_root" != "$after_root" ]; then
     changed="$(git -C "$ROOT" diff --name-only "$before_root" "$after_root" 2>/dev/null || true)"
     markup_changed=no
@@ -86,11 +111,9 @@ if [ "$before_root" != "$after_root" ]; then
     fi
 fi
 
-# Bash reads this script incrementally, so `git pull` above can rewrite THIS
-# FILE while it is still executing. Re-exec the freshly pulled version once so
-# what runs is what was just committed.
+# If this script itself changed, re-exec the freshly pulled version.
 if [ "$before_root" != "$after_root" ] && [ -z "${DEPLOY_REEXECED:-}" ]; then
-    step "Script updated by the pull — restarting with the new version"
+    step "Script updated by the sync — restarting with the new version"
     export DEPLOY_REEXECED=1
     exec bash "$ROOT/deploy.sh" "$@"
 fi
@@ -148,7 +171,7 @@ printf '\n✅ HiFastLink deployed — main app and customer app.\n'
 if [ -n "${DEPLOY_ASSETS_WARNING:-}" ]; then
     cat <<'WARN'
 
-!!  Markup changed in this pull but public/build did not.
+!!  Markup changed in this sync but public/build did not.
     public/build is committed to git and is never rebuilt on the server.
     Any Tailwind class used for the first time has no CSS behind it —
     the page will look broken in a way nothing reports.
