@@ -362,6 +362,122 @@
     </div>
 </div>
 
+{{-- Grace Pass (Instant Free Internet) --}}
+<div class="s-card">
+    <div class="s-card-title">Grace Pass — Instant Free Internet</div>
+    <div class="s-card-desc">
+        Lets guests get online for a few minutes before signing in — useful when they need
+        internet to receive a WhatsApp OTP or test the connection. A RADIUS account is
+        created on demand, tied to the device MAC, and expires automatically.
+    </div>
+
+    <div class="s-toggle-row" style="border-top:none;padding-top:0;margin-bottom:20px;">
+        <label class="toggle-switch">
+            <input type="checkbox" wire:model.live="grace_pass_enabled">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </label>
+        <div>
+            <div class="s-toggle-label">Enable Grace Pass</div>
+            <div class="s-toggle-desc">When off, the "Get Free Internet" button is hidden on the captive portal.</div>
+        </div>
+        <div style="margin-left:auto">
+            <span class="status-badge {{ $grace_pass_enabled ? 'status-on' : 'status-off' }}">
+                <span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block"></span>
+                {{ $grace_pass_enabled ? 'Active' : 'Off' }}
+            </span>
+        </div>
+    </div>
+
+    <div class="s-row">
+        <div>
+            <label class="s-label">Duration (minutes)</label>
+            <input type="number" min="1" max="180" wire:model.live="grace_pass_duration_minutes" class="s-input"
+                   placeholder="e.g. 5">
+            @error('grace_pass_duration_minutes')<p class="s-err">{{ $message }}</p>@enderror
+            <p class="s-hint">How long the guest stays online. 5 minutes is enough for a WhatsApp OTP.</p>
+        </div>
+        <div>
+            <label class="s-label">Data Limit (MB)</label>
+            <input type="number" min="0" max="10000" wire:model.live="grace_pass_data_limit_mb" class="s-input"
+                   placeholder="e.g. 50">
+            @error('grace_pass_data_limit_mb')<p class="s-err">{{ $message }}</p>@enderror
+            <p class="s-hint">Set to 0 for no data cap (time limit still applies).</p>
+        </div>
+    </div>
+
+    <div class="s-row">
+        <div>
+            <label class="s-label">Upload Limit (Kbps)</label>
+            <input type="number" min="0" max="1000000" wire:model.live="grace_pass_speed_upload" class="s-input"
+                   placeholder="e.g. 1024">
+            @error('grace_pass_speed_upload')<p class="s-err">{{ $message }}</p>@enderror
+            <p class="s-hint">1024 = 1 Mbps. 0 = no upload limit.</p>
+        </div>
+        <div>
+            <label class="s-label">Download Limit (Kbps)</label>
+            <input type="number" min="0" max="1000000" wire:model.live="grace_pass_speed_download" class="s-input"
+                   placeholder="e.g. 2048">
+            @error('grace_pass_speed_download')<p class="s-err">{{ $message }}</p>@enderror
+            <p class="s-hint">2048 = 2 Mbps. 0 = no download limit.</p>
+        </div>
+    </div>
+
+    <div style="margin-bottom:20px;">
+        <label class="s-label">Cooldown (hours)</label>
+        <input type="number" min="0" max="720" wire:model.live="grace_pass_cooldown_hours" class="s-input"
+               placeholder="e.g. 24" style="max-width:220px;">
+        @error('grace_pass_cooldown_hours')<p class="s-err">{{ $message }}</p>@enderror
+        <p class="s-hint">Wait time before the same MAC can claim another pass. Set to 0 to allow back-to-back claims.</p>
+    </div>
+
+    <div style="margin-bottom:20px;">
+        <label class="s-label">Button Text</label>
+        <input type="text" maxlength="100" wire:model.live="grace_pass_button_text" class="s-input"
+               placeholder="Get 5 Mins Free Internet">
+        @error('grace_pass_button_text')<p class="s-err">{{ $message }}</p>@enderror
+        <p class="s-hint">Shown on the captive portal button. Keep it short.</p>
+    </div>
+
+    <div style="margin-bottom:20px;">
+        <label class="s-label">Instruction Text</label>
+        <textarea wire:model.live="grace_pass_instruction" rows="3" maxlength="500" class="s-select"
+                  style="resize:vertical;min-height:80px;line-height:1.5;"
+                  placeholder="Tap below for free instant access while you grab your code."></textarea>
+        @error('grace_pass_instruction')<p class="s-err">{{ $message }}</p>@enderror
+        <p class="s-hint">Explanatory line shown above the button on the captive portal.</p>
+    </div>
+
+    @if($grace_pass_enabled && ($grace_pass_speed_upload || $grace_pass_speed_download))
+    <div class="rate-preview">
+        <svg style="width:15px;height:15px;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        RADIUS attributes:&nbsp;
+        <strong>Mikrotik-Rate-Limit = {{ $grace_pass_speed_upload }}k/{{ $grace_pass_speed_download }}k</strong>
+        &nbsp;·&nbsp;
+        <span>Expiration = now + {{ $grace_pass_duration_minutes }} min</span>
+    </div>
+    @endif
+
+    <div class="info-box" style="margin-top:16px;margin-bottom:16px;">
+        <strong>How it works</strong>
+        <ul>
+            <li>Guest taps the button on the captive portal — no account needed.</li>
+            <li>A RADIUS account <code>grace_&lt;MAC&gt;</code> is created with the limits above.</li>
+            <li>Router authenticates against FreeRADIUS and lets them online.</li>
+            <li>When the time or data runs out, the router drops them back to the portal.</li>
+            <li>Cooldown blocks the same device from claiming repeatedly.</li>
+        </ul>
+    </div>
+
+    <div class="s-btn-row">
+        <button class="s-btn s-btn-primary" wire:click="saveGracePass" wire:loading.attr="disabled">
+            <span wire:loading.remove wire:target="saveGracePass">Save Grace Pass Settings</span>
+            <span wire:loading wire:target="saveGracePass">Saving...</span>
+        </button>
+    </div>
+</div>
+
 {{-- Sub-Account Settings --}}
 <div class="s-card">
     <div class="s-card-title">Sub-Account Settings</div>
