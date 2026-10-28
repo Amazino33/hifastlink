@@ -405,10 +405,15 @@ class AuthenticatedSessionController extends Controller
         }
 
         $user = Auth::user();
-        if (! $user->isAdmin()) {
-            return redirect()->intended(route('app.home'));
+        $fallback = $user->isAdmin() ? $user->homeUrl() : route('app.home');
+
+        // Avoid infinite redirect loop back to login if url.intended points to login/register routes
+        $intended = session()->pull('url.intended');
+        if (! $intended || str_contains($intended, '/login') || str_contains($intended, '/register') || str_contains($intended, '/auth/google')) {
+            $intended = $fallback;
         }
-        return redirect()->intended($user->homeUrl());
+
+        return redirect()->to($intended);
     }
 
     // ─────────────────────────────────────────────────────────────────

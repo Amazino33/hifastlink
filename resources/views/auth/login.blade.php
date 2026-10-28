@@ -25,10 +25,20 @@
     ]));
 
     // Determine default tab:
-    // If request('tab') is passed, use that.
-    // If voucher query is present, use 'voucher'.
-    // Otherwise default to 'whatsapp'.
-    $defaultTab = request('tab') ?: (request()->has('voucher') ? 'voucher' : 'whatsapp');
+    // 1. If explicit ?tab= was passed in URL, honor it.
+    // 2. If returning from a failed submission or with input on the PIN or Voucher tab, keep that tab active!
+    // 3. If ?voucher query is present, use 'voucher'.
+    // 4. Otherwise default to 'whatsapp'.
+    $defaultTab = request('tab');
+    if (!$defaultTab) {
+        if ($errors->has('login') || $errors->has('password') || old('login')) {
+            $defaultTab = \App\Models\Voucher::isVoucherCode(old('login', '')) ? 'voucher' : 'pin';
+        } elseif (request()->has('voucher')) {
+            $defaultTab = 'voucher';
+        } else {
+            $defaultTab = 'whatsapp';
+        }
+    }
 @endphp
 
 <div x-data="{
@@ -46,10 +56,10 @@
 
     <x-auth-session-status class="mb-5" :status="session('status')" />
 
-    @if(session('error') || request('error'))
+    @if(session('error') || request('error') || $errors->any())
         <div class="mb-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-sm flex items-center gap-3">
             <i class="fa-solid fa-circle-exclamation text-red-500 text-lg flex-shrink-0"></i>
-            <span>{{ session('error') ?: request('error') }}</span>
+            <span>{{ session('error') ?: request('error') ?: $errors->first() }}</span>
         </div>
     @endif
 

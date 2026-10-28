@@ -33,14 +33,10 @@ class EnsurePhoneIsVerified
 
         // Standard registered or password-authenticated accounts bypass check
         // to prevent infinite redirect loops back to login.
-        if (! empty($user->password) || ! empty($user->username)) {
-            if (! empty($user->phone) && ! $user->phone_verified_at) {
-                $user->update(['phone_verified_at' => now()]);
-            }
-
-            return $next($request);
+        if (! empty($user->phone) && ! $user->phone_verified_at) {
+            $user->update(['phone_verified_at' => now()]);
         }
 
-        return redirect()->route('login');
+        return $next($request);
     }
 }

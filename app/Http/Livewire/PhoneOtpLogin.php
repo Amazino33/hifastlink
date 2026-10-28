@@ -253,7 +253,12 @@ class PhoneOtpLogin extends Component
             }
         }
 
-        $this->redirectIntended(route('app.home'));
+        $intended = session()->pull('url.intended');
+        if (! $intended || str_contains($intended, '/login') || str_contains($intended, '/register') || str_contains($intended, '/auth/google')) {
+            $intended = route('app.home');
+        }
+
+        $this->redirect($intended);
     }
 
     private function generateUsername(string $last10): string

@@ -45,30 +45,83 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        $login = $this->string('login');
-        $password = $this->string('password');
+        $rawLogin = trim((string) $this->input('login', ''));
+        $password = (string) $this->input('password', '');
         $remember = $this->boolean('remember');
 
-        // Try to authenticate with different fields
         $authenticated = false;
 
-        // Try email first
-        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
-            $authenticated = Auth::attempt(['email' => $login, 'password' => $password], $remember);
+        // 1. Try email
+        if (filter_var($rawLogin, FILTER_VALIDATE_EMAIL)) {
+            $authenticated = Auth::attempt(['email' => strtolower($rawLogin), 'password' => $password], $remember)
+                || Auth::attempt(['email' => $rawLogin, 'password' => $password], $remember);
         }
 
-        // If not authenticated and login doesn't look like email, try phone
-        if (!$authenticated && is_numeric($login)) {
-            $authenticated = Auth::attempt(['phone' => $login, 'password' => $password], $remember);
+        // 2. Try phone number (both normalized E.164 and raw/digits format)
+        if (! $authenticated) {
+            $digits = preg_replace('/\D/', '', $rawLogin);
+            if (strlen($digits) >= 7) {
+                $normalizedPhone = \App\Models\User::normalizePhone($rawLogin);
+                $last10 = substr($digits, -10);
+
+                // Attempt standard auth with normalized phone and raw phone
+                $authenticated = Auth::attempt(['phone' => $normalizedPhone, 'password' => $password], $remember)
+                    || Auth::attempt(['phone' => $rawLogin, 'password' => $password], $remember);
+
+                // If not authenticated via standard attempt, check candidate user
+                if (! $authenticated) {
+                    $candidate = \App\Models\User::where('phone', $normalizedPhone)
+                        ->orWhere('phone', $rawLogin)
+                        ->orWhere('phone', 'like', '%' . $last10)
+                        ->first();
+
+                    if ($candidate) {
+                        if (\Illuminate\Support\Facades\Hash::check($password, $candidate->password)
+                            || (! empty($candidate->radius_password) && $candidate->radius_password === $password)) {
+                            Auth::login($candidate, $remember);
+                            $authenticated = true;
+                        }
+                    }
+                }
+            }
         }
 
-        // If still not authenticated, try username
-        if (!$authenticated) {
-            $authenticated = Auth::attempt(['username' => $login, 'password' => $password], $remember);
+        // 3. Try username
+        if (! $authenticated) {
+            $authenticated = Auth::attempt(['username' => $rawLogin, 'password' => $password], $remember);
+
+            // Also check radius_password if user exists by username
+            if (! $authenticated) {
+                $candidate = \App\Models\User::where('username', $rawLogin)->first();
+                if ($candidate && ! empty($candidate->radius_password) && $candidate->radius_password === $password) {
+                    Auth::login($candidate, $remember);
+                    $authenticated = true;
+                }
+            }
         }
 
-        if (!$authenticated) {
+        if (! $authenticated) {
             RateLimiter::hit($this->throttleKey());
+
+            // Provide clear feedback if the account exists but was created via WhatsApp without a password
+            $digits = preg_replace('/\D/', '', $rawLogin);
+            $existingUser = null;
+            if (filter_var($rawLogin, FILTER_VALIDATE_EMAIL)) {
+                $existingUser = \App\Models\User::where('email', strtolower($rawLogin))->first();
+            } elseif (strlen($digits) >= 7) {
+                $normalizedPhone = \App\Models\User::normalizePhone($rawLogin);
+                $existingUser = \App\Models\User::where('phone', $normalizedPhone)
+                    ->orWhere('phone', 'like', '%' . substr($digits, -10))
+                    ->first();
+            } else {
+                $existingUser = \App\Models\User::where('username', $rawLogin)->first();
+            }
+
+            if ($existingUser && ! empty($existingUser->phone) && str_starts_with($existingUser->username ?? '', 'user_') && empty($existingUser->email)) {
+                throw ValidationException::withMessages([
+                    'login' => 'This account was set up via WhatsApp. Please sign in using the WhatsApp tab above, or use "Forgot?" to set a PIN.',
+                ]);
+            }
 
             throw ValidationException::withMessages([
                 'login' => trans('auth.failed'),
