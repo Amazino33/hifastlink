@@ -341,6 +341,9 @@ class AuthenticatedSessionController extends Controller
         // early, and that is the path most hotspot users actually take.
         if (! Auth::user()->isAdmin()) {
             Auth::login(Auth::user(), remember: true);
+            if (! Auth::user()->phone_verified_at && ! empty(Auth::user()->phone)) {
+                Auth::user()->update(['phone_verified_at' => now()]);
+            }
         }
 
         if ($request->filled('mac')) {
@@ -369,11 +372,7 @@ class AuthenticatedSessionController extends Controller
 
             $subscriptionService = new \App\Services\SubscriptionService;
             if (! $subscriptionService->canConnectToHotspot($user)) {
-                Auth::guard('web')->logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
-
-                return redirect()->route('app.home')->with('error', 'Please buy a plan.');
+                return redirect()->route('app.home')->with('error', 'You do not have an active plan. Please choose a plan below to connect to WiFi.');
             }
 
             $linkLogin = $request->input('link_login');

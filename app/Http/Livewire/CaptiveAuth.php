@@ -402,6 +402,12 @@ class CaptiveAuth extends Component
 
     private function completeLogin(User $user): void
     {
+        \Illuminate\Support\Facades\Auth::login($user, remember: true);
+
+        if (! $user->phone_verified_at && ! empty($user->phone)) {
+            $user->update(['phone_verified_at' => now()]);
+        }
+
         if ($this->mac) {
             try {
                 Device::upsertFromLogin(
