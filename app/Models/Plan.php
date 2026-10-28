@@ -99,20 +99,34 @@ class Plan extends Model
 
             $attributes = [];
 
-            // Data limit -> Mikrotik-Total-Limit (bytes)
+            // Data limit -> Mikrotik-Total-Limit (bytes) + Mikrotik-Total-Limit-Gigawords
             if ($plan->limit_unit !== 'Unlimited' && $plan->data_limit) {
-                if ($plan->limit_unit === 'GB') {
+                if ($plan->limit_unit === 'TB') {
+                    $bytes = (int) ($plan->data_limit * 1099511627776);
+                } elseif ($plan->limit_unit === 'GB') {
                     $bytes = (int) ($plan->data_limit * 1073741824);
                 } else { // MB
                     $bytes = (int) ($plan->data_limit * 1048576);
                 }
 
+                $gigawords  = (int) ($bytes / 4294967296);
+                $totalLimit = $bytes - ($gigawords * 4294967296);
+
                 $attributes[] = [
                     'groupname' => $plan->name,
                     'attribute' => 'Mikrotik-Total-Limit',
                     'op' => ':=',
-                    'value' => (string) $bytes,
+                    'value' => (string) $totalLimit,
                 ];
+
+                if ($gigawords > 0) {
+                    $attributes[] = [
+                        'groupname' => $plan->name,
+                        'attribute' => 'Mikrotik-Total-Limit-Gigawords',
+                        'op' => ':=',
+                        'value' => (string) $gigawords,
+                    ];
+                }
             }
 
             // Rate limit -> Mikrotik-Rate-Limit (uploadk/downloadk)
@@ -212,15 +226,28 @@ class Plan extends Model
         });
     } 
  
-    public function getDataLimitHumanAttribute(): string
+    public function getDataLimitBytesAttribute(): ?int
     {
         if ($this->limit_unit === 'Unlimited' || ! $this->data_limit) {
-            return 'Unlimited';
+            return null;
         }
 
-        $bytes = $this->limit_unit === 'GB'
+        if ($this->limit_unit === 'TB') {
+            return (int) ($this->data_limit * 1099511627776);
+        }
+
+        return $this->limit_unit === 'GB'
             ? (int) ($this->data_limit * 1073741824)
             : (int) ($this->data_limit * 1048576);
+    }
+
+    public function getDataLimitHumanAttribute(): string
+    {
+        $bytes = $this->data_limit_bytes;
+
+        if ($bytes === null) {
+            return 'Unlimited';
+        }
 
         return Number::fileSize($bytes);
     }

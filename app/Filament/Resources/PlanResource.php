@@ -97,6 +97,7 @@ class PlanResource extends Resource
                                 ->options([
                                     'MB' => 'Megabytes (MB)',
                                     'GB' => 'Gigabytes (GB)',
+                                    'TB' => 'Terabytes (TB)',
                                     'Unlimited' => 'Unlimited',
                                 ])
                                 ->required()
@@ -233,21 +234,7 @@ class PlanResource extends Resource
 
                 TextColumn::make('data_limit')
                     ->label('Data Limit')
-                    ->formatStateUsing(function ($state, $record) {
-                        if ($record->limit_unit === 'Unlimited' || $record->data_limit === null) {
-                            return 'Unlimited';
-                        }
-
-                        // If $state looks like a large number -> assume bytes already, otherwise treat as unit (MB/GB)
-                        if (is_numeric($state) && (int)$state > 1048576) {
-                            $bytes = (int) $state;
-                        } else {
-                            $bytes = $record->limit_unit === 'GB'
-                                ? (int) ($state * 1073741824)
-                                : (int) ($state * 1048576);
-                        }
-                        return Number::fileSize($bytes);
-                    })
+                    ->formatStateUsing(fn ($state, $record) => $record->data_limit_human)
                     ->sortable(), 
 
                 TextColumn::make('validity_days')

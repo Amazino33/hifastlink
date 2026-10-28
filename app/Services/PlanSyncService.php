@@ -219,11 +219,9 @@ class PlanSyncService
                 $totalUsed = $userRecordedUsed;
             }
 
-            // Remaining data in bytes — respect the plan's limit_unit (MB or GB)
-            $planLimitBytes = $plan->limit_unit === 'GB'
-                ? (int) ($plan->data_limit * 1073741824)
-                : (int) ($plan->data_limit * 1048576);
-            $remainingBytes = max(0, $planLimitBytes - $totalUsed);
+            // Remaining data in bytes — respect the plan's limit_unit (TB, GB, MB, or Unlimited)
+            $planLimitBytes = $plan->data_limit_bytes;
+            $remainingBytes = $planLimitBytes === null ? null : max(0, $planLimitBytes - $totalUsed);
 
             // Include rollover bytes when applicable (same-duration rule)
             $rolloverBytes = (int) ($user->rollover_available_bytes ?? 0);

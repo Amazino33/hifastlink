@@ -355,9 +355,7 @@ class CaptiveAuth extends Component
             }
 
             if (! $voucher->is_unlimited && $plan->data_limit) {
-                $limitBytes = $plan->limit_unit === 'GB'
-                    ? (int) ($plan->data_limit * 1073741824)
-                    : (int) ($plan->data_limit * 1048576);
+                $limitBytes = $plan->data_limit_bytes;
                 $gigawords = (int) ($limitBytes / 4294967296);
                 $totalLimit = $limitBytes - ($gigawords * 4294967296);
                 RadReply::updateOrCreate(

@@ -568,14 +568,8 @@ class PaymentController extends Controller
             $rolloverData = $user->calculateRolloverFor($plan);
         }
 
-        // Convert plan limit to bytes (support GB/MB/Unlimited)
-        if ($plan->limit_unit === 'Unlimited') {
-            $planBytes = null;
-        } elseif ($plan->limit_unit === 'GB') {
-            $planBytes = (int) ($plan->data_limit * 1073741824);
-        } else {
-            $planBytes = (int) ($plan->data_limit * 1048576);
-        }
+        // Convert plan limit to bytes (support TB/GB/MB/Unlimited)
+        $planBytes = $plan->data_limit_bytes;
 
         $user->plan_id = $plan->id;
         $user->data_used = 0;

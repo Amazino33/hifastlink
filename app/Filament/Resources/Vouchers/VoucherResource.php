@@ -25,7 +25,7 @@ class VoucherResource extends Resource
 
     protected static bool $shouldRegisterNavigation = false;
 
-    protected static ?string $recordTitleAttribute = 'name';
+    protected static ?string $recordTitleAttribute = 'code';
 
     public static function form(Schema $schema): Schema
     {

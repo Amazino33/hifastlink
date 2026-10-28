@@ -225,9 +225,7 @@ class AuthenticatedSessionController extends Controller
                             $refPlan = $storedVoucher->plan ?? $storedVoucher->creator?->plan;
                             $planLimitMb = null;
                             if ($refPlan && $refPlan->limit_unit !== 'Unlimited' && $refPlan->data_limit) {
-                                $planLimitMb = $refPlan->limit_unit === 'GB'
-                                    ? (int) ($refPlan->data_limit * 1024)
-                                    : (int) $refPlan->data_limit;
+                                $planLimitMb = $refPlan->data_limit_bytes ? (int) ($refPlan->data_limit_bytes / 1048576) : null;
                             }
                             $limitMb = $storedVoucher->data_limit_mb ?? $planLimitMb;
                             if ($limitMb) {
@@ -522,13 +520,8 @@ class AuthenticatedSessionController extends Controller
         // NOT radcheck (which FreeRADIUS sqlcounter would treat as a cumulative shared cap
         // across all devices using this username, blocking device 4+ once the total is hit).
         if (! $voucher->is_unlimited) {
-            $planLimitBytes = null;
             $refPlan = $voucher->plan ?? $familyHead?->plan;
-            if ($refPlan && $refPlan->limit_unit !== 'Unlimited' && $refPlan->data_limit) {
-                $planLimitBytes = $refPlan->limit_unit === 'GB'
-                    ? (int) ($refPlan->data_limit * 1073741824)
-                    : (int) ($refPlan->data_limit * 1048576);
-            }
+            $planLimitBytes = $refPlan?->data_limit_bytes;
             // voucher->data_limit_mb is always stored in MB; plan bytes already computed above
             $limitBytes = $voucher->data_limit_mb
                 ? (int) ($voucher->data_limit_mb * 1048576)

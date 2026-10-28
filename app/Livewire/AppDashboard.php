@@ -356,8 +356,7 @@ class AppDashboard extends Component
         }
 
         // No active plan — activate immediately
-        $pval      = (int) $newPlan->data_limit;
-        $planBytes = $newPlan->limit_unit === 'Unlimited' ? null : ($pval > 1048576 ? $pval : ($newPlan->limit_unit === 'GB' ? $pval * 1073741824 : $pval * 1048576));
+        $planBytes = $newPlan->data_limit_bytes;
         $user->plan_id           = $newPlan->id;
         $user->data_limit        = $planBytes;
         $user->data_used         = 0;
@@ -498,14 +497,7 @@ class AppDashboard extends Component
         $rolloverBytes = $user->getRemainingDataAttribute();
         $plan          = $subscription->plan;
 
-        if ($plan->limit_unit === 'Unlimited') {
-            $planBytes = null;
-        } else {
-            $pval      = (int) $plan->data_limit;
-            $planBytes = $pval > 1048576
-                ? $pval
-                : ($plan->limit_unit === 'GB' ? (int) ($pval * 1073741824) : (int) ($pval * 1048576));
-        }
+        $planBytes = $plan->data_limit_bytes;
 
         $newLimit = is_null($planBytes) ? null : ($planBytes + ($rolloverBytes ?? 0));
 

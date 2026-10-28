@@ -239,7 +239,11 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
      */
     public function hasExceededDataLimit(): bool
     {
-        if (!$this->data_limit || (int) $this->data_limit === 0) {
+        if (is_null($this->data_limit)) {
+            return false; // Unlimited
+        }
+
+        if ((int) $this->data_limit === 0) {
             return false;
         }
 
@@ -253,9 +257,6 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $usedBytes >= $limitBytes;
     }
 
-    /**
-     * Get remaining data in bytes.
-     */
     /**
      * Convert stored data value to bytes using heuristic.
      * - null => null
@@ -283,8 +284,15 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $v;
     }
 
-    public function getRemainingDataAttribute(): int
+    /**
+     * Get remaining data in bytes. Returns null if unlimited.
+     */
+    public function getRemainingDataAttribute(): ?int
     {
+        if (is_null($this->data_limit)) {
+            return null;
+        }
+
         $limitBytes = $this->storedValueToBytes($this->data_limit);
         $usedBytes  = (int) $this->data_used;
 
@@ -336,10 +344,10 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     {
         // First, prefer user's active plan if it has remaining data or is unlimited
         if ($this->plan) {
-            $limitBytes = $this->storedValueToBytes($this->plan->data_limit);
-            $remaining = $this->remaining_data ?? 0;
+            $limitBytes = $this->plan->data_limit_bytes ?? $this->storedValueToBytes($this->plan->data_limit);
+            $remaining = $this->remaining_data;
 
-            if (is_null($limitBytes) || $remaining > 0) {
+            if (is_null($limitBytes) || is_null($remaining) || $remaining > 0) {
                 return $this->plan;
             }
         }
@@ -362,10 +370,10 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         $plan = $this->current_plan;
         if (! $plan) return 'inactive';
 
-        $limitBytes = $this->storedValueToBytes($plan->data_limit);
-        $remaining = $this->remaining_data ?? 0;
+        $limitBytes = $plan->data_limit_bytes ?? $this->storedValueToBytes($plan->data_limit);
+        $remaining = $this->remaining_data;
 
-        if (is_null($limitBytes)) {
+        if (is_null($limitBytes) || is_null($remaining)) {
             return 'active'; // Unlimited
         }
 

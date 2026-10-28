@@ -29,7 +29,8 @@ class CheckSubscriptionsExpiry extends Command
                 $leftover = $user->calculateRolloverFor($nextSubscription->plan);
 
                 $user->plan_id           = $nextSubscription->plan_id;
-                $user->data_limit        = $nextSubscription->plan->data_limit + $leftover;
+                $planBytes = $nextSubscription->plan->data_limit_bytes;
+                $user->data_limit        = $planBytes === null ? null : ($planBytes + $leftover);
                 $user->data_used         = 0;
                 $user->plan_expiry       = now()->addDays($nextSubscription->plan->validity_days ?? 0);
                 $user->plan_started_at   = now();

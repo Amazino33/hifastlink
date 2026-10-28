@@ -32,20 +32,34 @@ class SyncPlanAttributes extends Command
 
             $attributes = [];
 
-            // Data limit
+            // Data limit -> Mikrotik-Total-Limit (bytes) + Mikrotik-Total-Limit-Gigawords
             if ($plan->limit_unit !== 'Unlimited' && $plan->data_limit) {
-                if ($plan->limit_unit === 'GB') {
+                if ($plan->limit_unit === 'TB') {
+                    $bytes = (int) ($plan->data_limit * 1099511627776);
+                } elseif ($plan->limit_unit === 'GB') {
                     $bytes = (int) ($plan->data_limit * 1073741824);
-                } else {
+                } else { // MB
                     $bytes = (int) ($plan->data_limit * 1048576);
                 }
+
+                $gigawords  = (int) ($bytes / 4294967296);
+                $totalLimit = $bytes - ($gigawords * 4294967296);
 
                 $attributes[] = [
                     'groupname' => $plan->name,
                     'attribute' => 'Mikrotik-Total-Limit',
                     'op' => ':=',
-                    'value' => (string) $bytes,
+                    'value' => (string) $totalLimit,
                 ];
+
+                if ($gigawords > 0) {
+                    $attributes[] = [
+                        'groupname' => $plan->name,
+                        'attribute' => 'Mikrotik-Total-Limit-Gigawords',
+                        'op' => ':=',
+                        'value' => (string) $gigawords,
+                    ];
+                }
             }
 
             // Rate limit

@@ -43,9 +43,9 @@ class VoucherGenerationService
         $dataLimitMb = null;
 
         if (! $isUnlimited && $plan->data_limit) {
-            $dataLimitMb = $plan->limit_unit === 'GB'
-                ? (int) ($plan->data_limit * 1024)
-                : (int) $plan->data_limit;
+            $dataLimitMb = $plan->limit_unit === 'TB'
+                ? (int) ($plan->data_limit * 1048576)
+                : ($plan->limit_unit === 'GB' ? (int) ($plan->data_limit * 1024) : (int) $plan->data_limit);
         }
 
         $speedDownload = $plan->speed_limit_download ? (int) $plan->speed_limit_download : null;

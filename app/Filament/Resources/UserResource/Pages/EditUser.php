@@ -46,20 +46,26 @@ class EditUser extends EditRecord
             $record->syncRoles($formState['roles'] ?? []);
         }
 
-        // When admin assigns a NEW plan, calculate and apply data_limit properly.
-        // The form only sets plan_id + plan_expiry — we need to also set data_limit
-        // so RADIUS knows the quota. Without this, the user has a plan but 0 bytes.
+        // When admin assigns or updates a plan, calculate and apply data_limit properly.
         $newPlanId = (int) $record->plan_id;
-        if ($newPlanId && $newPlanId !== $this->originalPlanId) {
+        if ($newPlanId) {
             $plan = Plan::find($newPlanId);
             if ($plan) {
-                $planBytes = $this->planToBytes($plan);
+                $planBytes = $plan->data_limit_bytes;
 
-                $record->data_limit      = $planBytes;
-                $record->data_used       = 0;
-                $record->plan_started_at = $record->plan_started_at ?? now();
-                $record->connection_status = 'active';
-                $record->saveQuietly(); // skip observer re-fire
+                // Update data limit if new plan assigned, or if data_limit is missing/corrupted/outdated
+                $isPlanChanged = ($newPlanId !== $this->originalPlanId);
+                $isLimitInvalid = is_null($record->data_limit) || ($planBytes !== null && $record->data_limit < $planBytes && $record->data_limit <= 1048576);
+
+                if ($isPlanChanged || $isLimitInvalid) {
+                    $record->data_limit        = $planBytes;
+                    if ($isPlanChanged) {
+                        $record->data_used         = 0;
+                        $record->plan_started_at   = now();
+                    }
+                    $record->connection_status = 'active';
+                    $record->saveQuietly();
+                }
 
                 // Manually trigger RADIUS sync with fresh data
                 try {
@@ -74,11 +80,13 @@ class EditUser extends EditRecord
                     return;
                 }
 
-                Notification::make()
-                    ->title('Plan activated')
-                    ->body("{$plan->name} assigned. Data limit: " . ($planBytes ? Number::fileSize($planBytes) : 'Unlimited') . '.')
-                    ->success()
-                    ->send();
+                if ($isPlanChanged) {
+                    Notification::make()
+                        ->title('Plan activated')
+                        ->body("{$plan->name} assigned. Data limit: " . ($planBytes ? Number::fileSize($planBytes) : 'Unlimited') . '.')
+                        ->success()
+                        ->send();
+                }
             }
         }
     }
@@ -86,6 +94,49 @@ class EditUser extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('reset_usage_reactivate')
+                ->label('Reset Usage & Reactivate')
+                ->color('warning')
+                ->icon('heroicon-o-arrow-path')
+                ->requiresConfirmation()
+                ->modalHeading('Reset Data Usage & Reactivate Subscription')
+                ->modalDescription('This resets the user\'s data_used to 0, sets their data limit from the assigned plan, sets connection status to Active, and immediately re-syncs RADIUS credentials so they can reconnect to Wi-Fi.')
+                ->action(function () {
+                    $record = $this->record;
+                    if (! $record->plan) {
+                        Notification::make()
+                            ->title('No plan assigned')
+                            ->body('Please assign a plan to this user first before reactivating.')
+                            ->warning()
+                            ->send();
+                        return;
+                    }
+
+                    $planBytes = $record->plan->data_limit_bytes;
+                    $record->data_limit        = $planBytes;
+                    $record->data_used         = 0;
+                    $record->connection_status = 'active';
+                    $record->plan_started_at   = now();
+                    if (! $record->plan_expiry || $record->plan_expiry->isPast()) {
+                        $record->plan_expiry = now()->addDays($record->plan->validity_days ?? 30);
+                    }
+                    $record->save();
+
+                    try {
+                        PlanSyncService::syncUserPlan($record->fresh());
+                    } catch (\Throwable $e) {
+                        Log::error('Reset Usage & Reactivate RADIUS sync failed: ' . $e->getMessage());
+                    }
+
+                    Notification::make()
+                        ->title('Subscription Reactivated')
+                        ->body("Data used has been reset to 0. Limit is now " . ($planBytes ? Number::fileSize($planBytes) : 'Unlimited') . ". Expiry: " . $record->plan_expiry?->format('d M Y H:i'))
+                        ->success()
+                        ->send();
+
+                    $this->redirect($this->getResource()::getUrl('edit', ['record' => $record]));
+                }),
+
             // ── Verify a Paystack reference and activate the plan ──────────
             Action::make('verify_payment')
                 ->label('Activate by Receipt')
@@ -274,11 +325,6 @@ class EditUser extends EditRecord
 
     private function planToBytes(Plan $plan): ?int
     {
-        if ($plan->limit_unit === 'Unlimited' || ! $plan->data_limit) {
-            return null;
-        }
-        return $plan->limit_unit === 'GB'
-            ? (int) ($plan->data_limit * 1073741824)
-            : (int) ($plan->data_limit * 1048576);
+        return $plan->data_limit_bytes;
     }
 }

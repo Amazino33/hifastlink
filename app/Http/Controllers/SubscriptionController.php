@@ -43,15 +43,8 @@ class SubscriptionController extends Controller
             }
         }
 
-        // Convert plan limit to bytes (support GB/MB/Unlimited) - same as PaymentController
-        if ($plan->limit_unit === 'Unlimited') {
-            $planBytes = null;
-        } elseif ($plan->limit_unit === 'GB') {
-            $planBytes = (int) ($plan->data_limit * 1073741824);
-        } else {
-            // Default to MB
-            $planBytes = (int) ($plan->data_limit * 1048576);
-        }
+        // Convert plan limit to bytes (support TB/GB/MB/Unlimited)
+        $planBytes = $plan->data_limit_bytes;
         
         // Calculate new data limit with rollover
         $newDataLimit = $planBytes === null ? null : ($planBytes + $rolloverData);

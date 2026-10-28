@@ -31,7 +31,7 @@ class RadGroupReplyResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
-    protected static ?string $recordTitleAttribute = 'name';
+    protected static ?string $recordTitleAttribute = 'groupname';
 
     public static function form(Schema $schema): Schema
     {
@@ -65,7 +65,7 @@ class RadGroupReplyResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->recordTitleAttribute('name')
+            ->recordTitleAttribute('groupname')
             ->columns([
                 TextColumn::make('groupname')
                     ->label('Plan Name')
